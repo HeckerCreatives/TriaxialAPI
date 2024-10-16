@@ -28,7 +28,7 @@ exports.login = async (req, res) => {
     }
     
 
-    const userdata = await Users.findOne({email: email})
+    const userdata = await Users.findOne({email: { $regex: new RegExp('^' + email + '$', 'i') }})
     .then(data => data)
     .catch(err => {
         console.log(`There's a problem getting user data. Error ${err}`)
