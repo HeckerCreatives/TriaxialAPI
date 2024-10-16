@@ -95,8 +95,7 @@ exports.createemployee = async (req, res) => {
           {
             $and: [
               { firstname: { $regex: new RegExp(firstname, 'i') } }, 
-              { lastname: { $regex: new RegExp(lastname, 'i') } }, 
-              { initial: { $regex: new RegExp(initial, 'i') } }
+              { lastname: { $regex: new RegExp(lastname, 'i') } }
             ]
           },
           { contactno: contactnumber }
@@ -113,13 +112,15 @@ exports.createemployee = async (req, res) => {
         return res.status(400).json({message: "failed", data: "There's an existing user details already. Please use a different user credentials"})
     }
 
-    const user = Users.create({email: email, password: password, token: "", banddate: "", status: "active", auth: position})
+    const user = await Users.create({email: email, password: password, token: "", banddate: "", status: "active", auth: position})
     .then(data => data)
     .catch(err => {
         console.log(`There's a problem creating user login. Error ${err}`)
 
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
     });
+
+    console.log(user)
 
     await Userdetails.create({owner: new mongoose.Types.ObjectId(user._id), firstname: firstname, lastname: lastname, initial: initial, contactno: contactnumber, reportingto: new mongoose.Types.ObjectId(reportingto)})
     .catch(async err => {
