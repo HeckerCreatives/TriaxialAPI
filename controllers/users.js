@@ -139,7 +139,7 @@ exports.changepositionemployee = async (req, res) => {
 
     const {userids, position} = req.body
 
-    if (Array.isArray(userids)){
+    if (!Array.isArray(userids)){
         return res.status(400).json({message: "failed", data: "Invalid users"})
     }
 
