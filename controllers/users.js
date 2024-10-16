@@ -282,16 +282,16 @@ exports.managerlist = async (req, res) => {
         }
     ])
 
+    console.log(managers)
+
     const data = {
-        managerlist: {}
+        managerlist: []
     }
 
     managers.forEach(tempdata => {
         const {name} = tempdata
 
-        data.managerlist = {
-            name: tempdata
-        }
+        data.managerlist.push(name)
     })
 
     return res.json({message: "success", data: data})
