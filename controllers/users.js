@@ -4,6 +4,56 @@ const Userdetails = require("../models/Userdetails")
 
 //  #region SUPERADMIN
 
+exports.employeeliststats = async (req, res) => {
+    const {id, email} = req.user
+
+    const {positionfilter} = req.query
+
+    const result = await Users.aggregate([
+        {
+          $match: {
+            auth: positionfilter // Filter by auth role (e.g., employee, manager, etc.)
+          }
+        },
+        {
+          $facet: {
+            totalUsers: [{ $count: 'total' }], // Count total users with the given auth filter
+            activeUsers: [
+              { $match: { status: 'active' } }, // Filter for active users
+              { $count: 'total' }
+            ],
+            bannedUsers: [
+              { $match: { status: 'banned' } }, // Filter for banned users (you can adjust the banned status name)
+              { $count: 'total' }
+            ]
+          }
+        },
+        {
+          $project: {
+            totalUsers: { $arrayElemAt: ['$totalUsers.total', 0] }, // Access the count of total users
+            activeUsers: { $arrayElemAt: ['$activeUsers.total', 0] }, // Access the count of active users
+            bannedUsers: { $arrayElemAt: ['$bannedUsers.total', 0] }  // Access the count of banned users
+          }
+        }
+      ]);
+
+      const data = {
+        stats:{}
+      }
+
+      result.forEach(tempdata => {
+        const {totalUsers, activeUsers, bannedUsers} = tempdata
+
+        data["stats"] = {
+            totalUsers: totalUsers != null ? totalUsers : 0,
+            activeUsers: activeUsers != null ? activeUsers : 0,
+            bannedUsers: bannedUsers != null ? bannedUsers : 0
+        }
+      })
+
+      return res.json({message: "success", data: data})
+}
+
 exports.createemployee = async (req, res) => {
     const {id} = req.user
 
