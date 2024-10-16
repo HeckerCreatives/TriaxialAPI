@@ -257,4 +257,44 @@ exports.employeelist = async (req, res) => {
     return res.json({message: "success", data: data})
 }
 
+exports.managerlist = async (req, res) => {
+    const {id, email} = req.user
+
+    const managers = await Users.aggregate([
+        {
+            $match: {auth: "manager"} // Apply the dynamic auth filter if provided
+        },
+        {
+            $lookup: {
+                from: 'userdetails', // Collection name for the 'userDetails' schema
+                localField: '_id',
+                foreignField: 'owner',
+                as: 'details'
+            }
+        },
+        {
+            $unwind: '$details' // Deconstruct the 'details' array to a single object
+        },
+        {
+            $project: {
+                name: { $concat: ['$details.firstname', ' ', '$details.lastname'] },
+            }
+        }
+    ])
+
+    const data = {
+        managerlist: {}
+    }
+
+    managers.forEach(tempdata => {
+        const {name} = tempdata
+
+        data.managerlist = {
+            name: tempdata
+        }
+    })
+
+    return res.json({message: "success", data: data})
+}
+
 //  #endregion
