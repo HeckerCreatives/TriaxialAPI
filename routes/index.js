@@ -3,6 +3,7 @@ const routers = app => {
 
     app.use("/auth", require("./auth"))
     app.use("/users", require("./users"))
+    app.use("/teams", require("./teams"))
 }
 
 module.exports = routers

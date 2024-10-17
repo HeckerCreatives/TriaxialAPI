@@ -299,4 +299,42 @@ exports.managerlist = async (req, res) => {
     return res.json({message: "success", data: data})
 }
 
+exports.employeesearchlist = async (req, res) => {
+    const {id, email} = req.user
+
+    const managers = await Users.aggregate([
+        {
+            $lookup: {
+                from: 'userdetails', // Collection name for the 'userDetails' schema
+                localField: '_id',
+                foreignField: 'owner',
+                as: 'details'
+            }
+        },
+        {
+            $unwind: '$details' // Deconstruct the 'details' array to a single object
+        },
+        {
+            $project: {
+                name: { $concat: ['$details.firstname', ' ', '$details.lastname'] },
+            }
+        }
+    ])
+
+    const data = {
+        employeelist: []
+    }
+
+    managers.forEach(tempdata => {
+        const {_id, name} = tempdata
+
+        data.managerlist.push({
+            employeeid: _id,
+            name: name
+        })
+    })
+
+    return res.json({message: "success", data: data})
+}
+
 //  #endregion
