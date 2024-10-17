@@ -328,7 +328,7 @@ exports.employeesearchlist = async (req, res) => {
     managers.forEach(tempdata => {
         const {_id, name} = tempdata
 
-        data.managerlist.push({
+        data.employeelist.push({
             employeeid: _id,
             name: name
         })
