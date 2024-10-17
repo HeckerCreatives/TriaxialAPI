@@ -101,12 +101,8 @@ exports.listteam = async (req, res) => {
             }
           },
         },
-        {
-            $skip: (pageOptions.page - 1) * pageOptions.limit // Skip documents for pagination
-        },
-        {
-            $limit: pageOptions.limit // Limit the number of results to the page size
-        }
+        { $skip: pageOptions.page * pageOptions.limit },
+        { $limit: pageOptions.limit }
       ]);
 
       const totalTeams = await Teams.countDocuments(matchStage);
@@ -128,6 +124,33 @@ exports.listteam = async (req, res) => {
       })
 
       return res.json({message: "success", data: data})
+}
+
+exports.teamsearchlist = async (req, res) => {
+    const {id, email} = req.user
+
+    const teams = await Teams.find()
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem with getting the teams list. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    const data = {
+        teamlist: []
+    }
+
+    teams.forEach(tempdata => {
+        const {_id, teamname} = tempdata
+
+        data.teamlist.push({
+            teamid: _id,
+            teamname: teamname
+        })
+    })
+
+    return res.json({message: "success", data: data})
 }
 
 //  #endregion
