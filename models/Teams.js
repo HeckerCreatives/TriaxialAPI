@@ -13,7 +13,8 @@ const TeamsSchema = new mongoose.Schema(
             type: String
         },
         manager: {
-            type: String
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Users',
         },
         teamleader: {
             type: mongoose.Schema.Types.ObjectId,

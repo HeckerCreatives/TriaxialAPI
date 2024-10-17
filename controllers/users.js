@@ -261,6 +261,17 @@ exports.employeelist = async (req, res) => {
 exports.managerlist = async (req, res) => {
     const {id, email} = req.user
 
+    const {fullname} = req.query
+
+    const matchStage = {};
+
+    if (fullname) {
+        matchStage['$or'] = [
+            { 'details.firstname': { $regex: fullname, $options: 'i' } },
+            { 'details.lastname': { $regex: fullname, $options: 'i' } }
+        ];
+    }
+
     const managers = await Users.aggregate([
         {
             $match: {auth: "manager"} // Apply the dynamic auth filter if provided
@@ -275,6 +286,9 @@ exports.managerlist = async (req, res) => {
         },
         {
             $unwind: '$details' // Deconstruct the 'details' array to a single object
+        },
+        {
+            $match: matchStage // Apply the match stage if fullname is provided
         },
         {
             $project: {
@@ -302,6 +316,17 @@ exports.managerlist = async (req, res) => {
 exports.employeesearchlist = async (req, res) => {
     const {id, email} = req.user
 
+    const {fullname} = req.query
+
+    const matchStage = {};
+
+    if (fullname) {
+        matchStage['$or'] = [
+            { 'details.firstname': { $regex: fullname, $options: 'i' } },
+            { 'details.lastname': { $regex: fullname, $options: 'i' } }
+        ];
+    }
+
     const managers = await Users.aggregate([
         {
             $lookup: {
@@ -315,11 +340,15 @@ exports.employeesearchlist = async (req, res) => {
             $unwind: '$details' // Deconstruct the 'details' array to a single object
         },
         {
+            $match: matchStage // Apply the match stage if fullname is provided
+        },
+        {
             $project: {
-                name: { $concat: ['$details.firstname', ' ', '$details.lastname'] },
+                _id: 1, // Keep the employee _id
+                name: { $concat: ['$details.firstname', ' ', '$details.lastname'] }, // Combine first and last name
             }
         }
-    ])
+    ]);
 
     const data = {
         employeelist: []
