@@ -7,10 +7,19 @@ const WellnessdaySchema = new mongoose.Schema(
             ref: 'Users',
             index: true
         },
-        requestdate:{
-            type: String,
-            index: true
-        }
+        type: {
+            type: Number
+        },
+        details:{
+            type: String
+        },
+        leavestart: {
+            type: String
+        },
+        leaveend: {
+            type: String
+        },
+        
     },
     {
         timestamps: true
