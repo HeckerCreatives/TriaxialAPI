@@ -215,18 +215,197 @@ exports.deleteteams = async (req, res) => {
         return res.status(400).json({ message: 'No teams found to delete' });
     }
 
+    const teamids = []
+
+    teamId.forEach(tempdata => {
+        teamids.push(new mongoose.Types.ObjectId(tempdata))
+    })
+
     // Step 1: Remove each team from any events that reference it
     await Event.updateMany(
-        { teams: { $in: teamId } }, // Find events where any of the teams are referenced
-        { $pull: { teams: { $in: teamId } } } // Remove all teams from the 'teams' array
+        { teams: { $in: teamids } }, // Find events where any of the teams are referenced
+        { $pull: { teams: { $in: teamids } } } // Remove all teams from the 'teams' array
     );
 
     await Clients.updateMany(
-        { teams: { $in: teamId } }, // Find events where any of the teams are referenced
-        { $pull: { teams: { $in: teamId } } } // Remove all teams from the 'teams' array
+        { teams: { $in: teamids } }, // Find events where any of the teams are referenced
+        { $pull: { teams: { $in: teamids } } } // Remove all teams from the 'teams' array
     );
 
     return res.json({message: "success"});
 };
+
+exports.teamdata = async (req, res) => {
+    const { id, email } = req.user;
+    const { teamid } = req.query;
+
+    if (!teamid) {
+        return res.status(400).json({ message: "failed", data: "Select a team first!" });
+    }
+
+    const team = await Teams.aggregate([
+        {
+            $match: { _id: new mongoose.Types.ObjectId(teamid) },
+        },
+        {
+            $lookup: {
+                from: 'users', // Collection name of the Users schema
+                localField: 'manager',
+                foreignField: '_id',
+                as: 'managerData',
+            },
+        },
+        {
+            $unwind: '$managerData', // Unwind the managerData array to get a single object
+        },
+        {
+            $lookup: {
+                from: 'userdetails', // Collection name of the userDetails schema
+                localField: 'managerData._id',
+                foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+                as: 'managerDetails',
+            },
+        },
+        {
+            $unwind: '$managerDetails', // Unwind the managerDetails array to get a single object
+        },
+        {
+            $lookup: {
+                from: 'users', // Collection name of the Users schema
+                localField: 'teamleader',
+                foreignField: '_id',
+                as: 'teamleaderData',
+            },
+        },
+        {
+            $unwind: '$teamleaderData', // Unwind the teamleaderData array to get a single object
+        },
+        {
+            $lookup: {
+                from: 'userdetails', // Collection name of the userDetails schema
+                localField: 'teamleaderData._id',
+                foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+                as: 'teamleaderDetails',
+            },
+        },
+        {
+            $unwind: '$teamleaderDetails', // Unwind the teamleaderDetails array to get a single object
+        },
+        {
+            $lookup: {
+                from: 'users', // Collection name of the Users schema
+                localField: 'members',
+                foreignField: '_id',
+                as: 'membersData',
+            },
+        },
+        {
+            $lookup: {
+                from: 'userdetails', // Collection name of the userDetails schema
+                localField: 'membersData._id',
+                foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+                as: 'membersDetails',
+            },
+        },
+        {
+            $project: {
+                _id: 1, // Include the team ID
+                teamname: 1, // Include the team name
+                directorpartner: 1,
+                associate: 1,
+                manager: {
+                    fullname: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] },
+                    managerid: '$managerDetails.owner'
+                },
+                teamleader: {
+                    fullname: { $concat: ['$teamleaderDetails.firstname', ' ', '$teamleaderDetails.lastname'] },
+                    teamleaderid: '$teamleaderDetails.owner'
+                },
+                members: {
+                    $map: {
+                        input: '$membersDetails', // Use the membersDetails array
+                        as: 'member',
+                        in: {
+                            fullname: { $concat: ['$$member.firstname', ' ', '$$member.lastname'] },
+                            memberid: '$$member.owner'
+                        }
+                    }
+                },
+            },
+        }
+    ]);
+
+    if (!team[0]) {
+        return res.status(400).json({ message: "failed", data: "Selected team does not exist" });
+    }
+
+    const data = {
+        teamid: "",
+        teamname: "",
+        directorpartner: "",
+        associate: "",
+        manager: {},
+        teamleader: {},
+        members: []
+    };
+
+    team.forEach(tempdata => {
+        const { _id, teamname, directorpartner, associate, manager, teamleader, members } = tempdata;
+
+        data.teamid = _id;
+        data.teamname = teamname;
+        data.directorpartner = directorpartner;
+        data.associate = associate;
+        data.manager = manager;
+        data.teamleader = teamleader;
+        data.members = members;
+    });
+
+    return res.json({ message: "success", data: data });
+};
+
+exports.editteam = async (req, res) => {
+    const {teamid, teamname, directorpartner, associate, manager, teamleader, members} = req.body
+
+    if (!teamid){
+        return res.status(400).json({message: "failed", data: "Select a team first!"})
+    }
+    else if (!teamname){
+        return res.status(400).json({message: "failed", data: "Enter a team name first!"})
+    }
+    else if (!directorpartner){
+        return res.status(400).json({message: "failed", data: "Enter a director partner first!"})
+    }
+    else if (!associate){
+        return res.status(400).json({message: "failed", data: "Enter an associate first!"})
+    }
+    else if (!manager){
+        return res.status(400).json({message: "failed", data: "Select a manager first!"})
+    }
+    else if (!teamleader){
+        return res.status(400).json({message: "failed", data: "Select a team leader first!"})
+    }
+    else if (!members){
+        return res.status(400).json({message: "failed", data: "Select one or more members!"})
+    }
+    else if (Array.isArray(members)){
+        return res.status(400).json({message: "failed", data: "Members selected is invalid!"})
+    }
+
+    const memberlist = []
+
+    members.forEach(tempdata => {
+        memberlist.push(new mongoose.Types.ObjectId(tempdata))
+    })
+
+    await Teams.findOneAndUpdate({_id: new mongoose.Types.ObjectId(teamid)}, {teamname: teamname, directorpartner: directorpartner, associate: associate, manager: new mongoose.Types.ObjectId(manager), teamleader: new mongoose.Types.ObjectId(teamleader), members: memberlist})
+    .catch(err => {
+        console.log(`There's a problem editing the team ${teamname}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    return res.json({message: "success"})
+}
 
 //  #endregion

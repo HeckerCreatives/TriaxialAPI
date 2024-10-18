@@ -414,4 +414,30 @@ exports.employeesearchlist = async (req, res) => {
     return res.json({message: "success", data: data})
 }
 
+exports.banemployees = async (req, res) => {
+    const {id, email} = req.user
+
+    const {employeeid} = req.body
+
+    if (!employeeid){
+        return res.status(400).json({message: "failed", data: "Please select one or more employee first"})
+    }
+    else if (!Array.isArray(employeeid)){
+        return res.status(400).json({message: "failed", data: "Invalid selected employee"})
+    }
+
+    const userids = []
+
+    employeeid.forEach(tempdata => {
+        userids.push(new mongoose.Types.ObjectId(tempdata))
+    })
+
+    await Users.updateMany(
+        { _id: { $in: userids } }, // Find events where any of the teams are referenced
+        { $set: { status: "banned", bandate: new Date(), token: "" } } // Remove all teams from the 'teams' array
+    );
+
+    return res.json({message: "success"})
+}
+
 //  #endregion
