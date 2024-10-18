@@ -15,10 +15,12 @@ const TeamsSchema = new mongoose.Schema(
         manager: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Users',
+            index: true
         },
         teamleader: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Users',
+            index: true
         },
         members: [{
             type: mongoose.Schema.Types.ObjectId,

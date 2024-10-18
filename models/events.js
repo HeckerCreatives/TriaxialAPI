@@ -7,10 +7,12 @@ const EventSchema = new mongoose.Schema(
             index: true
         },
         startdate: {
-            type: String
+            type: String,
+            index: true
         },
         enddate: {
-            type: String
+            type: String,
+            index: true
         },
         teams: [{
             type: mongoose.Schema.Types.ObjectId,

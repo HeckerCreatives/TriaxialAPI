@@ -1,4 +1,91 @@
+const { default: mongoose } = require("mongoose");
 const Events = require("../models/events")
+const Teams = require("../models/Teams")
+
+const moment = require('moment');
+
+//  #region USERS
+
+exports.geteventsusers = async (req, res) => {
+    const {id, email} = req.user
+
+    const teams = await Teams.find({members: new mongoose.Types.ObjectId(id)})
+
+    if (teams.length <= 0){
+        return res.staus(400).json({message: "failed", data: "The user doesn't have any team"})
+    }
+
+    const userteams = []
+
+    teams.forEach(tempdata => {
+        const {_id} = tempdata
+
+        userteams.push(new mongoose.Types.ObjectId(_id))
+    })
+
+    const today = moment().format('YYYY-MM-DD'); // Format current date as YYYY-MM-DD
+
+    const currentEvents = await Event.find({
+        startdate: { $lte: today }, // Events that have started before or on today
+        enddate: { $gte: today }, // Events that end on or after today
+        teams: userteams
+    })
+    .populate({
+        path: "teams",
+        select: "teamname"
+    });
+
+    // Query for upcoming events
+    const upcomingEvents = await Event.find({
+        startdate: { $gt: today }, // Events that start after today
+        teams: userteams
+    })
+    .populate({
+        path: "teams",
+        select: "teamname"
+    })
+    .sort({ startdate: 1 }); // Sort upcoming events by startdate in ascending order
+
+    const data = {
+        current: {},
+        upcoming: {}
+    }
+
+    let currentindex = 0;
+
+    currentEvents.forEach(tempdata => {
+        const {eventtitle, startdate, enddate, teams} = tempdata
+
+        data.current[currentindex] = {
+            title: eventtitle,
+            start: startdate,
+            end: enddate,
+            teams: teams
+        }
+
+        currentindex++
+    })
+
+    let upcomingindex = 0
+
+    upcomingEvents.forEach(tempdata => {
+        const {eventtitle, startdate, enddate, teams} = tempdata
+
+        data.upcoming[upcomingindex] = {
+            title: eventtitle,
+            start: startdate,
+            end: enddate,
+            teams: teams
+        }
+
+        upcomingindex++
+    })
+
+    return res.json({message: "success", data: data})
+}
+
+//  #endregion
+
 
 //  #region SUPERADMIN
 
@@ -80,6 +167,66 @@ exports.listevents = async (req, res) => {
             enddate: enddate,
             teams: teams
         })
+    })
+
+    return res.json({message: "success", data: data})
+}
+
+exports.getevents = async (req, res) => {
+    const today = moment().format('YYYY-MM-DD'); // Format current date as YYYY-MM-DD
+
+    const currentEvents = await Event.find({
+        startdate: { $lte: today }, // Events that have started before or on today
+        enddate: { $gte: today } // Events that end on or after today
+    })
+    .populate({
+        path: "teams",
+        select: "teamname"
+    });
+
+    // Query for upcoming events
+    const upcomingEvents = await Event.find({
+        startdate: { $gt: today } // Events that start after today
+    })
+    .populate({
+        path: "teams",
+        select: "teamname"
+    })
+    .sort({ startdate: 1 }); // Sort upcoming events by startdate in ascending order
+
+    const data = {
+        current: {},
+        upcoming: {}
+    }
+
+    let currentindex = 0;
+
+    currentEvents.forEach(tempdata => {
+        const {eventtitle, startdate, enddate, teams} = tempdata
+
+        data.current[currentindex] = {
+            title: eventtitle,
+            start: startdate,
+            end: enddate,
+            teams: teams
+        }
+
+        currentindex++
+    })
+
+    let upcomingindex = 0
+
+    upcomingEvents.forEach(tempdata => {
+        const {eventtitle, startdate, enddate, teams} = tempdata
+
+        data.upcoming[upcomingindex] = {
+            title: eventtitle,
+            start: startdate,
+            end: enddate,
+            teams: teams
+        }
+
+        upcomingindex++
     })
 
     return res.json({message: "success", data: data})
