@@ -25,7 +25,7 @@ exports.geteventsusers = async (req, res) => {
 
     const today = moment().format('YYYY-MM-DD'); // Format current date as YYYY-MM-DD
 
-    const currentEvents = await Event.find({
+    const currentEvents = await Events.find({
         startdate: { $lte: today }, // Events that have started before or on today
         enddate: { $gte: today }, // Events that end on or after today
         teams: userteams
@@ -175,7 +175,7 @@ exports.listevents = async (req, res) => {
 exports.getevents = async (req, res) => {
     const today = moment().format('YYYY-MM-DD'); // Format current date as YYYY-MM-DD
 
-    const currentEvents = await Event.find({
+    const currentEvents = await Events.find({
         startdate: { $lte: today }, // Events that have started before or on today
         enddate: { $gte: today } // Events that end on or after today
     })
@@ -185,7 +185,7 @@ exports.getevents = async (req, res) => {
     });
 
     // Query for upcoming events
-    const upcomingEvents = await Event.find({
+    const upcomingEvents = await Events.find({
         startdate: { $gt: today } // Events that start after today
     })
     .populate({
