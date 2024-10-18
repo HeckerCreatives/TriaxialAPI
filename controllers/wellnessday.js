@@ -44,8 +44,8 @@ exports.wellnessdaylistrequest = async (req, res) => {
     const {page, limit, fullnamefilter} = req.query
 
     const pageOptions = {
-        page: parseInt(page, 10) || 1,
-        limit: parseInt(limit, 10) || 10
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10
     };
 
     const searchStage = {};
