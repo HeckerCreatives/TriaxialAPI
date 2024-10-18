@@ -60,7 +60,7 @@ exports.listteam = async (req, res) => {
   // Filter by team name if provided
   const matchStage = {};
   if (teamnamefilter) {
-      matchStage['teamname'] = teamnamefilter;
+      matchStage['teamname'] = { $regex: teamnamefilter, $options: 'i' };
   }
 
   try {
@@ -161,7 +161,6 @@ exports.listteam = async (req, res) => {
       return res.status(500).json({ message: 'Error fetching teams', error });
   }
 };
-
 
 exports.teamsearchlist = async (req, res) => {
     const {id, email} = req.user
