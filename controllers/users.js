@@ -160,7 +160,7 @@ exports.changepositionemployee = async (req, res) => {
 }
 
 exports.employeelist = async (req, res) => {
-    const { positionfilter, page, limit } = req.query;
+    const { positionfilter, page, limit, fullnamefilter } = req.query;
 
     const pageOptions = {
         page: parseInt(page) || 0,
@@ -168,8 +168,19 @@ exports.employeelist = async (req, res) => {
     };
 
     const matchStage = {};
+    const fullnameMatchStage = {}
     if (positionfilter) {
       matchStage['auth'] = positionfilter;
+    }
+
+    // Add search filter for first name, last name, or combined
+    if (fullnamefilter) {
+        const searchRegex = new RegExp(fullnamefilter, 'i'); // 'i' for case-insensitive search
+        fullnameMatchStage.$or = [
+            { 'details.firstname': { $regex: fullnamefilter, $options: 'i' } },
+            { 'details.lastname': { $regex: fullnamefilter, $options: 'i' } },
+            { $expr: { $regexMatch: { input: { $concat: ['$details.firstname', ' ', '$details.lastname'] }, regex: fullnamefilter, options: 'i' } } } // Search for first + last name
+        ];
     }
 
     const employees = await Users.aggregate([
@@ -186,6 +197,9 @@ exports.employeelist = async (req, res) => {
         },
         {
             $unwind: '$details' // Deconstruct the 'details' array to a single object
+        },
+        {
+            $match: fullnameMatchStage // Apply the dynamic auth filter if provided
         },
         {
             $lookup: {
@@ -250,8 +264,23 @@ exports.employeelist = async (req, res) => {
         { $limit: pageOptions.limit }
     ]);
 
-    const total = await Users.countDocuments(matchStage); // Count based on filter
-    const totalPages = Math.ceil(total / limit);
+    // Combine matchStage and fullnameMatchStage for counting the total number of documents
+    const combinedMatchStage = { $and: [matchStage, fullnameMatchStage] };
+
+    const total = await Users.aggregate([
+        { $match: matchStage },
+        { $lookup: {
+            from: 'userdetails',
+            localField: '_id',
+            foreignField: 'owner',
+            as: 'details'
+        }},
+        { $unwind: '$details' },
+        { $match: fullnameMatchStage },
+        { $count: 'total' }
+    ]);
+
+    const totalPages = Math.ceil((total[0]?.total || 0) / pageOptions.limit);
 
     const data = {
         employeelist: [],
