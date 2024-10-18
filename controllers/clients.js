@@ -1,3 +1,4 @@
+const { default: mongoose } = require("mongoose")
 const Clients = require("../models/Clients")
 
 //  #region SUPERADMIN
@@ -100,6 +101,83 @@ exports.clientlist = async (req, res) => {
 
 
     return res.json({message: "success", data: data})
+}
+
+exports.deleteclients = async (req, res) => {
+    const { clientId } = req.body;
+
+    if (!clientId){
+        return res.status(400).json({message: "failed", data: "Please select a client"})
+    }
+    else if (!Array.isArray(clientId)){
+        return res.status(400).json({message: "failed", data: "Invalid selected clients"})
+    }
+
+    // Step 2: Delete all the teams provided in the array
+    const deletedclients = await Clients.deleteMany({ _id: { $in: clientId } });
+
+    if (deletedclients.deletedCount === 0) {
+        return res.status(400).json({ message: 'No clients found to delete' });
+    }
+
+    return res.json({message: "success"});
+};
+
+exports.getclientdata = async (req, res) => {
+    const {id, email} = req.user
+
+    const {clientid} = req.query
+
+    if (!clientid){
+        return res.status(400).json({message: "failed", data: "Please select a client"})
+    }
+
+    const client = await Clients.findOne({_id: new mongoose.Types.ObjectId(clientId)})
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem getting client data. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    const data = {
+        clientname: client.clientname,
+        priority: client.priority,
+        teams: client.teams
+    }
+
+    return res.json({message: "success", data: data})
+}
+
+exports.editclient = async (req, res) => {
+    const {id, email} = req.user
+
+    const {clientid, clientname, priority, teams} = req.body
+
+    if (!clientid){
+        return res.status(400).json({message: "failed", data: "Select a client first!"})
+    }
+    else if (!clientname){
+        return res.status(400).json({message: "failed", data: "Enter a client name first!"})
+    }
+    else if (!priority){
+        return res.status(400).json({message: "failed", data: "Select a priority first!"})
+    }
+    else if (!teams){
+        return res.status(400).json({message: "failed", data: "Select one or more teams!"})
+    }
+    else if (Array.isArray(teams)){
+        return res.status(400).json({message: "failed", data: "Team selected is invalid!"})
+    }
+
+    await Clients.findOneAndUpdate({_id: new mongoose.Types.ObjectId(clientid)}, {clientname: clientname, priority: priority, teams: teams})
+    .catch(err => {
+        console.log(`There's a problem editing clients ${clientid} ${clientname}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    return res.json({message: "success"})
 }
 
 //  #endregion
