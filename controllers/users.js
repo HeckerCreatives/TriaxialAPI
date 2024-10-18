@@ -160,12 +160,12 @@ exports.changepositionemployee = async (req, res) => {
 }
 
 exports.employeelist = async (req, res) => {
-    const {positionfilter, page, limit} = req.query
+    const { positionfilter, page, limit } = req.query;
 
     const pageOptions = {
         page: parseInt(page) || 0,
         limit: parseInt(limit) || 10
-    }
+    };
 
     const matchStage = {};
     if (positionfilter) {
@@ -198,34 +198,52 @@ exports.employeelist = async (req, res) => {
         {
             $unwind: { path: '$reportingDetails', preserveNullAndEmptyArrays: true } // reportingDetails might be null
         },
-        // {
-        //     $lookup: {
-        //     from: 'teams', // Assuming there's a collection for team names
-        //     localField: 'details.team', // Adjust according to your schema structure
-        //     foreignField: '_id',
-        //     as: 'teamInfo'
-        //     }
-        // },
-        // {
-        //     $unwind: { path: '$teamInfo', preserveNullAndEmptyArrays: true } // Team info can be null
-        // },
+        {
+            $lookup: {
+                from: 'teams', // Assuming there's a collection for team names
+                localField: 'details.owner', // Adjust according to your schema structure
+                foreignField: 'members',
+                as: 'teamInfo'
+            }
+        },
+        {
+            $group: {
+                _id: '$_id',
+                name: { $first: { $concat: ['$details.firstname', ' ', '$details.lastname'] } },
+                auth: { $first: "$auth" },
+                initial: { $first: '$details.initial' },
+                email: { $first: '$email' },
+                reportingTo: { 
+                    $first: {
+                        $cond: {
+                            if: { $and: ['$reportingDetails.firstname', '$reportingDetails.lastname'] },
+                            then: { $concat: ['$reportingDetails.firstname', ' ', '$reportingDetails.lastname'] },
+                            else: null
+                        }
+                    }
+                },
+                dateCreated: { $first: '$details.createdAt' },
+                status: { $first: '$status' },
+                teams: { $addToSet: '$teamInfo.teamname' } // Collect all team names into an array
+            }
+        },
         {
             $project: {
-                // employeeId: '$details._id', // Employee ID is the _id of userDetailsSchema
-                name: { $concat: ['$details.firstname', ' ', '$details.lastname'] },
-                auth: "$auth",
-                // teamName: '$teamInfo.name', // Assuming 'teamInfo.name' holds the team name
-                initial: '$details.initial',
-                email: '$email',
-                reportingTo: {
+                employeeId: '$_id',
+                name: 1,
+                auth: 1,
+                initial: 1,
+                email: 1,
+                reportingTo: 1,
+                dateCreated: 1,
+                status: 1,
+                teams: { 
                     $cond: {
-                        if: { $and: ['$reportingDetails.firstname', '$reportingDetails.lastname'] },
-                        then: { $concat: ['$reportingDetails.firstname', ' ', '$reportingDetails.lastname'] },
-                        else: null
+                        if: { $eq: [{ $size: '$teams' }, 0] }, 
+                        then: [""], 
+                        else: '$teams'
                     }
-                }, // You can also join on 'reportingto' for detailed info
-                dateCreated: '$details.createdAt',
-                status: '$status'
+                } // If no teams, provide an empty string
             }
         },
         { $skip: pageOptions.page * pageOptions.limit },
@@ -238,25 +256,26 @@ exports.employeelist = async (req, res) => {
     const data = {
         employeelist: [],
         totalpages: totalPages
-    }
+    };
 
     employees.forEach(tempdata => {
-        const {_id, name, initial, email, dateCreated, status, auth, reportingTo} = tempdata
+        const { employeeId, name, teams, initial, email, dateCreated, status, auth, reportingTo } = tempdata;
 
         data.employeelist.push({
-            employeeid: _id,
+            employeeid: employeeId,
             name: name,
+            teamname: teams.length ? teams.join(', ') : "", // Join team names into a single string
             initial: initial,
             email: email,
             dateCreated: dateCreated,
             status: status,
             auth: auth,
             reportingto: reportingTo == null ? "" : reportingTo
-        })
-    })
+        });
+    });
 
-    return res.json({message: "success", data: data})
-}
+    return res.json({ message: "success", data: data });
+};
 
 exports.managerlist = async (req, res) => {
     const {id, email} = req.user
