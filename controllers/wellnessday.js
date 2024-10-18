@@ -95,7 +95,7 @@ exports.wellnessdaylistrequest = async (req, res) => {
             $project: {
                 _id: 0,
                 wellnessdayId: '$_id',
-                requesteddate: 1,
+                requestdate: 1,
                 // Full name of the user
                 userFullName: {
                     $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']
@@ -121,14 +121,20 @@ exports.wellnessdaylistrequest = async (req, res) => {
         totalpages: Math.ceil(totallistcount / pageOptions.limit)
     }
 
+    const today = new Date();
+    const firstdayoftheweek = new Date(today);
+    const day = firstdayoftheweek.getDay(),  // Get the current day (0 for Sunday, 1 for Monday, etc.)
+    diff = firstdayoftheweek.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+
     wellnessDayData.forEach(tempdata => {
-        const {wellnessdayId, requesteddate, userFullName, reportingManagerFullName} = tempdata
+        const {wellnessdayId, requestdate, userFullName, reportingManagerFullName} = tempdata
 
         data.requestlist.push({
             requestid: wellnessdayId,
             manager: reportingManagerFullName,
             user: userFullName,
-            requestdate: requesteddate
+            requestdate: requestdate,
+            firstdayofwellnessdaycycle: new Date(firstdayoftheweek.setDate(diff)).toISOString().split('T')[0]
         })
     })
 
