@@ -67,7 +67,7 @@ exports.protectusers = async (req, res, next) => {
     try {
         const decodedToken = await verifyJWT(token);
 
-        if (decodedToken.auth != "employee" || decodedToken.auth != "manager" || decodedToken.auth != "hr" || decodedToken.auth != "finance"){
+        if (decodedToken.auth != "employee" && decodedToken.auth != "manager" && decodedToken.auth != "hr" && decodedToken.auth != "finance"){
             res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
             return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
         }
