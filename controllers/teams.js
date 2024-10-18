@@ -1,6 +1,7 @@
 const { default: mongoose } = require("mongoose")
 const Users = require("../models/Users")
 const Teams = require("../models/Teams")
+const Clients = require("../models/Clients")
 
 //  #region SUPERADMIN
 
@@ -196,5 +197,36 @@ exports.teamsearchlist = async (req, res) => {
 
     return res.json({message: "success", data: data})
 }
+
+exports.deleteteams = async (req, res) => {
+    const { teamId } = req.body;
+
+    if (!teamId){
+        return res.status(400).json({message: "failed", data: "Please select a team"})
+    }
+    else if (!Array.isArray(teamId)){
+        return res.status(400).json({message: "failed", data: "Invalid selected teams"})
+    }
+
+    // Step 2: Delete all the teams provided in the array
+    const deletedTeams = await Teams.deleteMany({ _id: { $in: teamId } });
+
+    if (deletedTeams.deletedCount === 0) {
+        return res.status(400).json({ message: 'No teams found to delete' });
+    }
+
+    // Step 1: Remove each team from any events that reference it
+    await Event.updateMany(
+        { teams: { $in: teamId } }, // Find events where any of the teams are referenced
+        { $pull: { teams: { $in: teamId } } } // Remove all teams from the 'teams' array
+    );
+
+    await Clients.updateMany(
+        { teams: { $in: teamId } }, // Find events where any of the teams are referenced
+        { $pull: { teams: { $in: teamId } } } // Remove all teams from the 'teams' array
+    );
+
+    return res.json({message: "success"});
+};
 
 //  #endregion
