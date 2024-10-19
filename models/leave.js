@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const WellnessdaySchema = new mongoose.Schema(
+const LeaveSchema = new mongoose.Schema(
     {
         owner: {
             type: mongoose.Schema.Types.ObjectId,
@@ -8,23 +8,32 @@ const WellnessdaySchema = new mongoose.Schema(
             index: true
         },
         type: {
-            type: Number
+            type: Number,
+            index: true
         },
         details:{
             type: String
         },
         leavestart: {
-            type: String
+            type: String,
+            index: true
         },
         leaveend: {
+            type: String,
+            index: true
+        },
+        comments: {
             type: String
         },
-        
+        status: {
+            type: String,
+            index: true
+        }
     },
     {
         timestamps: true
     }
 )
 
-const Wellnessday = mongoose.model("Wellnessday", WellnessdaySchema)
-module.exports = Wellnessday
+const Leave = mongoose.model("Leave", LeaveSchema)
+module.exports = Leave
