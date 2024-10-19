@@ -12,7 +12,7 @@ exports.geteventsusers = async (req, res) => {
     const teams = await Teams.find({members: new mongoose.Types.ObjectId(id)})
 
     if (teams.length <= 0){
-        return res.staus(400).json({message: "failed", data: "The user doesn't have any team"})
+        return res.status(400).json({message: "failed", data: "The user doesn't have any team"})
     }
 
     const userteams = []
