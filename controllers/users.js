@@ -440,4 +440,160 @@ exports.banemployees = async (req, res) => {
     return res.json({message: "success"})
 }
 
+exports.viewemployeedata = async (req, res) => {
+    const {id, email} = req.user
+
+    const {employeeid} = req.query
+
+    if (!employeeid){
+        return res.status(400).json({message: "failed", data: "Please select a employee first!"})
+    }
+
+    const employee = await Users.aggregate([
+        {
+            $match: { _id: new mongoose.Types.ObjectId(employeeid)}
+        },
+        {
+            $lookup: {
+                from: 'userdetails', // Collection name for the 'userDetails' schema
+                localField: '_id',
+                foreignField: 'owner',
+                as: 'details'
+            }
+        },
+        {
+            $unwind: '$details' // Deconstruct the 'details' array to a single object
+        },
+        {
+            $lookup: {
+                from: 'userdetails', // Collection name for the 'userDetails' schema
+                localField: 'details.reportingto',
+                foreignField: 'owner',
+                as: 'reportingto'
+            }
+        },
+        {
+            $unwind: '$reportingto' // Deconstruct the 'details' array to a single object
+        },
+        {
+            $project: {
+                _id: 1,
+                email: 1,
+                firstname: '$details.firstname',
+                lastname: '$details.lastname',
+                initial: '$details.initial',
+                contactno: '$details.contactno',
+                reportingto: {
+                    employeeid: '$reportingto.owner',
+                    firstname: '$reportingto.firstname',
+                    lastname: '$reportingto.lastname'
+                }
+            }
+        }
+    ])
+
+    if (!employee[0]){
+        return res.status(400).json({message: "failed", data: "Selected employee does not exist!"})
+    }
+
+    const data = {
+        employeeid: employee[0]._id,
+        email: employee[0].email,
+        firstname: employee[0].firstname,
+        lastname: employee[0].lastname,
+        initial: employee[0].initial,
+        contactno: employee[0].contactno,
+        reportingto: employee[0].reportingto
+    }
+
+    return res.json({message: "success", data: data})
+}
+
+exports.editemployees = async (req, res) => {
+    const {id} = req.user
+
+    const {employeeid, email, password, firstname, lastname, initial, contactno, reportingto} = req.body
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const withSpecialCharRegex = /^[A-Za-z0-9@/[\]#]+$/;
+
+    if (!employeeid){
+        return res.status(400).json({message: "failed", data: "Select a employee first!"})
+    }
+    else if (!email){
+        return res.status(400).json({message: "failed", data: "Enter an email first!"})
+    }
+    else if (!emailRegex.test(email)){
+        return res.status(400).json({message: "failed", data: "Please enter valid email!"})
+    }
+    else if (!firstname){
+        return res.status(400).json({message: "failed", data: "Enter an first name first!"})
+    }
+    else if (!lastname){
+        return res.status(400).json({message: "failed", data: "Enter an last name first!"})
+    }
+    else if (!initial){
+        return res.status(400).json({message: "failed", data: "Enter an initial first!"})
+    }
+    else if (!contactno){
+        return res.status(400).json({message: "failed", data: "Enter a contact no first!"})
+    }
+    else if (!reportingto){
+        return res.status(400).json({message: "failed", data: "Select a reporting to first!"})
+    }
+
+    const userloginupdate = {
+        email: email
+    }
+
+    if (password){
+        if (password.length < 5 || password.length > 20){
+            return res.status(400).json({message: "failed", data: "Password minimum of 5 characters up to 20 characters"})
+        }
+        else if (!withSpecialCharRegex.test(password)){
+            return res.status(400).json({message: "failed", data: "Only alphanumeric and selected special characters (@/[]#) only!"})
+        }
+
+        userloginupdate["password"] = password
+    }
+
+    const userdeets = await Userdetails.findOne({
+        $or: [
+          {
+            $and: [
+              { firstname: { $regex: new RegExp(firstname, 'i') } }, 
+              { lastname: { $regex: new RegExp(lastname, 'i') } }
+            ]
+          },
+          { contactno: contactno }
+        ]
+    })
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem getting user details. Error ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
+    });
+
+    if (userdeets){
+        return res.status(400).json({message: "failed", data: "There's an existing user details already. Please use a different user credentials"})
+    }
+
+    await Users.findOneAndUpdate({_id: new mongoose.Types.ObjectId(employeeid)}, userloginupdate)
+    .catch(err => {
+        console.log(`There's a problem saving user login data ${employeeid} ${email}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details"})
+    })
+
+    await Userdetails.findOneAndUpdate({owner: new mongoose.Types.ObjectId(employeeid)}, {firstname: firstname, lastname: lastname, initial: initial, contactno: contactno, reportingto: new mongoose.Types.ObjectId(reportingto)})
+    .catch(err => {
+        console.log(`There's a problem saving user details data ${employeeid} ${email}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details"})
+    })
+
+    return res.json({message: "success"})
+}
+
 //  #endregion
