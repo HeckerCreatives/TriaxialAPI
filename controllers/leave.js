@@ -2,6 +2,7 @@ const Leave = require("../models/leave")
 const Events = require("../models/events")
 const Wellnessday = require("../models/wellnessday")
 const Teams = require("../models/Teams")
+const Userdetails = require("../models/Userdetails")
 const moment = require("moment")
 const { default: mongoose } = require("mongoose")
 
@@ -178,6 +179,110 @@ exports.employeeleaverequestlist = async (req, res) => {
             startdate: leavestart,
             enddate: leaveend,
             status: status
+        })
+    })
+
+    return res.json({message: "success", data: data})
+}
+
+//  #endregion
+
+//  #region SUPERADMIN
+
+exports.superadminleaverequestlist = async (req, res) => {
+    const {id, email} = req.user
+    
+    const {employeenamefilter, status, page, limit} = req.body
+
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10,
+    };
+
+    const matchStage = {}
+
+    if (employeenamefilter){
+        matchStage['$or'] = [
+            { 'userDetails.firstname': { $regex: employeenamefilter, $options: 'i' } },
+            { 'userDetails.lastname': { $regex: employeenamefilter, $options: 'i' } }
+        ];
+    }
+
+    const requestlist = await Leave.aggregate([
+        {
+            $match: {status: status}
+        },
+        {
+            $lookup: {
+              from: 'users', // Collection name of the Users schema
+              localField: 'owner',
+              foreignField: '_id',
+              as: 'userData',
+            },
+        },
+        {
+            $unwind: '$userData', // Unwind the managerData array to get a single object
+        },
+        {
+            $lookup: {
+              from: 'userdetails', // Collection name of the userDetails schema
+              localField: 'userData._id',
+              foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+              as: 'userDetails',
+            },
+        },
+        {
+            $unwind: '$userDetails', // Unwind the managerDetails array to get a single object
+        },
+        {
+            $match: matchStage
+        },
+        {
+            $lookup: {
+              from: 'userdetails', // Collection name of the Users schema
+              localField: 'userDetails.reportingto',
+              foreignField: 'owner',
+              as: 'reportingToDetails',
+            },
+        },
+        {
+            $unwind: '$reportingToDetails', // Unwind the managerDetails array to get a single object
+        },
+        {
+            $project: {
+                _id: 1,
+                manager: { $concat: ['$reportingToDetails.firstname', ' ', '$reportingToDetails.lastname']},
+                status: 1,
+                employeename: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']},
+                type: 1,
+                leavestart: 1,
+                leaveend: 1
+            }
+        },
+        { $skip: pageOptions.page * pageOptions.limit },
+        { $limit: pageOptions.limit }
+    ])
+
+    const total = await Userdetails.countDocuments(matchStage)
+
+    const totalPages = Math.ceil((total[0]?.total || 0) / pageOptions.limit);
+
+    const data = {
+        requestlist: [],
+        totalpages: totalPages
+    }
+
+    requestlist.forEach(tempdata => {
+        const {_id, manager, status, employeename, type, leavestart, leaveend} = tempdata
+
+        data.requestlist.push({
+            requestid: _id,
+            manager: manager,
+            status: status,
+            name: employeename,
+            type: type,
+            leavestart: leavestart,
+            leaveend: leaveend
         })
     })
 
