@@ -132,7 +132,7 @@ exports.getclientdata = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Please select a client"})
     }
 
-    const client = await Clients.findOne({_id: new mongoose.Types.ObjectId(clientId)})
+    const client = await Clients.findOne({_id: new mongoose.Types.ObjectId(clientid)})
     .then(data => data)
     .catch(err => {
         console.log(`There's a problem getting client data. Error: ${err}`)
@@ -166,7 +166,7 @@ exports.editclient = async (req, res) => {
     else if (!teams){
         return res.status(400).json({message: "failed", data: "Select one or more teams!"})
     }
-    else if (Array.isArray(teams)){
+    else if (!Array.isArray(teams)){
         return res.status(400).json({message: "failed", data: "Team selected is invalid!"})
     }
 

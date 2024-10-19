@@ -36,7 +36,7 @@ exports.geteventsusers = async (req, res) => {
     });
 
     // Query for upcoming events
-    const upcomingEvents = await Event.find({
+    const upcomingEvents = await Events.find({
         startdate: { $gt: today }, // Events that start after today
         teams: userteams
     })

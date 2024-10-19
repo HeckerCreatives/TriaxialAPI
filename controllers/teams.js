@@ -1,6 +1,7 @@
 const { default: mongoose } = require("mongoose")
 const Users = require("../models/Users")
 const Teams = require("../models/Teams")
+const Events = require("../models/events")
 const Clients = require("../models/Clients")
 
 //  #region SUPERADMIN
@@ -28,7 +29,7 @@ exports.createteam = async (req, res) => {
     else if (members.length < 0){
         return res.status(400).json({message: "failed", data: "Please select 1 or more members"})
     }
-    else if (Array.isArray(members)){
+    else if (!Array.isArray(members)){
         return res.status(400).json({message: "failed", data: "Invalid users"})
     }
 
@@ -222,7 +223,7 @@ exports.deleteteams = async (req, res) => {
     })
 
     // Step 1: Remove each team from any events that reference it
-    await Event.updateMany(
+    await Events.updateMany(
         { teams: { $in: teamids } }, // Find events where any of the teams are referenced
         { $pull: { teams: { $in: teamids } } } // Remove all teams from the 'teams' array
     );
@@ -388,7 +389,7 @@ exports.editteam = async (req, res) => {
     else if (!members){
         return res.status(400).json({message: "failed", data: "Select one or more members!"})
     }
-    else if (Array.isArray(members)){
+    else if (!Array.isArray(members)){
         return res.status(400).json({message: "failed", data: "Members selected is invalid!"})
     }
 
