@@ -512,7 +512,7 @@ exports.viewemployeedata = async (req, res) => {
 exports.editemployees = async (req, res) => {
     const {id} = req.user
 
-    const {employeeid, email, password, firstname, lastname, initial, contactno, reportingto} = req.body
+    const {employeeid, email, password, firstname, lastname, initial, contactnumber, reportingto} = req.body
 
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     const withSpecialCharRegex = /^[A-Za-z0-9@/[\]#]+$/;
@@ -535,7 +535,7 @@ exports.editemployees = async (req, res) => {
     else if (!initial){
         return res.status(400).json({message: "failed", data: "Enter an initial first!"})
     }
-    else if (!contactno){
+    else if (!contactnumber){
         return res.status(400).json({message: "failed", data: "Enter a contact no first!"})
     }
     else if (!reportingto){
@@ -565,7 +565,7 @@ exports.editemployees = async (req, res) => {
               { lastname: { $regex: new RegExp(lastname, 'i') } }
             ]
           },
-          { contactno: contactno }
+          { contactno: contactnumber }
         ]
     })
     .then(data => data)
@@ -586,7 +586,7 @@ exports.editemployees = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details"})
     })
 
-    await Userdetails.findOneAndUpdate({owner: new mongoose.Types.ObjectId(employeeid)}, {firstname: firstname, lastname: lastname, initial: initial, contactno: contactno, reportingto: new mongoose.Types.ObjectId(reportingto)})
+    await Userdetails.findOneAndUpdate({owner: new mongoose.Types.ObjectId(employeeid)}, {firstname: firstname, lastname: lastname, initial: initial, contactno: contactnumber, reportingto: new mongoose.Types.ObjectId(reportingto)})
     .catch(err => {
         console.log(`There's a problem saving user details data ${employeeid} ${email}. Error: ${err}`)
 
