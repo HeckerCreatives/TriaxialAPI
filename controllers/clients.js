@@ -6,19 +6,13 @@ const Clients = require("../models/Clients")
 exports.createclients = async (req, res) => {
     const {id, email} = req.user
 
-    const {clientname, priority, teams} = req.body
+    const {clientname, priority} = req.body
 
     if (!clientname){
         return res.status(400).json({message: "failed", data: "Enter a client name first!"})
     }
     else if (!priority){
         return res.status(400).json({message: "failed", data: "Select a priority first!"})
-    }
-    else if (!teams){
-        return res.status(400).json({message: "failed", data: "Select one or more teams!"})
-    }
-    else if (Array.isArray(teams)){
-        return res.status(400).json({message: "failed", data: "Team selected is invalid!"})
     }
 
     const clients = await Clients.findOne({clientname: { $regex: clientname, $options: 'i' }})
@@ -33,7 +27,7 @@ exports.createclients = async (req, res) => {
         return res.status(400).json({message: "failed", data: "There's already an existing client. Please enter a different client!"})
     }
 
-    await Clients.create({clientname: clientname, priority: priority, teams: teams})
+    await Clients.create({clientname: clientname, priority: priority})
     .catch(err => {
         console.log(`There's a problem saving clients. Error ${err}`)
 
@@ -61,10 +55,6 @@ exports.clientlist = async (req, res) => {
     }
 
     const clients = await Clients.find(matchStage)
-    .populate({
-        path: "teams",
-        select: "teamname"
-    })
     .skip(pageOptions.page * pageOptions.limit)
     .limit(pageOptions.limit)
     .then(data => data)
@@ -88,13 +78,12 @@ exports.clientlist = async (req, res) => {
     }
 
     clients.forEach(tempdata => {
-        const {_id, clientname, priority, teams, createdAt} = tempdata
+        const {_id, clientname, priority, createdAt} = tempdata
 
         data.teamlist.push({
             teamid: _id,
             clientname: clientname,
             priority: priority,
-            teams: teams,
             createdAt: createdAt
         })
     })
@@ -142,8 +131,7 @@ exports.getclientdata = async (req, res) => {
 
     const data = {
         clientname: client.clientname,
-        priority: client.priority,
-        teams: client.teams
+        priority: client.priority
     }
 
     return res.json({message: "success", data: data})
@@ -152,7 +140,7 @@ exports.getclientdata = async (req, res) => {
 exports.editclient = async (req, res) => {
     const {id, email} = req.user
 
-    const {clientid, clientname, priority, teams} = req.body
+    const {clientid, clientname, priority} = req.body
 
     if (!clientid){
         return res.status(400).json({message: "failed", data: "Select a client first!"})
@@ -163,14 +151,8 @@ exports.editclient = async (req, res) => {
     else if (!priority){
         return res.status(400).json({message: "failed", data: "Select a priority first!"})
     }
-    else if (!teams){
-        return res.status(400).json({message: "failed", data: "Select one or more teams!"})
-    }
-    else if (!Array.isArray(teams)){
-        return res.status(400).json({message: "failed", data: "Team selected is invalid!"})
-    }
 
-    await Clients.findOneAndUpdate({_id: new mongoose.Types.ObjectId(clientid)}, {clientname: clientname, priority: priority, teams: teams})
+    await Clients.findOneAndUpdate({_id: new mongoose.Types.ObjectId(clientid)}, {clientname: clientname, priority: priority})
     .catch(err => {
         console.log(`There's a problem editing clients ${clientid} ${clientname}. Error: ${err}`)
 

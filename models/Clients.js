@@ -7,12 +7,7 @@ const ClientsSchema = new mongoose.Schema(
         },
         priority:{
             type: String
-        },
-        teams: [{
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Teams',
-            index: true
-        }]
+        }
     },
     {
         timestamps: true
