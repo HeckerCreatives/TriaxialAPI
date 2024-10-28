@@ -22,6 +22,21 @@ const LeaveSchema = new mongoose.Schema(
             type: String,
             index: true
         },
+        totalworkingdays: {
+            type: Number
+        },
+        totalpublicholidays: {
+            type: Number
+        },
+        wellnessdaycycle: {
+            type: Boolean
+        },
+        worknghoursonleave: {
+            type: Number
+        },
+        workinghoursduringleave: {
+            type: Number
+        },
         comments: {
             type: String
         },
