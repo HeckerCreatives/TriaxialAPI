@@ -31,7 +31,7 @@ const LeaveSchema = new mongoose.Schema(
         wellnessdaycycle: {
             type: Boolean
         },
-        worknghoursonleave: {
+        workinghoursonleave: {
             type: Number
         },
         workinghoursduringleave: {

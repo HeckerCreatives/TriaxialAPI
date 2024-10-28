@@ -115,7 +115,7 @@ exports.calculateleavedays = async (req, res) => {
 exports.requestleave = async (req, res) => {
     const {id, email} = req.user
 
-    const {leavetype, details, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, worknghoursonleave, workinghoursduringleave, comments} = req.body
+    const {leavetype, details, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, comments} = req.body
 
     if (!leavetype){
         return res.status(400).json({message: "failed", data: "Select a leave type first!"})
@@ -138,14 +138,14 @@ exports.requestleave = async (req, res) => {
     else if (!wellnessdaycycle){
         return res.status(400).json({message: "failed", data: "Select wellness day cycle!"})
     }
-    else if (!worknghoursonleave){
+    else if (!workinghoursonleave){
         return res.status(400).json({message: "failed", data: "Select your start and end date!"})
     }
     else if (!workinghoursduringleave){
         return res.status(400).json({message: "failed", data: "Enter Working hours during leave!"})
     }
 
-    await Leave.create({owner: new mongoose.Types.ObjectId(id), type: type, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, worknghoursonleave: worknghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments, status: "Pending"})
+    await Leave.create({owner: new mongoose.Types.ObjectId(id), type: type, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments, status: "Pending"})
     .catch(err => {
         console.log(`There's a problem creating leave request for ${id} ${email}. Error: ${err}`)
 
@@ -275,7 +275,7 @@ exports.superadminleaverequestlist = async (req, res) => {
                 totalworkingdays: 1,
                 totalpublicholidays: 1,
                 wellnessdaycycle: 1,
-                worknghoursonleave: 1,
+                workinghoursonleave: 1,
                 workinghoursduringleave: 1
             }
         },
@@ -293,7 +293,7 @@ exports.superadminleaverequestlist = async (req, res) => {
     }
 
     requestlist.forEach(tempdata => {
-        const {_id, manager, status, employeename, type, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, worknghoursonleave, workinghoursduringleave} = tempdata
+        const {_id, manager, status, employeename, type, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave} = tempdata
 
         data.requestlist.push({
             requestid: _id,
@@ -306,7 +306,7 @@ exports.superadminleaverequestlist = async (req, res) => {
             totalworkingdays: totalworkingdays,
             totalpublicholidays: totalpublicholidays,
             wellnessdaycycle: wellnessdaycycle,
-            worknghoursonleave: worknghoursonleave,
+            workinghoursonleave: workinghoursonleave,
             workinghoursduringleave: workinghoursduringleave
         })
     })
