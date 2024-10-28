@@ -129,19 +129,19 @@ exports.requestleave = async (req, res) => {
     else if (!leaveend){
         return res.status(400).json({message: "failed", data: "Select your end date!"})
     }
-    else if (!totalworkingdays){
+    else if (totalworkingdays == null){
         return res.status(400).json({message: "failed", data: "Select your start and end date!"})
     }
-    else if (!totalpublicholidays){
+    else if (totalpublicholidays == null){
         return res.status(400).json({message: "failed", data: "Enter public holiday!"})
     }
     else if (!wellnessdaycycle){
         return res.status(400).json({message: "failed", data: "Select wellness day cycle!"})
     }
-    else if (!workinghoursonleave){
+    else if (workinghoursonleave == null){
         return res.status(400).json({message: "failed", data: "Select your start and end date!"})
     }
-    else if (!workinghoursduringleave){
+    else if (workinghoursduringleave == null){
         return res.status(400).json({message: "failed", data: "Enter Working hours during leave!"})
     }
 
