@@ -1,5 +1,6 @@
 const { default: mongoose } = require("mongoose");
-const Wellnessday = require ("../models/wellnessday")
+const Wellnessday = require ("../models/wellnessday");
+const { listSearchIndexes } = require("../models/events");
 
 //  #region USERS
 
@@ -31,6 +32,64 @@ exports.wellnessdayrequest = async (req, res) => {
     });
 
     return res.json({message: "success"})
+}
+
+exports.requestlist = async (req, res) => {
+    const {id, username} = req.user
+    const {page, limit} = req.query
+
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10
+    }
+
+    const wellnessdayhistory = await Wellnessday.find({owner: new mongoose.Types.ObjectId(id)})
+    .skip(pageOptions.page * pageOptions.limit)
+    .limit(pageOptions.limit)
+    .sort({'createdAt': -1})
+    .then(data => data)
+    .catch(err => {
+        console.log(`${err}`)
+        return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details." })
+    })
+
+    console.log(wellnessdayhistory)
+
+    const totalPages = await Wellnessday.countDocuments({owner: new mongoose.Types.ObjectId(id)})
+    .then(data => data)
+    .catch(err => {
+
+        console.log(` ${username}, error: ${err}`)
+
+        return res.status(400).json({ message: 'failed', data: `There's a problem with your account. Please contact customer support for more details` })
+    })
+
+    const pages = Math.ceil(totalPages / pageOptions.limit)
+
+    const data = {
+        totalPages: pages,
+        history: []
+    }
+
+    const today = new Date();
+    const firstdayoftheweek = new Date(today);
+    const day = firstdayoftheweek.getDay(),  // Get the current day (0 for Sunday, 1 for Monday, etc.)
+    diff = firstdayoftheweek.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+
+    wellnessdayhistory.forEach(tempdata => {
+        const {wellnessdayId, requestdate, userFullName, reportingManagerFullName, createdAt} = tempdata
+
+        data.history.push({
+            createdAt: createdAt,
+            requestid: wellnessdayId,
+            manager: reportingManagerFullName,
+            user: userFullName,
+            requestdate: requestdate,
+            firstdayofwellnessdaycycle: new Date(firstdayoftheweek.setDate(diff)).toISOString().split('T')[0]
+        })
+    })
+
+    return res.json({message: "success", data: data})
 }
 
 //  #endregion
