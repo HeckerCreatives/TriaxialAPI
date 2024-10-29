@@ -129,23 +129,25 @@ exports.requestleave = async (req, res) => {
     else if (!leaveend){
         return res.status(400).json({message: "failed", data: "Select your end date!"})
     }
-    else if (totalworkingdays == null){
+    else if (totalworkingdays === 0){
         return res.status(400).json({message: "failed", data: "Select your start and end date!"})
     }
-    else if (totalpublicholidays == null){
+    else if (isNaN(totalpublicholidays)){
         return res.status(400).json({message: "failed", data: "Enter public holiday!"})
     }
-    else if (!wellnessdaycycle){
+    else if (wellnessdaycycle === null){
         return res.status(400).json({message: "failed", data: "Select wellness day cycle!"})
     }
-    else if (workinghoursonleave == null){
+    else if (workinghoursonleave === 0){
         return res.status(400).json({message: "failed", data: "Select your start and end date!"})
     }
-    else if (workinghoursduringleave == null){
+    else if (isNaN(workinghoursduringleave)){
         return res.status(400).json({message: "failed", data: "Enter Working hours during leave!"})
     }
 
-    await Leave.create({owner: new mongoose.Types.ObjectId(id), type: type, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments, status: "Pending"})
+    console.log(req.body)
+
+    await Leave.create({owner: new mongoose.Types.ObjectId(id), type: leavetype, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments, status: "Pending"})
     .catch(err => {
         console.log(`There's a problem creating leave request for ${id} ${email}. Error: ${err}`)
 
@@ -185,7 +187,7 @@ exports.employeeleaverequestlist = async (req, res) => {
     }
 
     requestlist.forEach(tempdata => {
-        const {_id, type, leavestart, leaveend, status} = tempdata
+        const {_id, type, leavestart, leaveend, status, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, comments} = tempdata
 
         data.requestlist.push({
             employeeid: id,
@@ -193,7 +195,14 @@ exports.employeeleaverequestlist = async (req, res) => {
             type: type,
             startdate: leavestart,
             enddate: leaveend,
-            status: status
+            status: status,
+            totalworkingdays: totalworkingdays,
+            totalpublicholidays: totalpublicholidays,
+            wellnessdaycycle: wellnessdaycycle,
+            workinghoursonleave: workinghoursonleave,
+            workinghoursduringleave: workinghoursduringleave,
+            comments: comments
+
         })
     })
 
@@ -207,7 +216,7 @@ exports.employeeleaverequestlist = async (req, res) => {
 exports.superadminleaverequestlist = async (req, res) => {
     const {id, email} = req.user
     
-    const {employeenamefilter, status, page, limit} = req.body
+    const {employeenamefilter, status, page, limit} = req.query
 
     const pageOptions = {
         page: parseInt(page) || 0,
@@ -216,76 +225,141 @@ exports.superadminleaverequestlist = async (req, res) => {
 
     const matchStage = {}
 
-    if (employeenamefilter){
-        matchStage['$or'] = [
-            { 'userDetails.firstname': { $regex: employeenamefilter, $options: 'i' } },
-            { 'userDetails.lastname': { $regex: employeenamefilter, $options: 'i' } }
-        ];
-    }
+    // if (employeenamefilter){
+    //     matchStage['$or'] = [
+    //         { 'userDetails.firstname': { $regex: employeenamefilter, $options: 'i' } },
+    //         { 'userDetails.lastname': { $regex: employeenamefilter, $options: 'i' } }
+    //     ];
+    // }
+
+    // const requestlist = await Leave.aggregate([
+    //     {
+    //         $match: { status: { $exists: true, $eq: status } }
+    //     },
+    //     {
+    //         $lookup: {
+    //           from: 'users', // Collection name of the Users schema
+    //           localField: 'owner',
+    //           foreignField: '_id',
+    //           as: 'userData',
+    //         },
+    //     },
+    //     {
+    //         $unwind: '$userData', // Unwind the managerData array to get a single object
+    //     },
+    //     {
+    //         $lookup: {
+    //           from: 'userdetails', // Collection name of the userDetails schema
+    //           localField: 'userData._id',
+    //           foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+    //           as: 'userDetails',
+    //         },
+    //     },
+    //     {
+    //         $unwind: '$userDetails', // Unwind the managerDetails array to get a single object
+    //     },
+    //     {
+    //         $match: matchStage
+    //     },
+    //     {
+    //         $lookup: {
+    //           from: 'userdetails', // Collection name of the Users schema
+    //           localField: 'userDetails.reportingto',
+    //           foreignField: 'owner',
+    //           as: 'reportingToDetails',
+    //         },
+    //     },
+    //     {
+    //         $unwind: '$reportingToDetails', // Unwind the managerDetails array to get a single object
+    //     },
+    //     {
+    //         $project: {
+    //             _id: 1,
+    //             manager: { $concat: ['$reportingToDetails.firstname', ' ', '$reportingToDetails.lastname']},
+    //             status: 1,
+    //             employeename: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']},
+    //             type: 1,
+    //             leavestart: 1,
+    //             leaveend: 1,
+    //             totalworkingdays: 1,
+    //             totalpublicholidays: 1,
+    //             wellnessdaycycle: 1,
+    //             workinghoursonleave: 1,
+    //             workinghoursduringleave: 1,
+    //             details: 1
+    //         }
+    //     },
+    //     { $skip: pageOptions.page * pageOptions.limit },
+    //     { $limit: pageOptions.limit }
+    // ])
+
 
     const requestlist = await Leave.aggregate([
-        {
-            $match: {status: status}
-        },
-        {
-            $lookup: {
-              from: 'users', // Collection name of the Users schema
-              localField: 'owner',
-              foreignField: '_id',
-              as: 'userData',
-            },
-        },
-        {
-            $unwind: '$userData', // Unwind the managerData array to get a single object
-        },
+        // Match documents with the required status
+        { $match: { status: status } },
+        
+        // Lookup user details to get firstname, lastname, and manager info
         {
             $lookup: {
-              from: 'userdetails', // Collection name of the userDetails schema
-              localField: 'userData._id',
-              foreignField: 'owner', // Assuming 'owner' in userDetails references the user
-              as: 'userDetails',
-            },
+                from: 'userdetails',
+                localField: 'owner',
+                foreignField: 'owner', // Assuming `userdetails.owner` references `Leave.owner`
+                as: 'userDetails'
+            }
         },
-        {
-            $unwind: '$userDetails', // Unwind the managerDetails array to get a single object
-        },
-        {
-            $match: matchStage
-        },
+        { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
+    
+        // Lookup to get manager information based on `reportingto` field in `userDetails`
         {
             $lookup: {
-              from: 'userdetails', // Collection name of the Users schema
-              localField: 'userDetails.reportingto',
-              foreignField: 'owner',
-              as: 'reportingToDetails',
-            },
+                from: 'userdetails',
+                localField: 'userDetails.reportingto',
+                foreignField: 'owner',
+                as: 'managerDetails'
+            }
         },
+        { $unwind: { path: '$managerDetails', preserveNullAndEmptyArrays: true } },
+    
+        // Optional filter with regex on name fields
         {
-            $unwind: '$reportingToDetails', // Unwind the managerDetails array to get a single object
+            $match: {
+                $or: [
+                    { 'userDetails.firstname': { $regex: employeenamefilter, $options: 'i' } },
+                    { 'userDetails.lastname': { $regex: employeenamefilter, $options: 'i' } }
+                ]
+            }
         },
+    
+        // Project the necessary fields, including concatenating firstname and lastname
         {
             $project: {
                 _id: 1,
-                manager: { $concat: ['$reportingToDetails.firstname', ' ', '$reportingToDetails.lastname']},
                 status: 1,
-                employeename: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']},
-                type: 1,
+                details: 1,
                 leavestart: 1,
                 leaveend: 1,
                 totalworkingdays: 1,
                 totalpublicholidays: 1,
                 wellnessdaycycle: 1,
                 workinghoursonleave: 1,
-                workinghoursduringleave: 1
+                workinghoursduringleave: 1,
+                details: 1,
+                employeename: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
+                manager: {
+                    $ifNull: [
+                        { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] },
+                        'N/A'
+                    ]
+                },
+               
             }
-        },
-        { $skip: pageOptions.page * pageOptions.limit },
-        { $limit: pageOptions.limit }
-    ])
+        }
+    ]);
+    
 
-    const total = await Userdetails.countDocuments(matchStage)
+    const total = requestlist.length
 
-    const totalPages = Math.ceil((total[0]?.total || 0) / pageOptions.limit);
+    const totalPages = Math.ceil(total / pageOptions.limit);
 
     const data = {
         requestlist: [],
@@ -293,7 +367,7 @@ exports.superadminleaverequestlist = async (req, res) => {
     }
 
     requestlist.forEach(tempdata => {
-        const {_id, manager, status, employeename, type, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave} = tempdata
+        const {_id, manager, status, employeename, type, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, details} = tempdata
 
         data.requestlist.push({
             requestid: _id,
@@ -307,11 +381,40 @@ exports.superadminleaverequestlist = async (req, res) => {
             totalpublicholidays: totalpublicholidays,
             wellnessdaycycle: wellnessdaycycle,
             workinghoursonleave: workinghoursonleave,
-            workinghoursduringleave: workinghoursduringleave
+            workinghoursduringleave: workinghoursduringleave,
+            details: details
         })
     })
 
     return res.json({message: "success", data: data})
+}
+
+exports.processleaverequest = async (req, res) => {
+    const {id, email} = req.user
+    const {requestid, status, comment} = req.body
+
+    const leaveRequests = await Leave.find({ status });
+    console.log(leaveRequests)
+
+
+    const request = await Leave.findOne({_id: new mongoose.Types.ObjectId(requestid)})
+
+    if(status === request.status){
+        return res.status(400).json({message: "failed", data: `Status is already ${status}`})
+    }
+
+    
+    
+    await Leave.findOneAndUpdate({_id: new mongoose.Types.ObjectId(requestid)}, {status: status, comments: comment})
+     .catch(err => {
+         console.log(`There's a problem processing leave request. Error: ${err}`)
+
+         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
+     })
+
+     
+
+    return res.json({message: "success"})
 }
 
 //  #endregion

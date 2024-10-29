@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { calculateleavedays, requestleave, employeeleaverequestlist, superadminleaverequestlist } = require("../controllers/leave")
+const { calculateleavedays, requestleave, employeeleaverequestlist, superadminleaverequestlist, processleaverequest } = require("../controllers/leave")
 const { protectsuperadmin, protectusers, protectemployee } = require("../middleware/middleware")
 
 router
@@ -12,14 +12,15 @@ router
 
     //  #region EMPLOYEE
 
-    .get("/employeeleaverequestlist", protectemployee, employeeleaverequestlist)
-    .post("/requestleave", protectemployee, requestleave)
+    .get("/employeeleaverequestlist", protectusers, employeeleaverequestlist)
+    .post("/requestleave", protectusers, requestleave)
 
     //  #endregion
 
     //  #region SUPERADMIN
 
     .get("/superadminleaverequestlist", protectsuperadmin, superadminleaverequestlist)
+    .post("/superadminprocessleaverequest", protectsuperadmin, processleaverequest)
 
     //  #endregion
 
