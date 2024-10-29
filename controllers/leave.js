@@ -179,6 +179,8 @@ exports.employeeleaverequestlist = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details"})
     })
 
+    console.log('List',requestlist)
+
     const totallist = await Leave.countDocuments({owner: new mongoose.Types.ObjectId(id), status: status})
 
     const data = {
@@ -225,12 +227,12 @@ exports.superadminleaverequestlist = async (req, res) => {
 
     const matchStage = {}
 
-    // if (employeenamefilter){
-    //     matchStage['$or'] = [
-    //         { 'userDetails.firstname': { $regex: employeenamefilter, $options: 'i' } },
-    //         { 'userDetails.lastname': { $regex: employeenamefilter, $options: 'i' } }
-    //     ];
-    // }
+     if (employeenamefilter){
+         matchStage['$or'] = [
+             { 'userDetails.firstname': { $regex: employeenamefilter, $options: 'i' } },
+             { 'userDetails.lastname': { $regex: employeenamefilter, $options: 'i' } }
+         ];
+     }
 
     // const requestlist = await Leave.aggregate([
     //     {
@@ -295,21 +297,21 @@ exports.superadminleaverequestlist = async (req, res) => {
 
 
     const requestlist = await Leave.aggregate([
-        // Match documents with the required status
+        
         { $match: { status: status } },
         
-        // Lookup user details to get firstname, lastname, and manager info
+      
         {
             $lookup: {
                 from: 'userdetails',
                 localField: 'owner',
-                foreignField: 'owner', // Assuming `userdetails.owner` references `Leave.owner`
+                foreignField: 'owner', 
                 as: 'userDetails'
             }
         },
         { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
     
-        // Lookup to get manager information based on `reportingto` field in `userDetails`
+     
         {
             $lookup: {
                 from: 'userdetails',
@@ -320,23 +322,18 @@ exports.superadminleaverequestlist = async (req, res) => {
         },
         { $unwind: { path: '$managerDetails', preserveNullAndEmptyArrays: true } },
     
-        // Optional filter with regex on name fields
         {
-            $match: {
-                $or: [
-                    { 'userDetails.firstname': { $regex: employeenamefilter, $options: 'i' } },
-                    { 'userDetails.lastname': { $regex: employeenamefilter, $options: 'i' } }
-                ]
-            }
+            $match: matchStage
         },
     
-        // Project the necessary fields, including concatenating firstname and lastname
+        
         {
             $project: {
                 _id: 1,
                 status: 1,
                 details: 1,
                 leavestart: 1,
+                type: 1,
                 leaveend: 1,
                 totalworkingdays: 1,
                 totalpublicholidays: 1,
@@ -353,11 +350,18 @@ exports.superadminleaverequestlist = async (req, res) => {
                 },
                
             }
-        }
+        },
+
+        { $skip: pageOptions.page * pageOptions.limit },
+        { $limit: pageOptions.limit }
     ]);
+
     
 
-    const total = requestlist.length
+    const total = await Leave.countDocuments({status: status}, { $match: matchStage})
+
+    console.log(requestlist, total)
+
 
     const totalPages = Math.ceil(total / pageOptions.limit);
 
