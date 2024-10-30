@@ -277,6 +277,40 @@ exports.employeeleaverequestlist = async (req, res) => {
     return res.json({message: "success", data: data})
 }
 
+exports.editrequestleave = async (req, res) => {
+    const {id, email} = req.user
+
+    const {leavetype, details, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, comments} = req.body
+
+    if (!leavetype){
+        return res.status(400).json({message: "failed", data: "Select a leave type first!"})
+    }
+    else if (!details){
+        return res.status(400).json({message: "failed", data: "Enter a details first"})
+    }
+    else if (!leavestart){
+        return res.status(400).json({message: "failed", data: "Select your start date!"})
+    }
+    else if (!leaveend){
+        return res.status(400).json({message: "failed", data: "Select your end date!"})
+    }
+    else if (totalworkingdays === 0){
+        return res.status(400).json({message: "failed", data: "Select your start and end date!"})
+    }
+    else if (isNaN(totalpublicholidays)){
+        return res.status(400).json({message: "failed", data: "Enter public holiday!"})
+    }
+    else if (wellnessdaycycle === null){
+        return res.status(400).json({message: "failed", data: "Select wellness day cycle!"})
+    }
+    else if (workinghoursonleave === 0){
+        return res.status(400).json({message: "failed", data: "Select your start and end date!"})
+    }
+    else if (isNaN(workinghoursduringleave)){
+        return res.status(400).json({message: "failed", data: "Enter Working hours during leave!"})
+    }
+}
+
 //  #endregion
 
 //  #region SUPERADMIN
