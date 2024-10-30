@@ -260,7 +260,7 @@ exports.approvewfhrequestadmin = async (req, res) => {
     if (!approvalstatus){
         return res.status(400).json({message: "failed", data: "Please enter an approval status first!"})
     }
-    else if (approvalstatus != "Approved" || approvalstatus != "Denied"){
+    else if (approvalstatus != "Approved" && approvalstatus != "Denied"){
         return res.status(400).json({message: "failed", data: "Invalid approval status! Please select Approved or Denied only!"})
     }
 
@@ -533,7 +533,7 @@ exports.approvewfhrequestmanager = async (req, res) => {
     if (!approvalstatus){
         return res.status(400).json({message: "failed", data: "Please enter an approval status first!"})
     }
-    else if (approvalstatus != "Approved" || approvalstatus != "Denied"){
+    else if (approvalstatus != "Approved" && approvalstatus != "Denied"){
         return res.status(400).json({message: "failed", data: "Invalid approval status! Please select Approved or Denied only!"})
     }
 
@@ -543,7 +543,7 @@ exports.approvewfhrequestmanager = async (req, res) => {
 
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
     })
-    
+
 
     return res.json({message: "success", data: data})
 }

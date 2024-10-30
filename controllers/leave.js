@@ -108,6 +108,74 @@ exports.calculateleavedays = async (req, res) => {
     return res.json({ message: "success", data });
 }
 
+exports.leaverequestdata = async (req, res) => {
+    const {id, email} = req.user
+
+    const {requestid} = req.query
+
+    if (!requestid){
+        return res.status(400).json({message: "failed", data: "Please select a valid request leave form!"})
+    }
+
+    const requestdata = await Leave.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(requestid)
+            }
+        },
+        {
+            $lookup: {
+                from: 'userdetails', // The collection name of `userDetailsSchema`
+                localField: 'owner',
+                foreignField: 'owner',
+                as: 'userDetails'
+            }
+        },
+        { $unwind: '$userDetails' }, // Flatten the `userDetails` array
+        {
+            $project: {
+                _id: 1,
+                owner: 1,
+                type: 1,
+                details: 1,
+                leavestart: 1,
+                leaveend: 1,
+                totalworkingdays: 1,
+                totalpublicholidays: 1,
+                wellnessdaycycle: 1,
+                workinghoursonleave: 1,
+                workinghoursduringleave: 1,
+                comments: 1,
+                fullname: 'userDetails.firstname' + 'userDetails.lastname',
+                status: 1
+            }
+        },
+    ]);
+
+    if (requestdata.length <= 0){
+        return res.status(400).json({message: "failed", data: "Please select a valid request form!"})
+    }
+
+    const data = {
+        requestid: requestdata[0]._id,
+        userid: requestdata[0].owner._id,
+        type: requestdata[0].type,
+        details: requestdata[0].details,
+        leavestart: requestdata[0].leavestart,
+        leaveend: requestdata[0].leaveend,
+        totalworkingdays: requestdata[0].totalworkingdays,
+        totalpublicholidays: requestdata[0].totalpublicholidays,
+        wellnessdaycycle: requestdata[0].wellnessdaycycle,
+        workinghoursonleave: requestdata[0].workinghoursonleave,
+        workinghoursduringleave: requestdata[0].workinghoursduringleave,
+        comment: requestdata[0].comment,
+        fullname: requestdata[0].fullname,
+        status: requestdata[0].status
+    }
+
+    return res.json({message: "success", data: data})
+}
+
 //  #endregion
 
 //  #region EMPLOYEES
@@ -179,8 +247,6 @@ exports.employeeleaverequestlist = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details"})
     })
 
-    console.log('List',requestlist)
-
     const totallist = await Leave.countDocuments({owner: new mongoose.Types.ObjectId(id), status: status})
 
     const data = {
@@ -234,73 +300,10 @@ exports.superadminleaverequestlist = async (req, res) => {
          ];
      }
 
-    // const requestlist = await Leave.aggregate([
-    //     {
-    //         $match: { status: { $exists: true, $eq: status } }
-    //     },
-    //     {
-    //         $lookup: {
-    //           from: 'users', // Collection name of the Users schema
-    //           localField: 'owner',
-    //           foreignField: '_id',
-    //           as: 'userData',
-    //         },
-    //     },
-    //     {
-    //         $unwind: '$userData', // Unwind the managerData array to get a single object
-    //     },
-    //     {
-    //         $lookup: {
-    //           from: 'userdetails', // Collection name of the userDetails schema
-    //           localField: 'userData._id',
-    //           foreignField: 'owner', // Assuming 'owner' in userDetails references the user
-    //           as: 'userDetails',
-    //         },
-    //     },
-    //     {
-    //         $unwind: '$userDetails', // Unwind the managerDetails array to get a single object
-    //     },
-    //     {
-    //         $match: matchStage
-    //     },
-    //     {
-    //         $lookup: {
-    //           from: 'userdetails', // Collection name of the Users schema
-    //           localField: 'userDetails.reportingto',
-    //           foreignField: 'owner',
-    //           as: 'reportingToDetails',
-    //         },
-    //     },
-    //     {
-    //         $unwind: '$reportingToDetails', // Unwind the managerDetails array to get a single object
-    //     },
-    //     {
-    //         $project: {
-    //             _id: 1,
-    //             manager: { $concat: ['$reportingToDetails.firstname', ' ', '$reportingToDetails.lastname']},
-    //             status: 1,
-    //             employeename: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']},
-    //             type: 1,
-    //             leavestart: 1,
-    //             leaveend: 1,
-    //             totalworkingdays: 1,
-    //             totalpublicholidays: 1,
-    //             wellnessdaycycle: 1,
-    //             workinghoursonleave: 1,
-    //             workinghoursduringleave: 1,
-    //             details: 1
-    //         }
-    //     },
-    //     { $skip: pageOptions.page * pageOptions.limit },
-    //     { $limit: pageOptions.limit }
-    // ])
-
 
     const requestlist = await Leave.aggregate([
         
         { $match: { status: status } },
-        
-      
         {
             $lookup: {
                 from: 'userdetails',
@@ -325,8 +328,6 @@ exports.superadminleaverequestlist = async (req, res) => {
         {
             $match: matchStage
         },
-    
-        
         {
             $project: {
                 _id: 1,
@@ -356,14 +357,34 @@ exports.superadminleaverequestlist = async (req, res) => {
         { $limit: pageOptions.limit }
     ]);
 
-    
+    const total = await Leave.aggregate([
+        {
+            $match: {
+                status: status
+            }
+        },
+        {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'owner',
+                foreignField: 'owner',
+                as: 'userDetails'
+            }
+        },
+        { $unwind: '$userDetails' },
+        { $match: matchStage },
+        { $count: "total" }
+    ])
+    .catch(err => {
+        console.log(`There's a problem with getting leave request list count. Error ${err}`)
 
-    const total = await Leave.countDocuments({status: status}, { $match: matchStage})
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details."})
+    });
 
     console.log(requestlist, total)
 
 
-    const totalPages = Math.ceil(total / pageOptions.limit);
+    const totalPages = Math.ceil(total.length > 0 ? total[0].total : 0 / pageOptions.limit);
 
     const data = {
         requestlist: [],
@@ -397,17 +418,15 @@ exports.processleaverequest = async (req, res) => {
     const {id, email} = req.user
     const {requestid, status, comment} = req.body
 
-    const leaveRequests = await Leave.find({ status });
-    console.log(leaveRequests)
-
+    if (!requestid){
+        return res.status(400).json({message: "failed", data: "Please select a valid request leave form!"})
+    }
 
     const request = await Leave.findOne({_id: new mongoose.Types.ObjectId(requestid)})
 
     if(status === request.status){
         return res.status(400).json({message: "failed", data: `Status is already ${status}`})
     }
-
-    
     
     await Leave.findOneAndUpdate({_id: new mongoose.Types.ObjectId(requestid)}, {status: status, comments: comment})
      .catch(err => {
@@ -415,8 +434,6 @@ exports.processleaverequest = async (req, res) => {
 
          return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
      })
-
-     
 
     return res.json({message: "success"})
 }
