@@ -502,13 +502,13 @@ exports.listwfhrequestmanager = async (req, res) => {
 
     const data = {
         totalpage: totalPages,
-        wfhlist: {}
+        wfhlist: []
     }
 
     wfhlist.forEach(tempdata => {
         const {_id, owner, requestdate, requestend, wellnessdaycycle, totalhourswfh, hoursofleave, reason, status, fullname} = tempdata
 
-        data[_id] = {
+        data.wfhlist.push({
             requestid: _id,
             userid: owner._id,
             fullname: fullname,
@@ -519,7 +519,7 @@ exports.listwfhrequestmanager = async (req, res) => {
             hoursofleave: hoursofleave,
             reason: reason,
             status: status
-        }
+        })
     })
 
     return res.json({message: "success", data: data});

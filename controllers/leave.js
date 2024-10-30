@@ -146,7 +146,7 @@ exports.leaverequestdata = async (req, res) => {
                 workinghoursonleave: 1,
                 workinghoursduringleave: 1,
                 comments: 1,
-                fullname: 'userDetails.firstname' + 'userDetails.lastname',
+                fullname: {$concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']},
                 status: 1
             }
         },
