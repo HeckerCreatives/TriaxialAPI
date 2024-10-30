@@ -1,6 +1,5 @@
 const { default: mongoose } = require("mongoose");
 const Wellnessday = require ("../models/wellnessday");
-const { listSearchIndexes } = require("../models/events");
 
 //  #region USERS
 
