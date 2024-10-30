@@ -127,7 +127,7 @@ exports.listwfhrequestadmin = async (req, res) => {
                 totalhourswfh: 1,
                 hoursofleave: 1,
                 reason: 1,
-                fullname: 'userDetails.firstname' + 'userDetails.lastname',
+                fullname: {$concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']},
                 status: 1
             }
         },
@@ -227,7 +227,7 @@ exports.showdatawfhrequest = async (req, res) => {
                 totalhourswfh: 1,
                 hoursofleave: 1,
                 reason: 1,
-                fullname: 'userDetails.firstname' + 'userDetails.lastname',
+                fullname: {$concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']},
                 status: 1
             }
         },
@@ -271,7 +271,7 @@ exports.approvewfhrequestadmin = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
     })
 
-    return res.json({message: "success", data: data})
+    return res.json({message: "success"})
 }
 
 //  #endregion
@@ -459,7 +459,7 @@ exports.listwfhrequestmanager = async (req, res) => {
                 totalhourswfh: 1,
                 hoursofleave: 1,
                 reason: 1,
-                fullname: 'userDetails.firstname' + 'userDetails.lastname',
+                fullname: {$concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']},
                 status: 1
             }
         },
