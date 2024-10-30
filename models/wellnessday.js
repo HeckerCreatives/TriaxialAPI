@@ -10,6 +10,10 @@ const WellnessdaySchema = new mongoose.Schema(
         requestdate:{
             type: String,
             index: true
+        },
+        status: {
+            type: String,
+            index: true
         }
     },
     {

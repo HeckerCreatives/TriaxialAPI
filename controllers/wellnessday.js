@@ -24,7 +24,7 @@ exports.wellnessdayrequest = async (req, res) => {
         return res.status(400).json({message: "failed", data: "You already used up your two (2) wellness day leave request"})
     }
 
-    await Wellnessday.create({owner: new mongoose.Types.ObjectId(id), requestdate: requestdate})
+    await Wellnessday.create({owner: new mongoose.Types.ObjectId(id), requestdate: requestdate, status: "Pending"})
     .catch(err => {
         console.log(`There's a problem saving the wellness day leave request for ${email}. Error: ${err}`)
 
@@ -100,7 +100,7 @@ exports.requestlist = async (req, res) => {
 exports.wellnessdaylistrequest = async (req, res) => {
     const {id, email} = req.user
 
-    const {page, limit, fullnamefilter} = req.query
+    const {page, limit, statusfilter, fullnamefilter} = req.query
 
     const pageOptions = {
         page: parseInt(page) || 0,
@@ -118,6 +118,11 @@ exports.wellnessdaylistrequest = async (req, res) => {
     }
 
     const wellnessDayData = await Wellnessday.aggregate([
+        {
+            $match: {
+                status: statusfilter
+            }
+        },
         {
             // Lookup user details for the owner of the wellness day
             $lookup: {
@@ -173,11 +178,33 @@ exports.wellnessdaylistrequest = async (req, res) => {
         { $limit: pageOptions.limit } // Limit for pagination
     ]);
 
-    const totallistcount = await Wellnessday.countDocuments(searchStage)
+    const totallistcount = await Wellnessday.aggregate([
+        {
+            $match: {
+                status: statusfilter
+            }
+        },
+        {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'owner',
+                foreignField: 'owner',
+                as: 'userDetails'
+            }
+        },
+        { $unwind: '$userDetails' },
+        { $match: searchStage },
+        { $count: "total" }
+    ])
+    .catch(err => {
+        console.log(`There's a problem with getting wellnessday list count. Error ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details."})
+    });
 
     const data = {
         requestlist: [],
-        totalpages: Math.ceil(totallistcount / pageOptions.limit)
+        totalpages: Math.ceil(totallistcount.length > 0 ? totallistcount[0].total : 0 / pageOptions.limit)
     }
 
     const today = new Date();
