@@ -465,6 +465,12 @@ exports.processleaverequest = async (req, res) => {
     if (!requestid){
         return res.status(400).json({message: "failed", data: "Please select a valid request leave form!"})
     }
+    else if (!status){
+        return res.status(400).json({message: "failed", data: "Please select a valid approval status!"})
+    }
+    else if (status != "Approved" && status != "Denied"){
+        return res.status(400).json({message: "failed", data: "Invalid approval status! Please select Approved or Denied only!"})
+    }
 
     const request = await Leave.findOne({_id: new mongoose.Types.ObjectId(requestid)})
 
@@ -483,3 +489,4 @@ exports.processleaverequest = async (req, res) => {
 }
 
 //  #endregion
+

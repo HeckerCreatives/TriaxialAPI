@@ -412,7 +412,7 @@ exports.listwfhrequestmanager = async (req, res) => {
     };
 
     let matchConditions = {
-        reportingto: new mongoose.Types.ObjectId(id)
+        'userDetails.reportingto': new mongoose.Types.ObjectId(id)
     };
 
     if (fullnamefilter) {
