@@ -1,12 +1,12 @@
 const router = require("express").Router()
-const { calculateleavedays, requestleave, employeeleaverequestlist, superadminleaverequestlist, processleaverequest, leaverequestdata, editrequestleave } = require("../controllers/leave")
-const { protectsuperadmin, protectusers, protectemployee } = require("../middleware/middleware")
+const { calculateleavedays, requestleave, employeeleaverequestlist, superadminleaverequestlist, processleaverequest, leaverequestdata, editrequestleave, managerleaverequestlistemployee } = require("../controllers/leave")
+const { protectsuperadmin, protectusers, protectemployee, protectmanager } = require("../middleware/middleware")
 
 router
 
     //  #region USERS
 
-    .get("/calculateleavedays", protectusers, calculateleavedays)
+    // .get("/calculateleavedays", protectusers, calculateleavedays)
 
     //  #endregion
 
@@ -24,6 +24,14 @@ router
     .get("/superadminleaverequestlist", protectsuperadmin, superadminleaverequestlist)
     .get("/leaverequestdataadmin", protectsuperadmin, leaverequestdata)
     .post("/superadminprocessleaverequest", protectsuperadmin, processleaverequest)
+
+    //  #endregion
+
+    //  #region MANAGER
+
+    .get("/managerleaverequestlistemployee", protectmanager, managerleaverequestlistemployee)
+    .get("/managerleaverequestdataemployee", protectmanager, leaverequestdata)
+    .post("/managerprocessleaverequest", protectmanager, processleaverequest)
 
     //  #endregion
 

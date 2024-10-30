@@ -1,112 +1,110 @@
 const Leave = require("../models/leave")
 const Events = require("../models/events")
 const Wellnessday = require("../models/wellnessday")
-const Teams = require("../models/Teams")
-const Userdetails = require("../models/Userdetails")
 const moment = require("moment")
 const { default: mongoose } = require("mongoose")
 
 //  #region USERS
 
-exports.calculateleavedays = async (req, res) => {
-    const {id} = req.user
+// exports.calculateleavedays = async (req, res) => {
+//     const {id} = req.user
 
-    const { employeeid, startdate, enddate } = req.query;
-    const leaveStart = moment(startdate);
-    const leaveEnd = moment(enddate).subtract(1, 'days'); // Exclude the end date as it's the resume date
+//     const { employeeid, startdate, enddate } = req.query;
+//     const leaveStart = moment(startdate);
+//     const leaveEnd = moment(enddate).subtract(1, 'days'); // Exclude the end date as it's the resume date
 
-    // Step 1: Initialize variables
-    let totalWorkingDays = 0;
-    let totalWellnessDays = 0;
-    let totalEventDays = 0;
-    let totalWorkingHoursOnLeave = 0;
-    let isWellnessDay = false
+//     // Step 1: Initialize variables
+//     let totalWorkingDays = 0;
+//     let totalWellnessDays = 0;
+//     let totalEventDays = 0;
+//     let totalWorkingHoursOnLeave = 0;
+//     let isWellnessDay = false
 
-    // Step 2: Fetch wellness days for the employee in the date range
-    const wellnessDays = await Wellnessday.aggregate([
-        {
-            $match: {
-                owner: new mongoose.Types.ObjectId(employeeid),
-                requestdate: { 
-                    $gte: leaveStart.format('YYYY-MM-DD'),
-                    $lte: leaveEnd.format('YYYY-MM-DD') 
-                }
-            }
-        }
-    ]);
+//     // Step 2: Fetch wellness days for the employee in the date range
+//     const wellnessDays = await Wellnessday.aggregate([
+//         {
+//             $match: {
+//                 owner: new mongoose.Types.ObjectId(employeeid),
+//                 requestdate: { 
+//                     $gte: leaveStart.format('YYYY-MM-DD'),
+//                     $lte: leaveEnd.format('YYYY-MM-DD') 
+//                 }
+//             }
+//         }
+//     ]);
 
-    // Step 3: Fetch events where the employee is part of a team, within the date range
-    const events = await Events.aggregate([
-        {
-            $match: {
-                $or: [
-                    { startdate: { $lte: leaveEnd.format('YYYY-MM-DD') }, enddate: { $gte: leaveStart.format('YYYY-MM-DD') } }
-                ]
-            }
-        },
-        {
-            $lookup: {
-                from: 'teams',
-                localField: 'teams',
-                foreignField: '_id',
-                as: 'teams'
-            }
-        },
-        {
-            $match: {
-                'teams.members': new mongoose.Types.ObjectId(employeeid)
-            }
-        }
-    ]);
+//     // Step 3: Fetch events where the employee is part of a team, within the date range
+//     const events = await Events.aggregate([
+//         {
+//             $match: {
+//                 $or: [
+//                     { startdate: { $lte: leaveEnd.format('YYYY-MM-DD') }, enddate: { $gte: leaveStart.format('YYYY-MM-DD') } }
+//                 ]
+//             }
+//         },
+//         {
+//             $lookup: {
+//                 from: 'teams',
+//                 localField: 'teams',
+//                 foreignField: '_id',
+//                 as: 'teams'
+//             }
+//         },
+//         {
+//             $match: {
+//                 'teams.members': new mongoose.Types.ObjectId(employeeid)
+//             }
+//         }
+//     ]);
 
-    // Step 4: Loop through each day in the leave period (excluding the end date)
-    for (let date = leaveStart.clone(); date.isBefore(leaveEnd); date.add(1, 'days')) {
-        const dayOfWeek = date.day();
+//     // Step 4: Loop through each day in the leave period (excluding the end date)
+//     for (let date = leaveStart.clone(); date.isBefore(leaveEnd); date.add(1, 'days')) {
+//         const dayOfWeek = date.day();
 
-        // Skip weekends (0 is Sunday, 6 is Saturday)
-        if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+//         // Skip weekends (0 is Sunday, 6 is Saturday)
+//         if (dayOfWeek === 0 || dayOfWeek === 6) continue;
 
-        const currentDate = date.format('YYYY-MM-DD');
+//         const currentDate = date.format('YYYY-MM-DD');
 
-        // Step 5: Check if it's a wellness day
-        isWellnessDay = wellnessDays.some(day => day.requestdate === currentDate);
+//         // Step 5: Check if it's a wellness day
+//         isWellnessDay = wellnessDays.some(day => day.requestdate === currentDate);
 
-        // Step 6: Check if it's an event day
-        const isEventDay = events.some(event => {
-            const eventStart = moment(event.startdate, 'YYYY-MM-DD');
-            const eventEnd = moment(event.enddate, 'YYYY-MM-DD');
-            return date.isBetween(eventStart, eventEnd, null, '[]');
-        });
+//         // Step 6: Check if it's an event day
+//         const isEventDay = events.some(event => {
+//             const eventStart = moment(event.startdate, 'YYYY-MM-DD');
+//             const eventEnd = moment(event.enddate, 'YYYY-MM-DD');
+//             return date.isBetween(eventStart, eventEnd, null, '[]');
+//         });
 
-        // Step 7: Calculate based on the day's status
-        if (!isWellnessDay) {
-            totalWellnessDays++;
-        } else if (isEventDay) {
-            totalEventDays++;
-            // Skip adding regular working hours since it's an event day
-        } else{
-            totalWorkingDays++;
-        }
-    }
+//         // Step 7: Calculate based on the day's status
+//         if (!isWellnessDay) {
+//             totalWellnessDays++;
+//         } else if (isEventDay) {
+//             totalEventDays++;
+//             // Skip adding regular working hours since it's an event day
+//         } else{
+//             totalWorkingDays++;
+//         }
+//     }
 
-    totalWorkingHoursOnLeave = totalWorkingDays * (isWellnessDay ? 8.44 : 7.6); // Regular working hours
+//     totalWorkingHoursOnLeave = totalWorkingDays * (isWellnessDay ? 8.44 : 7.6); // Regular working hours
 
-    // Step 8: Calculate total working hours during leave (excluding overlaps with events and wellness days)
-    const totalLeaveDays = leaveEnd.diff(leaveStart, 'days');
-    const workingHoursDuringLeave = (totalLeaveDays - totalWellnessDays - totalEventDays) * (isWellnessDay ? 8.44 : 7.6);
+//     // Step 8: Calculate total working hours during leave (excluding overlaps with events and wellness days)
+//     const totalLeaveDays = leaveEnd.diff(leaveStart, 'days');
+//     const workingHoursDuringLeave = (totalLeaveDays - totalWellnessDays - totalEventDays) * (isWellnessDay ? 8.44 : 7.6);
 
-    // Step 9: Prepare the response data
-    const data = {
-        totalworkingdays: totalWorkingDays,
-        inwellnessday: totalWellnessDays > 0,
-        totalHoliday: totalEventDays,
-        totalworkinghoursonleave: totalWorkingHoursOnLeave,
-        workinghoursduringleave: workingHoursDuringLeave
-    };
+//     // Step 9: Prepare the response data
+//     const data = {
+//         totalworkingdays: totalWorkingDays,
+//         inwellnessday: totalWellnessDays > 0,
+//         totalHoliday: totalEventDays,
+//         totalworkinghoursonleave: totalWorkingHoursOnLeave,
+//         workinghoursduringleave: workingHoursDuringLeave
+//     };
 
-    // Step 10: Return success response with data
-    return res.json({ message: "success", data });
-}
+//     // Step 10: Return success response with data
+//     return res.json({ message: "success", data });
+// }
 
 exports.leaverequestdata = async (req, res) => {
     const {id, email} = req.user
@@ -490,3 +488,118 @@ exports.processleaverequest = async (req, res) => {
 
 //  #endregion
 
+//  #region MANAGER
+
+exports.managerleaverequestlistemployee = async (req, res) => {
+    const {id, email} = req.user
+    
+    const {employeenamefilter, status, page, limit} = req.query
+
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10,
+    };
+
+    const matchStage = {
+        'userDetails.reportingto': new mongoose.Types.ObjectId(id)
+    }
+
+     if (employeenamefilter){
+         matchStage['$or'] = [
+             { 'userDetails.firstname': { $regex: employeenamefilter, $options: 'i' } },
+             { 'userDetails.lastname': { $regex: employeenamefilter, $options: 'i' } }
+         ];
+     }
+
+
+    const requestlist = await Leave.aggregate([
+        
+        { $match: { status: status } },
+        {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'owner',
+                foreignField: 'owner', 
+                as: 'userDetails'
+            }
+        },
+        { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
+        {
+            $match: matchStage
+        },
+        {
+            $project: {
+                _id: 1,
+                status: 1,
+                details: 1,
+                leavestart: 1,
+                type: 1,
+                leaveend: 1,
+                totalworkingdays: 1,
+                totalpublicholidays: 1,
+                wellnessdaycycle: 1,
+                workinghoursonleave: 1,
+                workinghoursduringleave: 1,
+                details: 1,
+                employeename: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] }
+            }
+        },
+
+        { $skip: pageOptions.page * pageOptions.limit },
+        { $limit: pageOptions.limit }
+    ]);
+
+    const total = await Leave.aggregate([
+        {
+            $match: {
+                status: status
+            }
+        },
+        {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'owner',
+                foreignField: 'owner',
+                as: 'userDetails'
+            }
+        },
+        { $unwind: '$userDetails' },
+        { $match: matchStage },
+        { $count: "total" }
+    ])
+    .catch(err => {
+        console.log(`There's a problem with getting leave request list count. Error ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details."})
+    });
+
+    const totalPages = Math.ceil(total.length > 0 ? total[0].total : 0 / pageOptions.limit);
+
+    const data = {
+        requestlist: [],
+        totalpages: totalPages
+    }
+
+    requestlist.forEach(tempdata => {
+        const {_id, status, employeename, type, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, details} = tempdata
+
+        data.requestlist.push({
+            requestid: _id,
+            status: status,
+            name: employeename,
+            type: type,
+            leavestart: leavestart,
+            leaveend: leaveend,
+            totalworkingdays: totalworkingdays,
+            totalpublicholidays: totalpublicholidays,
+            wellnessdaycycle: wellnessdaycycle,
+            workinghoursonleave: workinghoursonleave,
+            workinghoursduringleave: workinghoursduringleave,
+            details: details
+        })
+    })
+
+    return res.json({message: "success", data: data})
+}
+
+//  #endregion

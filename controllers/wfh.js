@@ -545,7 +545,7 @@ exports.approvewfhrequestmanager = async (req, res) => {
     })
 
 
-    return res.json({message: "success", data: data})
+    return res.json({message: "success"})
 }
 
 //  #endregion
