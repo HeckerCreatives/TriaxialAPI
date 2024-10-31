@@ -9,7 +9,7 @@ exports.wellnessdayrequest = async (req, res) => {
     const {id, reportingto, fullname} = req.user
 
     const {requestdate} = req.body
-    
+
     const request = new Date(requestdate)
 
     const activeCycle = await Wellnessdayevent.aggregate([
@@ -49,6 +49,14 @@ exports.wellnessdayrequest = async (req, res) => {
     if (request < event.cyclestart || request > event.cycleend) {
         return res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
     }
+    
+
+    const existingRequest = await Wellnessdayevent.findOne({firstdayofwellnessdaycyle: new mongoose.Types.ObjectId(activeCycle[0]._id)})
+    .then(data => data)
+
+    if (existingRequest){
+        return res.status(400).json({message: "failed", data: "There's an existing request on that wellness day cycle"})
+    }
 
     const conflictingEvent = await Wellnessdayevent.findOne({
         $or: [
@@ -63,7 +71,7 @@ exports.wellnessdayrequest = async (req, res) => {
         return res.status(400).json({message: "failed", data: "The request date conflicts with an existing request date within the active cycle."})
     }
 
-    await Wellnessday.create({owner: new mongoose.Types.ObjectId(id), requestdate: request, firstdayofwellnessdaycyle: activeCycle[0]._id, status: "Pending"})
+    await Wellnessday.create({owner: new mongoose.Types.ObjectId(id), requestdate: request, firstdayofwellnessdaycyle: new mongoose.Types.ObjectId(activeCycle[0]._id), status: "Pending"})
     .catch(err => {
         console.log(`There's a problem creating wellnessday request for id: ${id}. Error: ${err}`)
 
