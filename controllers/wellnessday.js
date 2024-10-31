@@ -241,12 +241,12 @@ exports.wellnessdayrequestedit = async (req, res) => {
     ]);
 
     if (!activeCycle || activeCycle.length === 0) {
-        res.status(400).json({message: "failed", data: "No active wellness day cycle for your team or the request is within the request dates"})
+        return res.status(400).json({message: "failed", data: "No active wellness day cycle for your team or the request is within the request dates"})
     }
     
     const event = activeCycle[0];
     if (request < event.cyclestart || request > event.cycleend) {
-        res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
+        return res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
     }
 
     const conflictingEvent = await Wellnessdayevent.findOne({
@@ -259,7 +259,7 @@ exports.wellnessdayrequestedit = async (req, res) => {
     });
 
     if (conflictingEvent) {
-        res.status(400).json({message: "failed", data: "The request date conflicts with an existing request date within the active cycle."})
+        return res.status(400).json({message: "failed", data: "The request date conflicts with an existing request date within the active cycle."})
     }
 
     await Wellnessday.findOneAndUpdate({_id: new mongoose.Types.ObjectId(requestid)}, {requestdate: request, firstdayofwellnessdaycyle: activeCycle[0]._id})
