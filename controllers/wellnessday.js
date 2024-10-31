@@ -1,37 +1,81 @@
 const { default: mongoose } = require("mongoose");
 const Wellnessday = require ("../models/wellnessday");
+const Wellnessdayevent = require("../models/wellnessdayevent")
 
-//  #region EMPLOYEE
+//  #region USERS
 
 exports.wellnessdayrequest = async (req, res) => {
     const {id, email} = req.user
 
     const {requestdate} = req.body
 
-    const now = new Date();
-    const yearMonth = now.toISOString().slice(0, 7); // Extracts 'YYYY-MM' format
+    const today = new Date();
+    const request = new Date(requestdate)
 
-    const existingWellnessDay = await Wellnessday.find({ owner: new mongoose.Types.ObjectId(id), requestdate: { $regex: `^${yearMonth}` } // Matches dates starting with 'YYYY-MM'
-    })
-    .catch(err => {
-        console.log(`There's a problem getting the wellness day leave request datas for ${email}. Error: ${err}`)
+    const activeCycle = await Wellnessdayevent.aggregate([
+        {
+            $match: {
+                cyclestart: { $lte: today },
+                cycleend: { $gte: today }
+            }
+        },
+        {
+            $lookup: {
+                from: 'teams',
+                localField: 'teams',
+                foreignField: '_id',
+                as: 'teams'
+            }
+        },
+        {
+            $match: {
+                $or: [
+                    { 'teams.manager': new mongoose.Types.ObjectId(id) },
+                    { 'teams.teamleader': new mongoose.Types.ObjectId(id) },
+                    { 'teams.members': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } }
+                ]
+            }
+        },
+        {
+            $limit: 1
+        }
+    ]);
 
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please try again later"})
-    });
-
-    if (existingWellnessDay.length >= 2){
-        return res.status(400).json({message: "failed", data: "You already used up your two (2) wellness day leave request"})
+    if (!activeCycle || activeCycle.length === 0) {
+        res.status(400).json({message: "failed", data: "No active wellness day cycle for your team or the request is within the request dates"})
+    }
+    
+    const event = activeCycle[0];
+    if (request < event.cyclestart || request > event.cycleend) {
+        res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
     }
 
-    await Wellnessday.create({owner: new mongoose.Types.ObjectId(id), requestdate: requestdate, status: "Pending"})
-    .catch(err => {
-        console.log(`There's a problem saving the wellness day leave request for ${email}. Error: ${err}`)
-
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please try again later"})
+    const conflictingEvent = await Wellnessdayevent.findOne({
+        $or: [
+            { startdate: request },
+            { enddate: request }
+        ],
+        cyclestart: activeCycle.cyclestart,
+        cycleend: activeCycle.cycleend
     });
+
+    if (conflictingEvent) {
+        res.status(400).json({message: "failed", data: "The request date conflicts with an existing event date within the active cycle."})
+    }
+
+    await Wellnessday.create({owner: new mongoose.Types.ObjectId(id), requestdate: request, status: "Pending"})
+    .catch(err => {
+        console.log(`There's a problem creating wellnessday request for id: ${id}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details."})
+    })
 
     return res.json({message: "success"})
 }
+
+//  #endregion
+
+//  #region EMPLOYEE
 
 exports.requestlist = async (req, res) => {
     const {id, username} = req.user
@@ -222,6 +266,70 @@ exports.wellnessdaylistrequest = async (req, res) => {
     })
 
     return res.json({message: "success", data: data})
+}
+
+//  #endregion
+
+//  #region MANAGER
+
+
+//  #endregion
+
+//  #region HR
+
+exports.createhrwellnessevent = async (req, res) => {
+    const {id, email} = req.user
+
+    const {startdate, enddate, cyclestart, cycleend, teams} = req.body
+
+    if (!startdate){
+        return res.status(400).json({message: "failed", data: "Please select a start date request first"})
+    }
+    else if (!enddate){
+        return res.status(400).json({message: "failed", data: "Please select a end date request first"})
+    }
+    else if (!cyclestart){
+        return res.status(400).json({message: "failed", data: "Please select a cycle start date first"})
+    }
+    else if (!cycleend){
+        return res.status(400).json({message: "failed", data: "Please select a cycle end date first"})
+    }
+    else if (!teams){
+        return res.status(400).json({message: "failed", data: "Please select a team first"})
+    }
+    else if (Array.isArray(teams)){
+        return res.status(400).json({message: "failed", data: "Please select a valid team first"})
+    }
+    else if (teams.length <= 0){
+        return res.status(400).json({message: "failed", data: "Please select a team first"})
+    }
+
+    const start = new Date(cyclestart);
+    const end = new Date(cycleend);
+
+    const conflictingEvent = await Wellnessdayevent.findOne({
+        $or: [
+            { startdate: new Date(startdate) }, // Check if startdate exists
+            { enddate: new Date(enddate) },   // Check if enddate exists
+            {
+                cyclestart: { $lte: start },
+                cycleend: { $gte: end }
+            } // Check if the new event falls within an existing cycle
+        ]
+    });
+
+    if (conflictingEvent.length > 0){
+        return res.status(400).json({message: "failed", data: "There's an existing wellnessday event on that cycle / request dates"})
+    }
+
+    await Wellnessdayevent.create({startdate: startdate, enddate: enddate, cyclestart: cyclestart, cycleend: cycleend, teams: teams})
+    .catch(err => {
+        console.log(`There's a problem creating wellness day event. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
+    })
+
+    return res.json({message: "success"})
 }
 
 //  #endregion

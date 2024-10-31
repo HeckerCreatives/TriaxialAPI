@@ -1,6 +1,6 @@
 const router = require("express").Router()
-const { wellnessdayrequest, wellnessdaylistrequest, requestlist } = require("../controllers/wellnessday")
-const { protectsuperadmin, protectusers } = require("../middleware/middleware")
+const { wellnessdayrequest, wellnessdaylistrequest, requestlist, createhrwellnessevent } = require("../controllers/wellnessday")
+const { protectsuperadmin, protectusers, protecthr } = require("../middleware/middleware")
 
 router
 
@@ -14,6 +14,12 @@ router
 
     .post("/wellnessdayrequest", protectusers, wellnessdayrequest)
     .get("/wellnessdaylist",protectusers, requestlist)
+
+    //  #endregion
+
+    //  #region HR
+
+    .post("/createhrwellnessevent", protecthr, createhrwellnessevent)
 
     //  #endregion
 

@@ -15,11 +15,11 @@ const LeaveSchema = new mongoose.Schema(
             type: String
         },
         leavestart: {
-            type: String,
+            type: Date,
             index: true
         },
         leaveend: {
-            type: String,
+            type: Date,
             index: true
         },
         totalworkingdays: {

@@ -8,7 +8,7 @@ const WellnessdaySchema = new mongoose.Schema(
             index: true
         },
         requestdate:{
-            type: String,
+            type: Date,
             index: true
         },
         status: {
