@@ -208,14 +208,13 @@ exports.wellnessdayrequestedit = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Please select request date"})
     }
 
-    const today = new Date();
     const request = new Date(requestdate)
 
     const activeCycle = await Wellnessdayevent.aggregate([
         {
             $match: {
-                cyclestart: { $lte: today },
-                cycleend: { $gte: today }
+                cyclestart: { $lte: request },
+                cycleend: { $gte: request }
             }
         },
         {
