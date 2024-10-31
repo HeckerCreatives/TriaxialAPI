@@ -473,7 +473,7 @@ exports.createhrwellnessevent = async (req, res) => {
         ]
     });
 
-    if (conflictingEvent.length > 0){
+    if (conflictingEvent){
         return res.status(400).json({message: "failed", data: "There's an existing wellnessday event on that cycle / request dates"})
     }
 
@@ -618,7 +618,7 @@ exports.edithrwellnessevent = async (req, res) => {
         ]
     });
 
-    if (conflictingEvent.length > 0){
+    if (conflictingEvent){
         return res.status(400).json({message: "failed", data: "There's an existing wellnessday event on that cycle / request dates"})
     }
 
