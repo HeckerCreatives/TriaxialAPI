@@ -71,8 +71,12 @@ exports.listemail = async (req, res) => {
 
     const data = {
         totalpage: Math.ceil(totallist / pageOptions.limit),
-        emaillist: emaildatas[0]
+        emaillist: []
     }
+
+    emaildatas.forEach(tempdatas => {
+        data.emaillist.push(tempdatas)
+    })
 
     return res.json({message: "success", data: data})
 }
