@@ -175,10 +175,6 @@ exports.leaverequestdata = async (req, res) => {
     return res.json({message: "success", data: data})
 }
 
-//  #endregion
-
-//  #region EMPLOYEES
-
 exports.requestleave = async (req, res) => {
     const {id, email, reportingto, fullname} = req.user
 
@@ -324,7 +320,7 @@ exports.editrequestleave = async (req, res) => {
 
 exports.deleterequestleave = async (req, res) => {
     const {id, email} = req.user
-    const {requestid} = req.query
+    const {requestid} = req.body
 
     if (!requestid){
         return res.status(400).json({message: "failed", data: "Select a valid request leave form!"})
