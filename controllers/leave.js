@@ -309,7 +309,7 @@ exports.editrequestleave = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Enter Working hours during leave!"})
     }
 
-    await Leave.create({_id: new mongoose.Types.ObjectId(requestid)}, {type: leavetype, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments})
+    await Leave.findOneAndUpdate({_id: new mongoose.Types.ObjectId(requestid)}, {type: leavetype, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments})
     .catch(err => {
         console.log(`There's a problem creating leave request for ${id} ${email}. Error: ${err}`)
 
@@ -573,7 +573,7 @@ exports.managerleaverequestlistemployee = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details."})
     });
 
-    const totalPages = Math.ceil(total.length > 0 ? total[0].total : 0 / pageOptions.limit);
+    const totalPages = Math.ceil(total.length > 0 ? total[0].total / pageOptions.limit : 0 );
 
     const data = {
         requestlist: [],

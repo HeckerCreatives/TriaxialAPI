@@ -311,7 +311,7 @@ exports.listwfhrequestemployee = async (req, res) => {
     }
 
     requestlist.forEach(tempdata => {
-        const {_id, requestdate, requestend, wellnessdaycycle, totalhourswfh, createdAt} = tempdata
+        const {_id, requestdate, requestend, wellnessdaycycle, totalhourswfh, createdAt, status} = tempdata
 
         data.requestlist.push({
             requestid: _id,
@@ -319,7 +319,8 @@ exports.listwfhrequestemployee = async (req, res) => {
             requestend: requestend,
             wellnessdaycycle: wellnessdaycycle,
             totalhourswfh: totalhourswfh,
-            createdAt: createdAt
+            createdAt: createdAt,
+            status: status
         })
     })
 

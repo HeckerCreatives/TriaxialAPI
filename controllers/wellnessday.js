@@ -1,7 +1,7 @@
 const { default: mongoose } = require("mongoose");
 const Wellnessday = require ("../models/wellnessday");
 
-//  #region USERS
+//  #region EMPLOYEE
 
 exports.wellnessdayrequest = async (req, res) => {
     const {id, email} = req.user
@@ -51,8 +51,6 @@ exports.requestlist = async (req, res) => {
         console.log(`${err}`)
         return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details." })
     })
-
-    console.log(wellnessdayhistory)
 
     const totalPages = await Wellnessday.countDocuments({owner: new mongoose.Types.ObjectId(id)})
     .then(data => data)
