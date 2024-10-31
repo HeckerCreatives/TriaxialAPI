@@ -38,7 +38,7 @@ exports.login = async (req, res) => {
     })
 
     if (!userdata){
-        return res.json({message: "failed", data: "No existing email found"})
+        return res.status(400).json({message: "failed", data: "No existing email found"})
     }
 
     if (!(await userdata.matchPassword(password))){

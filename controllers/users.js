@@ -1,6 +1,50 @@
 const { default: mongoose } = require("mongoose")
 const Users = require("../models/Users")
 const Userdetails = require("../models/Userdetails")
+const bcrypt = require('bcrypt');
+
+const encrypt = async password => {
+    const salt = await bcrypt.genSalt(10);
+    return await bcrypt.hash(password, salt);
+}
+
+//  #region USERS
+
+exports.changepassword = async (req, res) => {
+    const {id, email} = req.user
+
+    const {currentpw, newpw} = req.body
+
+    const userdata = await Users.findOne({email: email})
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem getting user data. Error ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please try again later"})
+    })
+
+    if (!userdata){
+        return res.status(401).json({message: "failed", data: "No existing user found"})
+    }
+
+    if (!(await userdata.matchPassword(currentpw))){
+        return res.status(400).json({message: "failed", data: "Current password does not match!"})
+    }
+
+    
+    const hashPassword = bcrypt.hashSync(newpw, 10)
+
+    await Users.findOneAndUpdate({email: email}, {password: hashPassword})
+    .catch(err => {
+        console.log(`There's a problem getting updating password for ${email} ${id}. Error ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please try again later"})
+    })
+
+    return res.json({message: "success"})
+}
+
+//  #endregion
 
 //  #region SUPERADMIN
 
