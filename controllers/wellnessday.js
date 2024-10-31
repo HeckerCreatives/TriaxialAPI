@@ -9,15 +9,14 @@ exports.wellnessdayrequest = async (req, res) => {
     const {id, reportingto, fullname} = req.user
 
     const {requestdate} = req.body
-
-    const today = new Date();
+    
     const request = new Date(requestdate)
 
     const activeCycle = await Wellnessdayevent.aggregate([
         {
             $match: {
-                cyclestart: { $lte: today },
-                cycleend: { $gte: today }
+                cyclestart: { $lte: request },
+                cycleend: { $gte: request }
             }
         },
         {
