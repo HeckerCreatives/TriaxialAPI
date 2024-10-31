@@ -319,6 +319,24 @@ exports.editrequestleave = async (req, res) => {
     return res.json({message: "success"})
 }
 
+exports.deleterequestleave = async (req, res) => {
+    const {id, email} = req.user
+    const {requestid} = req.query
+
+    if (!requestid){
+        return res.status(400).json({message: "failed", data: "Select a valid request leave form!"})
+    }
+
+    await Leave.findOneAndDelete({_id: new mongoose.Types.ObjectId(requestid)})
+    .catch(err => {
+        console.log(`There's a problem with deleting request leave data for eventid: ${requestid} user: ${id}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support"})
+    })
+
+    return res.json({message: "success"})
+}
+
 //  #endregion
 
 //  #region SUPERADMIN

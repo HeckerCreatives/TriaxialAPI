@@ -1,6 +1,6 @@
 const router = require("express").Router()
-const { listwfhrequestadmin, showdatawfhrequest, approvewfhrequestadmin, listwfhrequestemployee, requestwfhemployee, editrequestwfhemployee, listwfhrequestmanager, approvewfhrequestmanager } = require("../controllers/wfh")
-const { protectsuperadmin, protectemployee, protectmanager } = require("../middleware/middleware")
+const { listwfhrequestadmin, showdatawfhrequest, approvewfhrequestadmin, listwfhrequestemployee, requestwfhemployee, editrequestwfhemployee, listwfhrequestmanager, approvewfhrequestmanager, deleterequestwfhemployee } = require("../controllers/wfh")
+const { protectsuperadmin, protectemployee, protectmanager, protectusers } = require("../middleware/middleware")
 
 router
 
@@ -12,12 +12,13 @@ router
 
     //  #endregion
 
-    //  #region EMPLOYEE
+    //  #region USERS
 
-    .get("/listwfhrequestemployee", protectemployee, listwfhrequestemployee)
-    .get("/showdatawfhrequestemployee", protectsuperadmin, showdatawfhrequest)
-    .post("/requestwfhemployee", protectemployee, requestwfhemployee)
-    .post("/editrequestwfhemployee", protectemployee, editrequestwfhemployee)
+    .get("/listwfhrequest", protectusers, listwfhrequestemployee)
+    .get("/showdatawfhrequest", protectusers, showdatawfhrequest)
+    .post("/requestwfh", protectusers, requestwfhemployee)
+    .post("/editrequestwfh", protectusers, editrequestwfhemployee)
+    .post("/deleterequestwfh", protectusers, deleterequestwfhemployee)
 
     //  #endregion
 

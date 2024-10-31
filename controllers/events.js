@@ -87,7 +87,7 @@ exports.geteventsusers = async (req, res) => {
 //  #endregion
 
 
-//  #region SUPERADMIN
+//  #region SUPERADMIN & HR
 
 exports.createevents = async (req, res) => {
     const {id, email} = req.user
@@ -230,6 +230,95 @@ exports.getevents = async (req, res) => {
     })
 
     return res.json({message: "success", data: data})
+}
+
+exports.editevents = async (req, res) => {
+    const {id, email} = req.user
+
+    const {eventid, eventtitle, startdate, enddate, teams} = req.body
+
+    if (!eventid){
+        return res.status(400).json({message: "failed", data: "Select a valid event id!"})
+    }
+    else if (!eventtitle){
+        return res.status(400).json({message: "failed", data: "Enter a event title!"})
+    }
+    else if (!startdate){
+        return res.status(400).json({message: "failed", data: "Select a start date!"})
+    }
+    else if (!enddate){
+        return res.status(400).json({message: "failed", data: "Select a end date!"})
+    }
+    else if (!teams){
+        return res.status(400).json({message: "failed", data: "Select one or more teams!"})
+    }
+    else if (!Array.isArray(teams)){
+        return res.status(400).json({message: "failed", data: "Selected teams are invalid!"})
+    }
+
+    await Events.findOneAndUpdate({_id: new mongoose.Types.ObjectId(eventid)}, {eventtitle: eventtitle, startdate: startdate, enddate: enddate, teams: teams})
+    .catch(err => {
+        console.log(`There's a problem saving your events! Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please try again later"})
+    })
+
+    return res.json({message: "success"})
+}
+
+exports.geteventdata = async (req, res) => {
+    const {id, email} = req.user
+
+    const {eventid} = req.query
+
+    if (!eventid){
+        return res.status(400).json({message: "failed", data: "Select a valid event id!"})
+    }
+
+    const eventdata = await Events.findOne({_id: new mongoose.Types.ObjectId(eventid)})
+    .populate({
+        path: "teams",
+        select: "_id teamname"
+    })
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem with getting event data for eventid: ${eventid}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support"})
+    })
+
+    if (!eventdata){
+        return res.status(400).json({message: "failed", data: "Please select a valid event!"})
+    }
+
+    const data = {
+        eventid: eventdata._id,
+        eventtitle: eventdata.eventtitle,
+        startdate: eventdata.startdate,
+        enddate: eventdata.enddate,
+        teams: eventdata.teams
+    }
+
+    return res.json({message: "success", data: data})
+}
+
+exports.deleteevent = async (req, res) => {
+    const {id, email} = req.user
+
+    const {eventid} = req.query
+
+    if (!eventid){
+        return res.status(400).json({message: "failed", data: "Select a valid event id!"})
+    }
+
+    await Events.findOneAndDelete({_id: new mongoose.Types.ObjectId(eventid)})
+    .catch(err => {
+        console.log(`There's a problem with deleting event data for eventid: ${eventid}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support"})
+    })
+
+    return res.json({message: "success"})
 }
 
 //  #endregion

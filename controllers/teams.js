@@ -3,6 +3,7 @@ const Users = require("../models/Users")
 const Teams = require("../models/Teams")
 const Events = require("../models/events")
 const Clients = require("../models/Clients")
+const Wellnessdayevent = require("../models/wellnessdayevent")
 
 //  #region SUPERADMIN
 
@@ -232,6 +233,11 @@ exports.deleteteams = async (req, res) => {
         { teams: { $in: teamids } }, // Find events where any of the teams are referenced
         { $pull: { teams: { $in: teamids } } } // Remove all teams from the 'teams' array
     );
+
+    await Wellnessdayevent.updateMany(
+        { teams: { $in: teamids } }, // Find events where any of the teams are referenced
+        { $pull: { teams: { $in: teamids } } } // Remove all teams from the 'teams' array
+    )
 
     return res.json({message: "success"});
 };

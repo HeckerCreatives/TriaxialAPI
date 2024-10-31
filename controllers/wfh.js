@@ -62,6 +62,142 @@ exports.showdatawfhrequest = async (req, res) => {
     return res.json({message: "success", data: data})
 }
 
+exports.listwfhrequestemployee = async (req, res) => {
+    const {id, email} = req.user
+
+    const {page, limit, statusfilter} = req.query
+
+    if (!statusfilter){
+        return res.status(400).json({message: "failed", data: "Please select a status filter first!"})
+    }
+
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10
+    };
+
+    const requestlist = await Workfromhome.find({status: statusfilter})
+    .sort({createdAt: -1})
+    .skip(pageOptions.page * pageOptions.limit)
+    .limit(pageOptions.limit)
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem with wfh request list of ${email}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    const totallist = await Workfromhome.countDocuments({status: statusfilter})
+
+    const data = {
+        requestlist: [],
+        totalpage: Math.ceil(totallist / pageOptions.limit),
+    }
+
+    requestlist.forEach(tempdata => {
+        const {_id, requestdate, requestend, wellnessdaycycle, totalhourswfh, createdAt, status} = tempdata
+
+        data.requestlist.push({
+            requestid: _id,
+            requestdate: requestdate,
+            requestend: requestend,
+            wellnessdaycycle: wellnessdaycycle,
+            totalhourswfh: totalhourswfh,
+            createdAt: createdAt,
+            status: status
+        })
+    })
+
+    return res.json({message: "success", data: data})
+}
+
+exports.requestwfhemployee = async (req, res) => {
+    const {id, email} = req.user
+
+    const {requestdate, requestend, wellnessdaycycle, totalhourswfh, hoursofleave, reason} = req.body
+
+    if (!requestdate){
+        return res.status(400).json({message: "failed", data: "Please select a request date first!"})
+    }
+    else if (!requestend){
+        return res.status(400).json({message: "failed", data: "Please select a request end date first!"})
+    }
+    else if (wellnessdaycycle == null){
+        return res.status(400).json({message: "failed", data: "Please select a wellness day cycle status first!"})
+    }
+    else if (totalhourswfh == null){
+        return res.status(400).json({message: "failed", data: "Please select a request date and request end date first!"})
+    }
+    else if (hoursofleave == null){
+        return res.status(400).json({message: "failed", data: "Please enter a hours of leave first!"})
+    }
+    else if (!reason){
+        return res.status(400).json({message: "failed", data: "Please enter a reason for work from home first!"})
+    }
+
+    await Workfromhome.create({owner: new mongoose.Types.ObjectId(id), requestdate: requestdate, requestend: requestend, wellnessdaycycle: wellnessdaycycle, totalhourswfh: totalhourswfh, hoursofleave: hoursofleave, reason: reason, status: "Pending"})
+    .catch(err => {
+        console.log(`There's a problem requesting wfh by ${id}. Error: ${err}`)
+        
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    return res.json({message: "success"})
+}
+
+exports.editrequestwfhemployee = async (req, res) => {
+    const {id, email} = req.user
+
+    const {requestid, requestdate, requestend, wellnessdaycycle, totalhourswfh, hoursofleave, reason} = req.body
+
+    if (!requestdate){
+        return res.status(400).json({message: "failed", data: "Please select a request date first!"})
+    }
+    else if (!requestend){
+        return res.status(400).json({message: "failed", data: "Please select a request end date first!"})
+    }
+    else if (wellnessdaycycle == null){
+        return res.status(400).json({message: "failed", data: "Please select a wellness day cycle status first!"})
+    }
+    else if (totalhourswfh == null){
+        return res.status(400).json({message: "failed", data: "Please select a request date and request end date first!"})
+    }
+    else if (hoursofleave == null){
+        return res.status(400).json({message: "failed", data: "Please enter a hours of leave first!"})
+    }
+    else if (!reason){
+        return res.status(400).json({message: "failed", data: "Please enter a reason for work from home first!"})
+    }
+
+    await Workfromhome.findOneAndUpdate({_id: new mongoose.Types.ObjectId(requestid)}, {requestdate: requestdate, requestend: requestend, wellnessdaycycle: wellnessdaycycle, totalhourswfh: totalhourswfh, hoursofleave: hoursofleave, reason: reason, status: "Pending"})
+    .catch(err => {
+        console.log(`There's a problem requesting wfh by ${id}. Error: ${err}`)
+        
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    return res.json({message: "success"})
+}
+
+exports.deleterequestwfhemployee = async (req, res) => {
+    const {id, email} = req.user
+
+    const {requestid} = req.body
+
+    if (!requestid){
+        return res.status(400).json({message: "failed", data: "Please select a valid request form first!"})
+    }
+
+    await Workfromhome.findOneAndDelete({_id: new mongoose.Types.ObjectId(requestid)})
+    .catch(err => {
+        console.log(`There's a problem deleting requesting wfh by ${id} requestid: ${requestid}. Error: ${err}`)
+        
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    return res.json({message: "success"})
+}
+
 //  #endregion
 
 //  #region SUPERADMIN
@@ -268,127 +404,6 @@ exports.approvewfhrequestadmin = async (req, res) => {
     .catch(err => {
         console.log(`There's a problem with approval of wfh request of ${requestid}. Error: ${err}`)
 
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
-    })
-
-    return res.json({message: "success"})
-}
-
-//  #endregion
-
-//  #region EMPLOYEE
-
-exports.listwfhrequestemployee = async (req, res) => {
-    const {id, email} = req.user
-
-    const {page, limit, statusfilter} = req.query
-
-    if (!statusfilter){
-        return res.status(400).json({message: "failed", data: "Please select a status filter first!"})
-    }
-
-    const pageOptions = {
-        page: parseInt(page) || 0,
-        limit: parseInt(limit) || 10
-    };
-
-    const requestlist = await Workfromhome.find({status: statusfilter})
-    .sort({createdAt: -1})
-    .skip(pageOptions.page * pageOptions.limit)
-    .limit(pageOptions.limit)
-    .then(data => data)
-    .catch(err => {
-        console.log(`There's a problem with wfh request list of ${email}. Error: ${err}`)
-
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
-    })
-
-    const totallist = await Workfromhome.countDocuments({status: statusfilter})
-
-    const data = {
-        requestlist: [],
-        totalpage: Math.ceil(totallist / pageOptions.limit),
-    }
-
-    requestlist.forEach(tempdata => {
-        const {_id, requestdate, requestend, wellnessdaycycle, totalhourswfh, createdAt, status} = tempdata
-
-        data.requestlist.push({
-            requestid: _id,
-            requestdate: requestdate,
-            requestend: requestend,
-            wellnessdaycycle: wellnessdaycycle,
-            totalhourswfh: totalhourswfh,
-            createdAt: createdAt,
-            status: status
-        })
-    })
-
-    return res.json({message: "success", data: data})
-}
-
-exports.requestwfhemployee = async (req, res) => {
-    const {id, email} = req.user
-
-    const {requestdate, requestend, wellnessdaycycle, totalhourswfh, hoursofleave, reason} = req.body
-
-    if (!requestdate){
-        return res.status(400).json({message: "failed", data: "Please select a request date first!"})
-    }
-    else if (!requestend){
-        return res.status(400).json({message: "failed", data: "Please select a request end date first!"})
-    }
-    else if (wellnessdaycycle == null){
-        return res.status(400).json({message: "failed", data: "Please select a wellness day cycle status first!"})
-    }
-    else if (totalhourswfh == null){
-        return res.status(400).json({message: "failed", data: "Please select a request date and request end date first!"})
-    }
-    else if (hoursofleave == null){
-        return res.status(400).json({message: "failed", data: "Please enter a hours of leave first!"})
-    }
-    else if (!reason){
-        return res.status(400).json({message: "failed", data: "Please enter a reason for work from home first!"})
-    }
-
-    await Workfromhome.create({owner: new mongoose.Types.ObjectId(id), requestdate: requestdate, requestend: requestend, wellnessdaycycle: wellnessdaycycle, totalhourswfh: totalhourswfh, hoursofleave: hoursofleave, reason: reason, status: "Pending"})
-    .catch(err => {
-        console.log(`There's a problem requesting wfh by ${id}. Error: ${err}`)
-        
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
-    })
-
-    return res.json({message: "success"})
-}
-
-exports.editrequestwfhemployee = async (req, res) => {
-    const {id, email} = req.user
-
-    const {requestid, requestdate, requestend, wellnessdaycycle, totalhourswfh, hoursofleave, reason} = req.body
-
-    if (!requestdate){
-        return res.status(400).json({message: "failed", data: "Please select a request date first!"})
-    }
-    else if (!requestend){
-        return res.status(400).json({message: "failed", data: "Please select a request end date first!"})
-    }
-    else if (wellnessdaycycle == null){
-        return res.status(400).json({message: "failed", data: "Please select a wellness day cycle status first!"})
-    }
-    else if (totalhourswfh == null){
-        return res.status(400).json({message: "failed", data: "Please select a request date and request end date first!"})
-    }
-    else if (hoursofleave == null){
-        return res.status(400).json({message: "failed", data: "Please enter a hours of leave first!"})
-    }
-    else if (!reason){
-        return res.status(400).json({message: "failed", data: "Please enter a reason for work from home first!"})
-    }
-
-    await Workfromhome.findOneAndUpdate({_id: new mongoose.Types.ObjectId(requestid)}, {requestdate: requestdate, requestend: requestend, wellnessdaycycle: wellnessdaycycle, totalhourswfh: totalhourswfh, hoursofleave: hoursofleave, reason: reason, status: "Pending"})
-    .catch(err => {
-        console.log(`There's a problem requesting wfh by ${id}. Error: ${err}`)
-        
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
     })
 

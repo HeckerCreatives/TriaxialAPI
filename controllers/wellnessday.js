@@ -73,9 +73,24 @@ exports.wellnessdayrequest = async (req, res) => {
     return res.json({message: "success"})
 }
 
-//  #endregion
+exports.deletewellnessdayrequest = async (req, res) => {
+    const {id, email} = req.user
 
-//  #region EMPLOYEE
+    const {requestid} = req.body
+
+    if (!requestid){
+        return res.status(400).json({message: "failed", data: "Please select a valid request form!"})
+    }
+
+    await Wellnessday.findOneAndDelete({_id: new mongoose.Types.ObjectId(requestid)})
+    .catch(err => {
+        console.log(`There's a problem with deleting your request user: ${id} requestid: ${requestid}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support"})
+    })
+
+    return res.json({message:"success"})
+}
 
 exports.requestlist = async (req, res) => {
     const {id, username} = req.user
@@ -87,6 +102,9 @@ exports.requestlist = async (req, res) => {
     }
 
     const wellnessdayhistory = await Wellnessday.find({owner: new mongoose.Types.ObjectId(id)})
+    .populate({
+        path: "firstdayofwellnessdaycyle"
+    })
     .skip(pageOptions.page * pageOptions.limit)
     .limit(pageOptions.limit)
     .sort({'createdAt': -1})
@@ -118,7 +136,7 @@ exports.requestlist = async (req, res) => {
     diff = firstdayoftheweek.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
 
     wellnessdayhistory.forEach(tempdata => {
-        const {wellnessdayId, requestdate, userFullName, reportingManagerFullName, createdAt} = tempdata
+        const {wellnessdayId, requestdate, userFullName, status, firstdayofwellnessdaycyle, reportingManagerFullName, createdAt} = tempdata
 
         data.history.push({
             createdAt: createdAt,
@@ -126,11 +144,122 @@ exports.requestlist = async (req, res) => {
             manager: reportingManagerFullName,
             user: userFullName,
             requestdate: requestdate,
-            firstdayofwellnessdaycycle: new Date(firstdayoftheweek.setDate(diff)).toISOString().split('T')[0]
+            status: status,
+            firstdayofwellnessdaycycle: firstdayofwellnessdaycyle.cyclestart
         })
     })
 
     return res.json({message: "success", data: data})
+}
+
+exports.wellnessdaydata = async (req, res) => {
+    const {id, email} = req.user
+
+    const {requestid} = req.query
+
+    if (!requestid){
+        return res.status(400).json({message: "failed", data: "Please select a valid request form!"})
+    }
+
+    const requestdata = await Wellnessday.findOne({_id: new mongoose.Types.ObjectId(requestid)})
+    .populate({
+        path: "firstdayofwellnessdaycyle"
+    })
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem with getting the request data for ${id} requestid: ${requestid}. Error: ${err}`)
+        
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support."})
+    })
+
+    if (!requestdata){
+        return res.status(400).json({message: "failed", data: "Select a valid request form!"})
+    }
+
+    const data = {
+        requestid: requestdata._id,
+        requestdate: requestdata.requestdate,
+        status: requestdata.status,
+        firstdayofwellnessdaycyle: requestdata.firstdayofwellnessdaycyle.cyclestart
+    }
+
+    return res.json({message: "success", data: data})
+}
+
+exports.wellnessdayrequestedit = async (req, res) => {
+    const {id, email} = req.user
+
+    const {requestdate, requestid} = req.body
+
+    if (!requestid){
+        return res.status(400).json({message: "failed", data: "Please select a valid request form"})
+    }
+    else if (!requestdate){
+        return res.status(400).json({message: "failed", data: "Please select request date"})
+    }
+
+    const today = new Date();
+    const request = new Date(requestdate)
+
+    const activeCycle = await Wellnessdayevent.aggregate([
+        {
+            $match: {
+                cyclestart: { $lte: today },
+                cycleend: { $gte: today }
+            }
+        },
+        {
+            $lookup: {
+                from: 'teams',
+                localField: 'teams',
+                foreignField: '_id',
+                as: 'teams'
+            }
+        },
+        {
+            $match: {
+                $or: [
+                    { 'teams.manager': new mongoose.Types.ObjectId(id) },
+                    { 'teams.teamleader': new mongoose.Types.ObjectId(id) },
+                    { 'teams.members': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } }
+                ]
+            }
+        },
+        {
+            $limit: 1
+        }
+    ]);
+
+    if (!activeCycle || activeCycle.length === 0) {
+        res.status(400).json({message: "failed", data: "No active wellness day cycle for your team or the request is within the request dates"})
+    }
+    
+    const event = activeCycle[0];
+    if (request < event.cyclestart || request > event.cycleend) {
+        res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
+    }
+
+    const conflictingEvent = await Wellnessdayevent.findOne({
+        $or: [
+            { startdate: request },
+            { enddate: request }
+        ],
+        cyclestart: activeCycle.cyclestart,
+        cycleend: activeCycle.cycleend
+    });
+
+    if (conflictingEvent) {
+        res.status(400).json({message: "failed", data: "The request date conflicts with an existing request date within the active cycle."})
+    }
+
+    await Wellnessday.findOneAndUpdate({_id: new mongoose.Types.ObjectId(requestid)}, {requestdate: request, firstdayofwellnessdaycyle: activeCycle[0]._id})
+    .catch(err => {
+        console.log(`There's a problem creating wellnessday request for id: ${id}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details."})
+    })
+
+    return res.json({message: "success"})
 }
 
 //  #endregion
