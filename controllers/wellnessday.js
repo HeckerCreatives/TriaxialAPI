@@ -49,7 +49,7 @@ exports.wellnessdayrequest = async (req, res) => {
     if (request < event.cyclestart || request > event.cycleend) {
         return res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
     }
-    
+
 
     const existingRequest = await Wellnessdayevent.findOne({firstdayofwellnessdaycyle: new mongoose.Types.ObjectId(activeCycle[0]._id)})
     .then(data => data)
@@ -146,11 +146,11 @@ exports.requestlist = async (req, res) => {
     diff = firstdayoftheweek.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
 
     wellnessdayhistory.forEach(tempdata => {
-        const {wellnessdayId, requestdate, userFullName, status, firstdayofwellnessdaycyle, reportingManagerFullName, createdAt} = tempdata
+        const {_id, requestdate, userFullName, status, firstdayofwellnessdaycyle, reportingManagerFullName, createdAt} = tempdata
 
         data.history.push({
             createdAt: createdAt,
-            requestid: wellnessdayId,
+            requestid: _id,
             manager: reportingManagerFullName,
             user: userFullName,
             requestdate: requestdate,
