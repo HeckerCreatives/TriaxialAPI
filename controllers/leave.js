@@ -251,7 +251,7 @@ exports.employeeleaverequestlist = async (req, res) => {
     }
 
     requestlist.forEach(tempdata => {
-        const {_id, type, leavestart, leaveend, status, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, comments} = tempdata
+        const {_id, type, leavestart, leaveend, status, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, comments, details} = tempdata
 
         data.requestlist.push({
             employeeid: id,
@@ -265,8 +265,8 @@ exports.employeeleaverequestlist = async (req, res) => {
             wellnessdaycycle: wellnessdaycycle,
             workinghoursonleave: workinghoursonleave,
             workinghoursduringleave: workinghoursduringleave,
-            comments: comments
-
+            comments: comments,
+            details: details
         })
     })
 

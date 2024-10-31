@@ -297,7 +297,7 @@ exports.createhrwellnessevent = async (req, res) => {
     else if (!teams){
         return res.status(400).json({message: "failed", data: "Please select a team first"})
     }
-    else if (Array.isArray(teams)){
+    else if (!Array.isArray(teams)){
         return res.status(400).json({message: "failed", data: "Please select a valid team first"})
     }
     else if (teams.length <= 0){
@@ -442,7 +442,7 @@ exports.edithrwellnessevent = async (req, res) => {
     else if (!teams){
         return res.status(400).json({message: "failed", data: "Please select a team first"})
     }
-    else if (Array.isArray(teams)){
+    else if (!Array.isArray(teams)){
         return res.status(400).json({message: "failed", data: "Please select a valid team first"})
     }
     else if (teams.length <= 0){
