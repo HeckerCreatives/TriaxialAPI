@@ -1,6 +1,6 @@
 const router = require("express").Router()
-const { wellnessdayrequest, wellnessdaylistrequest, requestlist, createhrwellnessevent, wellnessdayeventlist, getwellnessdayeventdata, edithrwellnessevent } = require("../controllers/wellnessday")
-const { protectsuperadmin, protectusers, protecthr } = require("../middleware/middleware")
+const { wellnessdayrequest, wellnessdaylistrequest, requestlist, createhrwellnessevent, wellnessdayeventlist, getwellnessdayeventdata, edithrwellnessevent, wellnessdayapproval, managerwellnessdaylistrequestbyemployee } = require("../controllers/wellnessday")
+const { protectsuperadmin, protectusers, protecthr, protectmanager } = require("../middleware/middleware")
 
 router
 
@@ -11,6 +11,7 @@ router
     .get("/getwellnessdayeventdataadmin", protectsuperadmin, getwellnessdayeventdata)
     .post("/createadminwellnessevent", protectsuperadmin, createhrwellnessevent)
     .post("/edithrwellnesseventadmin", protectsuperadmin, edithrwellnessevent)
+    .post("/wellnessdayapprovaladmin", protectsuperadmin, wellnessdayapproval)
 
     //  #endregion
 
@@ -18,6 +19,13 @@ router
 
     .post("/wellnessdayrequest", protectusers, wellnessdayrequest)
     .get("/wellnessdaylist",protectusers, requestlist)
+
+    //  #endregion
+    
+    //  #region MANAGER
+
+    .get("/managerwellnessdaylistrequestbyemployee", protectmanager, managerwellnessdaylistrequestbyemployee)
+    .post("/wellnessdayapprovalmanager", protectmanager, wellnessdayapproval)
 
     //  #endregion
 

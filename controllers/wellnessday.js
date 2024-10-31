@@ -60,10 +60,10 @@ exports.wellnessdayrequest = async (req, res) => {
     });
 
     if (conflictingEvent) {
-        res.status(400).json({message: "failed", data: "The request date conflicts with an existing event date within the active cycle."})
+        res.status(400).json({message: "failed", data: "The request date conflicts with an existing request date within the active cycle."})
     }
 
-    await Wellnessday.create({owner: new mongoose.Types.ObjectId(id), requestdate: request, status: "Pending"})
+    await Wellnessday.create({owner: new mongoose.Types.ObjectId(id), requestdate: request, firstdayofwellnessdaycyle: activeCycle[0]._id, status: "Pending"})
     .catch(err => {
         console.log(`There's a problem creating wellnessday request for id: ${id}. Error: ${err}`)
 
@@ -135,7 +135,6 @@ exports.requestlist = async (req, res) => {
 
 //  #endregion
 
-
 //  #region SUPERADMIN
 
 exports.wellnessdaylistrequest = async (req, res) => {
@@ -151,7 +150,7 @@ exports.wellnessdaylistrequest = async (req, res) => {
     const searchStage = {};
     if (fullnamefilter) {
         const searchRegex = new RegExp(fullnamefilter, 'i'); // 'i' for case-insensitive
-        searchStage.$or = [
+        searchStage['$or'] = [
             { 'userDetails.firstname': { $regex: searchRegex } },
             { 'userDetails.lastname': { $regex: searchRegex } },
             { $expr: { $regexMatch: { input: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] }, regex: fullnamefilter, options: 'i' } } }
@@ -201,6 +200,8 @@ exports.wellnessdaylistrequest = async (req, res) => {
                 _id: 0,
                 wellnessdayId: '$_id',
                 requestdate: 1,
+                status: 1,
+                firstdayofwellnessdaycyle: 1,
                 // Full name of the user
                 userFullName: {
                     $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']
@@ -248,20 +249,16 @@ exports.wellnessdaylistrequest = async (req, res) => {
         totalpages: Math.ceil(totallistcount.length > 0 ? totallistcount[0].total : 0 / pageOptions.limit)
     }
 
-    const today = new Date();
-    const firstdayoftheweek = new Date(today);
-    const day = firstdayoftheweek.getDay(),  // Get the current day (0 for Sunday, 1 for Monday, etc.)
-    diff = firstdayoftheweek.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-
     wellnessDayData.forEach(tempdata => {
-        const {wellnessdayId, requestdate, userFullName, reportingManagerFullName} = tempdata
+        const {wellnessdayId, requestdate, firstdayofwellnessdaycyle, userFullName, reportingManagerFullName, status} = tempdata
 
         data.requestlist.push({
             requestid: wellnessdayId,
             manager: reportingManagerFullName,
             user: userFullName,
             requestdate: requestdate,
-            firstdayofwellnessdaycycle: new Date(firstdayoftheweek.setDate(diff)).toISOString().split('T')[0]
+            status: status,
+            firstdayofwellnessdaycyle: firstdayofwellnessdaycyle.cyclestart
         })
     })
 
@@ -272,6 +269,164 @@ exports.wellnessdaylistrequest = async (req, res) => {
 
 //  #region MANAGER
 
+exports.managerwellnessdaylistrequestbyemployee = async (req, res) => {
+    const {id, email} = req.user
+
+    const {page, limit, statusfilter, fullnamefilter} = req.query
+
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10
+    };
+
+    const searchStage = {
+        'userDetails.reportingto': new mongoose.Types.ObjectId(id)
+    };
+    if (fullnamefilter) {
+        const searchRegex = new RegExp(fullnamefilter, 'i'); // 'i' for case-insensitive
+        searchStage['$or'] = [
+            { 'userDetails.firstname': { $regex: searchRegex } },
+            { 'userDetails.lastname': { $regex: searchRegex } },
+            { $expr: { $regexMatch: { input: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] }, regex: fullnamefilter, options: 'i' } } }
+        ];
+    }
+
+    const wellnessDayData = await Wellnessday.aggregate([
+        {
+            $match: {
+                status: statusfilter
+            }
+        },
+        {
+            // Lookup user details for the owner of the wellness day
+            $lookup: {
+                from: 'userdetails',
+                localField: 'owner',
+                foreignField: 'owner',
+                as: 'userDetails'
+            }
+        },
+        {
+            $unwind: '$userDetails' // Deconstruct the userDetails array
+        },
+        {
+            // Apply the search filter for user's first name, last name, or full name
+            $match: searchStage
+        },
+        {
+            // Lookup reporting manager's details
+            $lookup: {
+                from: 'userdetails',
+                localField: 'userDetails.reportingto',
+                foreignField: 'owner',
+                as: 'reportingManagerDetails'
+            }
+        },
+        {
+            $unwind: {
+                path: '$reportingManagerDetails',
+                preserveNullAndEmptyArrays: true // In case some users don't have a reporting manager
+            }
+        },
+        {
+            // Format the output to include only the relevant information
+            $project: {
+                _id: 0,
+                wellnessdayId: '$_id',
+                requestdate: 1,
+                status: 1,
+                firstdayofwellnessdaycyle: 1,
+                // Full name of the user
+                userFullName: {
+                    $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']
+                },
+                // Full name of the reporting manager (if available)
+                reportingManagerFullName: {
+                    $cond: {
+                        if: { $and: ['$reportingManagerDetails.firstname', '$reportingManagerDetails.lastname'] },
+                        then: { $concat: ['$reportingManagerDetails.firstname', ' ', '$reportingManagerDetails.lastname'] },
+                        else: 'N/A'
+                    }
+                }
+            }
+        },
+        { $skip: pageOptions.page * pageOptions.limit }, // Skip for pagination
+        { $limit: pageOptions.limit } // Limit for pagination
+    ]);
+
+    const totallistcount = await Wellnessday.aggregate([
+        {
+            $match: {
+                status: statusfilter
+            }
+        },
+        {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'owner',
+                foreignField: 'owner',
+                as: 'userDetails'
+            }
+        },
+        { $unwind: '$userDetails' },
+        { $match: searchStage },
+        { $count: "total" }
+    ])
+    .catch(err => {
+        console.log(`There's a problem with getting wellnessday list count. Error ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details."})
+    });
+
+    const data = {
+        requestlist: [],
+        totalpages: Math.ceil(totallistcount.length > 0 ? totallistcount[0].total : 0 / pageOptions.limit)
+    }
+
+    wellnessDayData.forEach(tempdata => {
+        const {wellnessdayId, requestdate, firstdayofwellnessdaycyle, userFullName, reportingManagerFullName, status} = tempdata
+
+        data.requestlist.push({
+            requestid: wellnessdayId,
+            manager: reportingManagerFullName,
+            user: userFullName,
+            requestdate: requestdate,
+            status: status,
+            firstdayofwellnessdaycyle: firstdayofwellnessdaycyle.cyclestart
+        })
+    })
+
+    return res.json({message: "success", data: data})
+}
+
+//  #endregion
+
+//  #region MANAGER & SUPERADMIN
+
+exports.wellnessdayapproval = async (req, res) => {
+    const {id, email} = req.user
+
+    const {approvalstatus, requestid} = req.body
+
+    if (!approvalstatus) {
+        return res.status(400).json({message: "failed", data: "Please select an approval status!"})
+    }
+    else if (approvalstatus != "Approved" && approvalstatus != "Denied"){
+        return res.status(400).json({message: "failed", data: "Please select a valid approval status! Approved or Denied only!"})
+    }
+    else if (!requestid){
+        return res.status(400).json({message: "failed", data: "Please select a valid request!"})
+    }
+
+    await Wellnessday.findOneAndUpdate({_id: new mongoose.Types.ObjectId(requestid)}, {status: approvalstatus})
+    .catch(Err => {
+        console.log(`There's a problem with approving request wellnessday requestid: ${requestid}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    return res.json({message: "success"})
+}
 
 //  #endregion
 
