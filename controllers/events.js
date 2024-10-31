@@ -2,6 +2,8 @@ const { default: mongoose } = require("mongoose");
 const Events = require("../models/events")
 const Teams = require("../models/Teams")
 
+const {sendmail} = require("../utils/email")
+
 const moment = require('moment');
 
 //  #region USERS
@@ -116,6 +118,10 @@ exports.createevents = async (req, res) => {
 
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please try again later"})
     })
+
+    const sender = new mongoose.Types.ObjectId(id)
+
+    await sendmail(sender, [], `${eventtitle} (Event)`, `Hello Everyone!\n\nThere would be an event on ${startdate} until ${enddate}.\n\nIf there's any question, please feel free to contact your respective immediate advisors\n\nThank you and have a great day!`, true)
 
     return res.json({message: "success"})
 }

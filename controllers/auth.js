@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const jsonwebtokenPromisified = require('jsonwebtoken-promisified');
 const path = require("path");
 const { default: mongoose } = require("mongoose");
+const Userdetails = require("../models/Userdetails");
 const privateKey = fs.readFileSync(path.resolve(__dirname, "../keys/private-key.pem"), 'utf-8');
 
 const encrypt = async password => {
@@ -44,6 +45,14 @@ exports.login = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Password does not match!"})
     }
 
+    const userdeets = await Userdetails.findOne({owner: new mongoose.Types.ObjectId(userdata._id)})
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem getting user details data. Error ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please try again later"})
+    })
+
     const token = await encrypt(privateKey)
 
     await Users.findOneAndUpdate({_id: new mongoose.Types.ObjectId(userdata._id)}, {token: token})
@@ -53,7 +62,7 @@ exports.login = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please try again later"})
     })
 
-    const payload = {id: userdata._id, email: userdata.email, token: token, auth: userdata.auth}
+    const payload = {id: userdata._id, email: userdata.email, token: token, auth: userdata.auth, fullname: `${(userdeets.firstname != "" ? userdeets.firstname : "")} ${(userdeets.lastname != "" ? userdeets.lastname : "")}`, reportingto: userdeets.reportingto != "" ? userdeets.reportingto : ""}
 
     let jwtoken = ""
 

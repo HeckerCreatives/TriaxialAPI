@@ -3,6 +3,7 @@ const Events = require("../models/events")
 const Wellnessday = require("../models/wellnessday")
 const moment = require("moment")
 const { default: mongoose } = require("mongoose")
+const {sendmail} = require("../utils/email")
 
 //  #region USERS
 
@@ -179,7 +180,7 @@ exports.leaverequestdata = async (req, res) => {
 //  #region EMPLOYEES
 
 exports.requestleave = async (req, res) => {
-    const {id, email} = req.user
+    const {id, email, reportingto, fullname} = req.user
 
     const {leavetype, details, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, comments} = req.body
 
@@ -217,6 +218,8 @@ exports.requestleave = async (req, res) => {
 
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
     })
+
+    await sendmail(new mongoose.Types.ObjectId(id), [{_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID)}, {_id: new mongoose.Types.ObjectId(reportingto)}], `Leave Request by ${fullname}`, `Hello Manager!\n\nThere's a leave request from ${fullname}!\nFrom ${leavestart} until ${leaveend}.\n\nIf you have any question please contact ${fullname}.\n\nThank you and have a great day`, false)
 
     return res.json({message: "success"})
 }
