@@ -16,6 +16,13 @@ exports.serverinit = async () => {
 
     if (superadmin.length <= 0){
         await Users.create({_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID), email: "triaxialadmin@triaxial.com", password: "3qmdYDmHHV71", token: "", bandate: "", status: "active", auth: "superadmin"})
+
+        await Userdetails.create({owner: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID), firstname: "Triaxial", lastname: "Superadmin", initial: "TSA", contactno: "09672852303"})
+        .catch(err => {
+            console.log(`There's a problem creating user details for superadmin. Error ${err}`)
+
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
+        });
     }
 
     const firstmanager = await Users.findOne({_id: new mongoose.Types.ObjectId(process.env.FIRST_MANAGER)})
