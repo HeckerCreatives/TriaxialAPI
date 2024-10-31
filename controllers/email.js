@@ -26,28 +26,31 @@ exports.listemail = async (req, res) => {
         {
             $lookup: {
                 from: 'userdetails', // The collection name of `userDetailsSchema`
-                localField: 'owner',
-                foreignField: 'sender',
+                localField: 'sender',
+                foreignField: 'owner',
                 as: 'senderDetails'
             }
         },
-        { $unwind: '$senderDetails' }, // Flatten the `userDetails` array
+        { $unwind: { path: '$senderDetails', preserveNullAndEmptyArrays: true } },
         {
             $lookup: {
                 from: 'userdetails', // The collection name of `userDetailsSchema`
-                localField: 'owner',
-                foreignField: 'receiver',
+                localField: 'receiver',
+                foreignField: 'owner',
                 as: 'receiverDetails'
             }
         },
-        { $unwind: '$receiverDetails' }, // Flatten the `userDetails` array
         {
             $project: {
                 senderfullname: {
                     $concat: ['$senderDetails.firstname', ' ', '$senderDetails.lastname']
                 },
-                receiverfullname: {
-                    $concat: ['$receiverDetails.firstname', ' ', '$receiverDetails.lastname']
+                receiverfullnames: {
+                    $map: {
+                        input: '$receiverDetails',
+                        as: 'receiver',
+                        in: { $concat: ['$$receiver.firstname', ' ', '$$receiver.lastname'] }
+                    }
                 },
                 title: 1,
                 content: 1
