@@ -10,7 +10,7 @@ router
     .get("/wellnessdayeventlistadmin", protectsuperadmin, wellnessdayeventlist)
     .get("/getwellnessdayeventdataadmin", protectsuperadmin, getwellnessdayeventdata)
     .post("/createadminwellnessevent", protectsuperadmin, createhrwellnessevent)
-    .post("/edithrwellnesseventadmin", protectsuperadmin, edithrwellnessevent)
+    .post("/editwellnesseventadmin", protectsuperadmin, edithrwellnessevent)
     .post("/wellnessdayapprovaladmin", protectsuperadmin, wellnessdayapproval)
 
     //  #endregion
