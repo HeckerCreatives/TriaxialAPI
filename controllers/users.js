@@ -619,7 +619,7 @@ exports.editemployees = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
     });
 
-    if (userdeets != employeeid){
+    if (userdeets.owner != employeeid){
         if (userdeets){
             return res.status(400).json({message: "failed", data: "There's an existing user details already. Please use a different user credentials"})
         }
