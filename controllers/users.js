@@ -1,6 +1,7 @@
 const { default: mongoose } = require("mongoose")
 const Users = require("../models/Users")
 const Userdetails = require("../models/Userdetails")
+const Teams = require("../models/Teams")
 const bcrypt = require('bcrypt');
 
 const encrypt = async password => {
@@ -661,7 +662,33 @@ exports.viewteamemployees = async (req, res) => {
 
     const {employeeid} = req.query
 
+    if (!employeeid) {
+        return res.status(400).json({message: "failed", data: "Please select a valid employee"})
+    }
 
+    const employeeteam = await Teams.find({$or: [
+        {manager: new mongoose.Types.ObjectId(employeeid)},
+        {teamleader: new mongoose.Types.ObjectId(employeeid)},
+        {members: new mongoose.Types.ObjectId(employeeid)}
+    ]})
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem getting the employee team list for user: ${employeeid}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details"})
+    })
+
+    const data = {
+        list: []
+    }
+
+    employeeteam.forEach(tempdata => {
+        const {teamname} = tempdata
+
+        data.list.push({teamname: teamname})
+    })
+
+    return res.json({message: "success", data: data})
 }
 
 //  #endregion
