@@ -443,7 +443,7 @@ exports.superadminleaverequestlist = async (req, res) => {
     console.log(requestlist, total)
 
 
-    const totalPages = Math.ceil(total.length > 0 ? total[0].total : 0 / pageOptions.limit);
+    const totalPages = Math.ceil(total.length > 0 ? total[0].total / pageOptions.limit : 0 / pageOptions.limit);
 
     const data = {
         requestlist: [],

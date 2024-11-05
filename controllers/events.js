@@ -165,13 +165,14 @@ exports.listevents = async (req, res) => {
     }
 
     events.forEach(tempdata => {
-        const {eventtitle, startdate, enddate, teams} = tempdata
+        const {eventtitle, startdate, enddate, teams, _id} = tempdata
 
         data.eventlist.push({
             title: eventtitle,
             startdate: startdate,
             enddate: enddate,
-            teams: teams
+            teams: teams,
+            eventid: _id
         })
     })
 
@@ -311,7 +312,7 @@ exports.geteventdata = async (req, res) => {
 exports.deleteevent = async (req, res) => {
     const {id, email} = req.user
 
-    const {eventid} = req.query
+    const {eventid} = req.body
 
     if (!eventid){
         return res.status(400).json({message: "failed", data: "Select a valid event id!"})
