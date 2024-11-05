@@ -1,6 +1,6 @@
 const router = require("express").Router()
-const { createteam, listteam, teamsearchlist, deleteteams, teamdata, editteam } = require("../controllers/teams")
-const { protectsuperadmin, protecthr } = require("../middleware/middleware")
+const { createteam, listteam, teamsearchlist, deleteteams, teamdata, editteam, listownteam } = require("../controllers/teams")
+const { protectsuperadmin, protecthr, protectmanager, protectemployee } = require("../middleware/middleware")
 
 router
 
@@ -20,5 +20,17 @@ router
     .get("/listteamhr", protecthr, listteam)
 
     //  #endregion
+
+    //  #region MANAGER
+
+    .get("/managerlistownteam", protectmanager, listownteam)
+
+    //  #endregion 
+
+     //  #region EMPLOYEE
+
+     .get("/employeelistownteam", protectemployee, listownteam)
+
+     //  #endregion 
 
 module.exports = router;
