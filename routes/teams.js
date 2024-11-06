@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { createteam, listteam, teamsearchlist, deleteteams, teamdata, editteam, listownteam } = require("../controllers/teams")
+const { createteam, listteam, teamsearchlist, deleteteams, teamdata, editteam, listownteam, searchteam } = require("../controllers/teams")
 const { protectsuperadmin, protecthr, protectmanager, protectemployee } = require("../middleware/middleware")
 
 router
@@ -24,6 +24,7 @@ router
     //  #region MANAGER
 
     .get("/managerlistownteam", protectmanager, listownteam)
+    .get("/managersearchteam", protectmanager, searchteam)
 
     //  #endregion 
 

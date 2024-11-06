@@ -541,6 +541,29 @@ exports.listownteam = async (req, res) => {
     }
 };
 
+exports.searchteam = async (req, res) => {
+    const {id, email} = req.user
+
+    const teamdata = await Teams.find({
+        $or: [
+            {manager: new mongoose.Types.ObjectId(id)},
+            {teamleader: new mongoose.Types.ObjectId(id)}
+        ]
+    })
+
+    const data = []
+
+    teamdata.forEach(tempdata => {
+        const {_id, teamname} = tempdata
+
+        data.push({
+            teamid: _id,
+            teamname: teamname
+        })
+    })
+
+    return res.json({message: "success", data: data})
+}
 
 // const data = {
 //     graph: [
