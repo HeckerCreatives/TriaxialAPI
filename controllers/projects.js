@@ -148,5 +148,118 @@ exports.listprojects = async (req, res) => {
     return res.json({message: "success", data: data})
 };
 
+exports.viewprojectdetails = async (req, res) => {
+    const {id, email} = req.user
+
+    const {projectid} = req.query
+
+    if (!projectid){
+        return res.status(400).json({message: "failed", data: "Select a valid project"})
+    }
+
+    const projectdata = await Projects.aggregate([
+        {
+            $lookup: {
+                from: 'teams',
+                localField: 'team',
+                foreignField: '_id',
+                as: 'teamData'
+            }
+        },
+        { $unwind: { path: '$teamData', preserveNullAndEmptyArrays: true } },
+        {
+            $project: {
+                _id: 1,
+                projectname: 1,
+                team: {
+                    teamid: '$teamData._id',
+                    teamname: '$teamData.teamname'
+                },
+                invoiced: 1,
+                status: 1,
+                startdate: 1,
+                deadlinedate: 1
+            }
+        }
+    ])
+    .catch(err => {
+        console.log(`There's a problem getting the project data for ${projectid}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support."})
+    })
+
+    if (projectdata.length <= 0){
+        return res.json({message: "success", data: {
+            projectdata: {}
+        }})
+    }
+    
+    const data = {
+        projectdata: {
+            projecid: projectdata[0]._id,
+            projectname: projectdata[0].projectname,
+            team: projectdata[0].team,
+            invoiced: projectdata[0].invoiced,
+            status: projectdata[0].status,
+            startdate: projectdata[0].startdate,
+            deadlinedate: projectdata[0].deadlinedate
+        }
+    }
+
+    return res.json({message: "success", data: data})
+}
+
+exports.editproject = async (req, res) => {
+    const {id, email} = req.user
+
+    const {projectid, team, projectname, startdate, deadlinedate} = req.body
+
+    if (!projectid){
+        return res.status(400).json({message: "failed", data: "Please select a valid project first!"})
+    }
+    else if (!team){
+        return res.status(400).json({message: "failed", data: "Please select a team first!"})
+    }
+    else if (!projectname){
+        return res.status(400).json({message: "failed", data: "Enter a project name!"})
+    }
+    else if (!startdate){
+        return res.status(400).json({message: "failed", data: "Please select a start date"})
+    }
+    else if (!deadlinedate){
+        return res.status(400).json({message: "failed", data: "Please select a deadline date"})
+    }
+
+    await Projects.findOneAndUpdate({_id: new mongoose.Types.ObjectId(projectid)}, {team: new mongoose.Types.ObjectId(team), projectname: projectname, invoiced: 0, status: "On-going", startdate: new Date(startdate), deadlinedate: new Date(deadlinedate)})
+    .catch(err => {
+        console.log(`There's a problem updating projects, project name: ${projectname}. Error ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
+    })
+
+    return res.json({message: "success"})
+}
+
+exports.changeprojectstatus = async (req, res) => {
+    const {id, email} = req.user
+
+    const {projectid, status} = req.body
+
+    if (!status){
+        return res.status(400).json({message: "failed", data: "Please select a status"})
+    }
+    else if (status != "On-going" && status != "Complete" && status != "Beyond Deadline"){
+        return res.status(400).json({message: "failed", data: "Please select a status (On-going, Complete, or Beyond Deadline)"})
+    }
+
+    await Projects.findOneAndUpdate({_id: new mongoose.Types.ObjectId(projectid)}, {status: status})
+    .catch(err => {
+        console.log(`There's a problem updating status of project ${projectid}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
+    })
+
+    return res.json({message: "success"})
+}
 
 //  #endregion
