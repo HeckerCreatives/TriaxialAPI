@@ -540,6 +540,98 @@ exports.listownteam = async (req, res) => {
         return res.status(500).json({ message: 'Error fetching teams', error });
     }
 };
-  
+
+
+// const data = {
+//     graph: [
+//         {
+//             teamname: "team test",
+//             projectname: "project test",
+//             clientname: "client test",
+//             jobno: 1,
+//             jobmanager: {
+//                 employeeid: "id here",
+//                 fullname: "Darel Honrejas"
+//             },
+//             jobcomponent: {
+//                 componentid: "id here",
+//                 componentname: "testing component"
+//             },
+//             notes: "notes here",
+//             members: [
+//                 {
+//                     role: "Engineer (Engr.)",
+//                     employee: {
+//                         employeeid: "id here",
+//                         fullname: "Bien Daniel"
+//                     },
+//                     dates: [
+//                         {
+//                             date: "05/11/2024",
+//                             status: 0 ("none") 1 ("25%") 2 ("50%") 3 ("75%") 4 ("100%") 5 ("Due on") 6 ("CNST PH."),
+//                             hours: 9,
+//                             isOnLeave: false,
+//                             isOnWellnessday: false,
+//                             isOnEvent: false
+//                         },
+//                         {
+//                             date: "05/12/2024",
+//                             status: 0 ("none") 1 ("25%") 2 ("50%") 3 ("75%") 4 ("100%") 5 ("Due on") 6 ("CNST PH."),
+//                             hours: 9,
+//                             isOnLeave: false,
+//                             isOnWellnessday: false,
+//                             isOnEvent: false
+//                         },
+//                         {
+//                             date: "05/13/2024",
+//                             status: 0 ("none") 1 ("25%") 2 ("50%") 3 ("75%") 4 ("100%") 5 ("Due on") 6 ("CNST PH."),
+//                             hours: 9,
+//                             isOnLeave: false,
+//                             isOnWellnessday: false,
+//                             isOnEvent: false
+//                         },
+//                         {
+//                             date: "05/14/2024",
+//                             status: 0 ("none") 1 ("25%") 2 ("50%") 3 ("75%") 4 ("100%") 5 ("Due on") 6 ("CNST PH."),
+//                             hours: 9,
+//                             isOnLeave: false,
+//                             isOnWellnessday: false,
+//                             isOnEvent: false
+//                         },
+//                         {
+//                             date: "05/15/2024",
+//                             status: 0 ("none") 1 ("25%") 2 ("50%") 3 ("75%") 4 ("100%") 5 ("Due on") 6 ("CNST PH."),
+//                             hours: 9,
+//                             isOnLeave: false,
+//                             isOnWellnessday: false,
+//                             isOnEvent: false
+//                         }
+//                     ]
+//                 },
+//                 {
+//                     role: "Engineer Reviewer (Engr. Revr.)",
+//                     employee: {
+//                         employeeid: "id here",
+//                         fullname: "Bien Daniel"
+//                     }
+//                 },
+//                 {
+//                     role: "Drafter (Drft.)",
+//                     employee: {
+//                         employeeid: "id here",
+//                         fullname: "Joshua De Guzman"
+//                     }
+//                 },
+//                 {
+//                     role: "Drafter Reviewer (Drft. Revr.)",
+//                     employee: {
+//                         employeeid: "id here",
+//                         fullname: "Jomarie Luistro"
+//                     }
+//                 },
+//             ]
+//         }
+//     ]
+// }
 
 //  #endregion
