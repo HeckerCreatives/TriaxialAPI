@@ -72,194 +72,212 @@ exports.createjobcomponent = async (req, res) => {
 }
 
 exports.listjobcomponent = async (req, res) => {
-    const {id, email} = req.user
+    const { id, email } = req.user;
+    const { projectid } = req.query;
 
-    const {projectid} = req.query
+    try {
+        const result = await Jobcomponents.aggregate([
+            {
+                $match: { project: new mongoose.Types.ObjectId(projectid) }
+            },
 
-    const result = await Jobcomponents.aggregate([
-        { $match: { project: new mongoose.Types.ObjectId(projectid) } },
+            {
+                $lookup: {
+                    from: 'projects',
+                    localField: 'project',
+                    foreignField: '_id',
+                    as: 'projectDetails'
+                }
+            },
+            { $unwind: '$projectDetails' },
 
-        {
-            $lookup: {
-                from: 'projects',
-                localField: 'project',
-                foreignField: '_id',
-                as: 'projectDetails'
-            }
-        },
-        { $unwind: '$projectDetails' },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'jobmanager',
+                    foreignField: '_id',
+                    as: 'jobManagerDetails'
+                }
+            },
+            { $unwind: '$jobManagerDetails' },
 
-        {
-            $lookup: {
-                from: 'users',
-                localField: 'jobmanager',
-                foreignField: '_id',
-                as: 'jobManagerDetails'
-            }
-        },
-        { $unwind: '$jobManagerDetails' },
+            {
+                $lookup: {
+                    from: 'teams',
+                    localField: 'projectDetails.team',
+                    foreignField: '_id',
+                    as: 'teamDetails'
+                }
+            },
+            { $unwind: { path: '$teamDetails', preserveNullAndEmptyArrays: true } },
 
-        {
-            $lookup: {
-                from: 'teams',
-                localField: 'projectDetails.team',
-                foreignField: '_id',
-                as: 'teamDetails'
-            }
-        },
-        { $unwind: { path: '$teamDetails', preserveNullAndEmptyArrays: true } },
-
-        {
-            $addFields: {
-                isManager: {
-                    $cond: {
-                        if: { $eq: [new mongoose.Types.ObjectId(id), '$teamDetails.manager'] },
-                        then: true,
-                        else: false
+            {
+                $addFields: {
+                    isManager: {
+                        $cond: {
+                            if: { $eq: [new mongoose.Types.ObjectId(id), '$teamDetails.manager'] },
+                            then: true,
+                            else: false
+                        }
                     }
                 }
-            }
-        },
+            },
 
-        { $unwind: '$members' },
+            { $unwind: '$members' },
 
-        {
-            $lookup: {
-                from: 'users',
-                localField: 'members.employee',
-                foreignField: '_id',
-                as: 'employeeDetails'
-            }
-        },
-        { $unwind: '$employeeDetails' },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'members.employee',
+                    foreignField: '_id',
+                    as: 'employeeDetails'
+                }
+            },
+            { $unwind: '$employeeDetails' },
 
-        {
-            $lookup: {
-                from: 'userdetails',
-                localField: 'employeeDetails._id',
-                foreignField: 'owner',
-                as: 'userDetails'
-            }
-        },
-        { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'employeeDetails._id',
+                    foreignField: 'owner',
+                    as: 'userDetails'
+                }
+            },
+            { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
 
-        {
-            $lookup: {
-                from: 'leaves',
-                let: { employeeId: '$members.employee' },
-                pipeline: [
-                    { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
-                    {
-                        $project: {
-                            _id: 0,
-                            leavedates: {
-                                $map: {
-                                    input: { $range: [{ $toLong: "$leavestart" }, { $add: [{ $toLong: "$leaveend" }, 86400000] }, 86400000] },
-                                    as: "date",
-                                    in: { $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$$date" } } }
+            {
+                $lookup: {
+                    from: 'leaves',
+                    let: { employeeId: '$members.employee' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        {
+                            $project: {
+                                _id: 0,
+                                leavedates: {
+                                    $map: {
+                                        input: {
+                                            $range: [
+                                                { $toLong: "$leavestart" },
+                                                { $add: [{ $toLong: "$leaveend" }, 86400000] },
+                                                86400000
+                                            ]
+                                        },
+                                        as: "date",
+                                        in: { $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$$date" } } }
+                                    }
                                 }
                             }
                         }
-                    }
-                ],
-                as: 'leaveData'
-            }
-        },
+                    ],
+                    as: 'leaveData'
+                }
+            },
 
-        {
-            $lookup: {
-                from: 'wellnessdays',
-                let: { employeeId: '$members.employee' },
-                pipeline: [
-                    { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
-                    {
-                        $project: {
-                            _id: 0,
-                            wellnessdates: { $dateToString: { format: "%Y-%m-%d", date: "$requestdate" } }
+            {
+                $lookup: {
+                    from: 'wellnessdays',
+                    let: { employeeId: '$members.employee' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        {
+                            $project: {
+                                _id: 0,
+                                wellnessdates: { $dateToString: { format: "%Y-%m-%d", date: "$requestdate" } }
+                            }
                         }
-                    }
-                ],
-                as: 'wellnessData'
-            }
-        },
+                    ],
+                    as: 'wellnessData'
+                }
+            },
 
-        {
-            $lookup: {
-                from: 'events',
-                let: { teamId: '$teamDetails._id' },
-                pipeline: [
-                    { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
-                    {
-                        $project: {
-                            _id: 0,
-                            eventdates: {
-                                $map: {
-                                    input: { $range: [{ $toLong: "$startdate" }, { $add: [{ $toLong: "$enddate" }, 86400000] }, 86400000] },
-                                    as: "date",
-                                    in: { $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$$date" } } }
+            {
+                $lookup: {
+                    from: 'events',
+                    let: { teamId: '$teamDetails._id' },
+                    pipeline: [
+                        { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
+                        {
+                            $project: {
+                                _id: 0,
+                                eventdates: {
+                                    $map: {
+                                        input: { $range: [
+                                            { $toLong: "$startdate" }, 
+                                            { $add: [{ $toLong: "$enddate" }, 86400000] },
+                                            86400000
+                                        ] },
+                                        as: "date",
+                                        in: { $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$$date" } } }
+                                    }
                                 }
                             }
                         }
-                    }
-                ],
-                as: 'eventData'
-            }
-        },
+                    ],
+                    as: 'eventData'
+                }
+            },
 
-        {
-            $addFields: {
-                allDates: {
-                    $map: {
-                        input: { $range: [
-                            { $toLong: "$projectDetails.startdate" },
-                            { $toLong: "$projectDetails.deadlinedate" },
-                            86400000 // 1 day
-                        ] },
-                        as: "date",
-                        in: { $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$$date" } } }
+            {
+                $addFields: {
+                    allDates: {
+                        $map: {
+                            input: { $range: [
+                                { $toLong: "$projectDetails.startdate" },
+                                { $toLong: "$projectDetails.deadlinedate" },
+                                86400000
+                            ] },
+                            as: "date",
+                            in: { $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$$date" } } }
+                        }
+                    }
+                }
+            },
+
+            {
+                $group: {
+                    _id: '$_id',
+                    componentid: { $first: '$_id' },
+                    teamname: { $first: '$teamDetails.name' },
+                    projectname: { $first: { projectid: '$projectDetails._id', name: '$projectDetails.projectname' } },
+                    clientname: { $first: { clientid: '', name: 'Client Name' } },
+                    jobno: { $first: '$jobno' },
+                    jobmanager: {
+                        $first: {
+                            employeeid: '$jobManagerDetails._id',
+                            fullname: { $concat: ['$jobManagerDetails.firstname', ' ', '$jobManagerDetails.lastname'] },
+                            isManager: '$isManager',
+                            isJobManager: { $eq: ['$jobmanager', new mongoose.Types.ObjectId(id)] }
+                        }
+                    },
+                    jobcomponent: { $first: '$jobcomponent' },
+                    notes: { $first: '$notes' },
+                    members: {
+                        $push: {
+                            role: '$members.role',
+                            employee: {
+                                employeeid: '$userDetails.owner',
+                                fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] }
+                            },
+                            dates: '$members.dates',
+                            leaveDates: '$leaveData.leavedates',
+                            wellnessDates: '$wellnessData.wellnessdates',
+                            eventDates: '$eventData.eventdates',
+                            allDates: '$allDates'
+                        }
                     }
                 }
             }
-        },
+        ]);
 
-        {
-            $group: {
-                _id: '$_id',
-                componentid: { $first: '$_id' },
-                teamname: { $first: '$teamDetails.name' },
-                projectname: { $first: { projectid: '$projectDetails._id', name: '$projectDetails.projectname' } },
-                clientname: { $first: { clientid: '', name: 'Client Name' } },
-                jobno: { $first: '$jobno' },
-                jobmanager: {
-                    $first: {
-                        employeeid: '$jobManagerDetails._id',
-                        fullname: { $concat: ['$jobManagerDetails.firstname', ' ', '$jobManagerDetails.lastname'] },
-                        isManager: '$isManager',
-                        isJobManager: { $eq: ['$jobmanager', new mongoose.Types.ObjectId(id)] }
-                    }
-                },
-                jobcomponent: { $first: '$jobcomponent' },
-                notes: { $first: '$notes' },
-                members: {
-                    $push: {
-                        role: '$members.role',
-                        employee: {
-                            employeeid: '$userDetails.owner',
-                            fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] }
-                        },
-                        dates: '$members.dates',
-                        leaveDates: '$leaveData.leavedates',
-                        wellnessDates: '$wellnessData.wellnessdates',
-                        eventDates: '$eventData.eventdates',
-                        allDates: '$allDates'
-                    }
-                }
-            }
-        }
-    ]);
+        return res.json({ message: "success", data: result });
 
-    return res.json({message: "success", data: result})
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Error processing request", error: err.message });
+    }
 }
+
 
 // exports.editprojectmanager = async (req, res) => {
 //     const {id, email} = req.user
