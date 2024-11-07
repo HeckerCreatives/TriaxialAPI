@@ -303,6 +303,7 @@ exports.employeelist = async (req, res) => {
                 reportingTo: 1,
                 dateCreated: 1,
                 status: 1,
+                resource: 1,
                 teams: { 
                     $cond: {
                         if: { $eq: [{ $size: '$teams' }, 0] }, 
