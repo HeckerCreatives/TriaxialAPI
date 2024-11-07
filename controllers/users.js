@@ -287,7 +287,7 @@ exports.employeelist = async (req, res) => {
                         }
                     }
                 },
-                resource: '$details.resource',
+                resource: { $first: '$details.resource'},
                 dateCreated: { $first: '$details.createdAt' },
                 status: { $first: '$status' },
                 teams: { $addToSet: '$teamInfo.teamname' } // Collect all team names into an array
