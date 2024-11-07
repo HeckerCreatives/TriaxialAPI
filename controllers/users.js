@@ -340,7 +340,7 @@ exports.employeelist = async (req, res) => {
     };
 
     employees.forEach(tempdata => {
-        const { employeeId, name, teams, initial, email, dateCreated, status, auth, reportingTo } = tempdata;
+        const { employeeId, name, teams, initial, email, dateCreated, status, auth, reportingTo, resource } = tempdata;
 
         data.employeelist.push({
             employeeid: employeeId,
@@ -351,7 +351,8 @@ exports.employeelist = async (req, res) => {
             dateCreated: dateCreated,
             status: status,
             auth: auth,
-            reportingto: reportingTo == null ? "" : reportingTo
+            reportingto: reportingTo == null ? "" : reportingTo,
+            resource: resource
         });
     });
 
