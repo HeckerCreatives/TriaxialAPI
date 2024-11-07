@@ -46,7 +46,13 @@ exports.createjobcomponent = async (req, res) => {
                 role: role,
                 notes: "",
                 hours: 0,
-                dates: []
+                dates: [
+                    {
+                        date: "2024/11/12",
+                        status: [1, 2],
+                        hours: 8
+                    }
+                ]
             };
         });
 
@@ -256,8 +262,8 @@ exports.listjobcomponent = async (req, res) => {
                                 as: "leave",
                                 cond: {
                                     $and: [
-                                        { $gte: ["$$leave", "$projectDetails.startdate"] },
-                                        { $lte: ["$$leave", "$projectDetails.deadlinedate"] }
+                                        { $gte: ["$$leave.leavestart", "$projectDetails.startdate"] },
+                                        { $lte: ["$$leave.leaveend", "$projectDetails.deadlinedate"] }
                                     ]
                                 }
                             }
@@ -280,8 +286,8 @@ exports.listjobcomponent = async (req, res) => {
                                 as: "event",
                                 cond: {
                                     $and: [
-                                        { $gte: ["$$event", "$projectDetails.startdate"] },
-                                        { $lte: ["$$event", "$projectDetails.deadlinedate"] }
+                                        { $gte: ["$$event.startdate", "$projectDetails.startdate"] },
+                                        { $lte: ["$$event.enddate", "$projectDetails.deadlinedate"] }
                                     ]
                                 }
                             }
