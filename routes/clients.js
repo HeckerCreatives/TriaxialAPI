@@ -1,6 +1,6 @@
 const router = require("express").Router()
-const { createclients, clientlist, getclientdata, deleteclients, editclient } = require("../controllers/clients")
-const { protectsuperadmin } = require("../middleware/middleware")
+const { createclients, clientlist, getclientdata, deleteclients, editclient, clientlistall } = require("../controllers/clients")
+const { protectsuperadmin, protectmanager } = require("../middleware/middleware")
 
 router
 
@@ -11,6 +11,12 @@ router
     .post("/createclients", protectsuperadmin, createclients)
     .post("/deleteclients", protectsuperadmin, deleteclients)
     .post("/editclient", protectsuperadmin, editclient)
+
+    //  #endregion
+
+    //  #region MANAGER
+
+    .get("/clientlistallmanager", protectmanager, clientlistall)
 
     //  #endregion
 

@@ -163,3 +163,43 @@ exports.editclient = async (req, res) => {
 }
 
 //  #endregion
+
+//  #region SUPERADMIN & MANAGER
+
+exports.clientlistall = async (req, res) => {
+    const {id, email} = req.user
+    
+    // Set pagination options
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10,
+    };
+
+    const clients = await Clients.find()
+    .skip(pageOptions.page * pageOptions.limit)
+    .limit(pageOptions.limit)
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem getting clients list. Error ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    const data = {
+        clients: [],
+    }
+
+    clients.forEach(tempdata => {
+        const {_id, clientname} = tempdata
+
+        data.teamlist.push({
+            teamid: _id,
+            clientname: clientname,
+        })
+    })
+
+
+    return res.json({message: "success", data: data})
+}
+
+//  #endregion

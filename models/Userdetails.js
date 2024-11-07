@@ -24,6 +24,10 @@ const userDetailsSchema = new mongoose.Schema(
             ref: 'Users',
             index: true
         },
+        resource: {
+            type: String,
+            index: true
+        },
         profilepicture: {
             type: String
         }

@@ -34,7 +34,19 @@ const JobcomponentSchema = new mongoose.Schema(
             },
             notes: {
                 type: String
-            }
+            },
+            dates: [
+                {
+                  date: {
+                    type: Date
+                  },
+                  status: [
+                        {
+                            type: String
+                        }
+                    ]
+                },
+            ]
         }]
     },
     {

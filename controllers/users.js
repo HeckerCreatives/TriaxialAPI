@@ -102,7 +102,7 @@ exports.employeeliststats = async (req, res) => {
 exports.createemployee = async (req, res) => {
     const {id} = req.user
 
-    const {email, password, firstname, initial, lastname, contactnumber, reportingto, position} = req.body
+    const {email, password, firstname, initial, lastname, contactnumber, reportingto, position, resource} = req.body
 
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     const withSpecialCharRegex = /^[A-Za-z0-9@/[\]#]+$/;
@@ -121,6 +121,12 @@ exports.createemployee = async (req, res) => {
     }
     else if (!withSpecialCharRegex.test(password)){
         return res.status(400).json({message: "failed", data: "Only alphanumeric and selected special characters (@/[]#) only!"})
+    }
+    else if (!resource){
+        return res.status(400).json({message: "failed", data: "Please select a resource"})
+    }
+    else if (resource != "Civil" && resource != "Structural" && resource != "Drafter" && resource != "Hydraulic" && resource != "Remedial" && resource != "Admin"){
+        return res.status(400).json({message: "failed", data: "Please select a valid resource type"})
     }
 
     const userlogin = await Users.findOne({email: { $regex: new RegExp('^' + email + '$', 'i') }})
