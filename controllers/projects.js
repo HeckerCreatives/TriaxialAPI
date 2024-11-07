@@ -6,13 +6,16 @@ const Projects = require("../models/Projects")
 exports.createproject = async (req, res) => {
     const {id, email} = req.user
 
-    const {team, projectname, startdate, deadlinedate} = req.body
+    const {team, projectname, client, startdate, deadlinedate} = req.body
 
     if (!team){
         return res.status(400).json({message: "failed", data: "Please select a team first!"})
     }
     else if (!projectname){
         return res.status(400).json({message: "failed", data: "Enter a project name!"})
+    }
+    else if (!client){
+        return res.status(400).json({message: "failed", data: "Please select a client!"})
     }
     else if (!startdate){
         return res.status(400).json({message: "failed", data: "Please select a start date"})
@@ -21,7 +24,7 @@ exports.createproject = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Please select a deadline date"})
     }
 
-    await Projects.create({team: new mongoose.Types.ObjectId(team), projectname: projectname, invoiced: 0, status: "On-going", startdate: new Date(startdate), deadlinedate: new Date(deadlinedate)})
+    await Projects.create({team: new mongoose.Types.ObjectId(team), projectname: projectname, client: client, invoiced: 0, status: "On-going", startdate: new Date(startdate), deadlinedate: new Date(deadlinedate)})
     .catch(err => {
         console.log(`There's a problem creating projects, project name: ${projectname}. Error ${err}`)
 

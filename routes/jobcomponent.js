@@ -12,4 +12,11 @@ router
 
     //  #endregion
 
+    //  #region EMPLOYEE
+
+    .get("/listjobcomponentemployee", protectemployee, listjobcomponent)
+    .post("/editstatushoursemployee", protectmanager, protectemployee)
+
+    //  #endregion
+
 module.exports = router;

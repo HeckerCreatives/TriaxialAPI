@@ -10,6 +10,9 @@ const ProjectSchema = new mongoose.Schema(
         projectname: {
             type: String
         },
+        client: {
+            type: String
+        },
         invoiced: {
             type: Number
         },

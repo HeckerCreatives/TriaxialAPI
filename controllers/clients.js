@@ -171,7 +171,13 @@ exports.clientlistall = async (req, res) => {
     
     const {clientname} = req.query
 
-    const clients = await Clients.find({clientname: { $regex: clientname, $options: 'i' }})
+    const matchStage = {}
+
+    if (clientname){
+        matchStage["clientname"] = { $regex: clientname, $options: 'i' }
+    }
+
+    const clients = await Clients.find(matchStage)
     .skip(pageOptions.page * pageOptions.limit)
     .limit(pageOptions.limit)
     .then(data => data)

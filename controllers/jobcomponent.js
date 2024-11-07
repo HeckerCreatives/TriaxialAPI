@@ -77,6 +77,11 @@ exports.createjobcomponent = async (req, res) => {
     return res.json({message: "success"})
 }
 
+//  #endregion
+
+
+//  #region MANAGER & EMPLOYEE
+
 exports.listjobcomponent = async (req, res) => {
     const { id, email } = req.user;
     const { projectid } = req.query;
