@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { createjobcomponent, listjobcomponent } = require("../controllers/jobcomponent")
+const { createjobcomponent, listjobcomponent, editstatushours } = require("../controllers/jobcomponent")
 const { protectsuperadmin, protectemployee, protectmanager, protectusers } = require("../middleware/middleware")
 
 router
@@ -8,6 +8,7 @@ router
 
     .get("/listjobcomponent", protectmanager, listjobcomponent)
     .post("/createjobcomponent", protectmanager, createjobcomponent)
+    .post("/editstatushours", protectmanager, editstatushours)
 
     //  #endregion
 
