@@ -173,7 +173,7 @@ exports.createemployee = async (req, res) => {
 
     console.log(user)
 
-    await Userdetails.create({owner: new mongoose.Types.ObjectId(user._id), firstname: firstname, lastname: lastname, initial: initial, contactno: contactnumber, reportingto: new mongoose.Types.ObjectId(reportingto)})
+    await Userdetails.create({owner: new mongoose.Types.ObjectId(user._id), firstname: firstname, lastname: lastname, initial: initial, contactno: contactnumber, reportingto: new mongoose.Types.ObjectId(reportingto), resource: resource})
     .catch(async err => {
         console.log(`There's a problem creating user details. Error ${err}`)
 
@@ -538,7 +538,8 @@ exports.viewemployeedata = async (req, res) => {
                     employeeid: '$reportingto.owner',
                     firstname: '$reportingto.firstname',
                     lastname: '$reportingto.lastname'
-                }
+                },
+                resource: '$details.resource'
             }
         }
     ])
@@ -554,7 +555,8 @@ exports.viewemployeedata = async (req, res) => {
         lastname: employee[0].lastname,
         initial: employee[0].initial,
         contactno: employee[0].contactno,
-        reportingto: employee[0].reportingto
+        reportingto: employee[0].reportingto,
+        resource: employee[0].resource
     }
 
     return res.json({message: "success", data: data})
@@ -563,7 +565,7 @@ exports.viewemployeedata = async (req, res) => {
 exports.editemployees = async (req, res) => {
     const {id} = req.user
 
-    const {employeeid, email, password, firstname, lastname, initial, contactnumber, reportingto} = req.body
+    const {employeeid, email, password, firstname, lastname, initial, contactnumber, reportingto, resource} = req.body
 
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     const withSpecialCharRegex = /^[A-Za-z0-9@/[\]#]+$/;
@@ -591,6 +593,12 @@ exports.editemployees = async (req, res) => {
     }
     else if (!reportingto){
         return res.status(400).json({message: "failed", data: "Select a reporting to first!"})
+    }
+    else if (!resource){
+        return res.status(400).json({message: "failed", data: "Please select a resource"})
+    }
+    else if (resource != "Civil" && resource != "Structural" && resource != "Drafter" && resource != "Hydraulic" && resource != "Remedial" && resource != "Admin"){
+        return res.status(400).json({message: "failed", data: "Please select a valid resource type"})
     }
 
     const userloginupdate = {
@@ -653,7 +661,7 @@ exports.editemployees = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details"})
     })
 
-    await Userdetails.findOneAndUpdate({owner: new mongoose.Types.ObjectId(employeeid)}, {firstname: firstname, lastname: lastname, initial: initial, contactno: contactnumber, reportingto: new mongoose.Types.ObjectId(reportingto)})
+    await Userdetails.findOneAndUpdate({owner: new mongoose.Types.ObjectId(employeeid)}, {firstname: firstname, lastname: lastname, initial: initial, contactno: contactnumber, reportingto: new mongoose.Types.ObjectId(reportingto), resource: resource})
     .catch(err => {
         console.log(`There's a problem saving user details data ${employeeid} ${email}. Error: ${err}`)
 

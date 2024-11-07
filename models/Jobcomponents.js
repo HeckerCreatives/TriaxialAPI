@@ -20,6 +20,13 @@ const JobcomponentSchema = new mongoose.Schema(
             ref: 'Users',
             index: true
         },
+        budgettype: {
+            type: String
+        },
+        estimatedbudget: {
+            type: Number,
+            index: true
+        },
         jobcomponent: {
             type: String
         },

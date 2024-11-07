@@ -169,13 +169,9 @@ exports.editclient = async (req, res) => {
 exports.clientlistall = async (req, res) => {
     const {id, email} = req.user
     
-    // Set pagination options
-    const pageOptions = {
-        page: parseInt(page) || 0,
-        limit: parseInt(limit) || 10,
-    };
+    const {clientname} = req.query
 
-    const clients = await Clients.find()
+    const clients = await Clients.find({clientname: { $regex: clientname, $options: 'i' }})
     .skip(pageOptions.page * pageOptions.limit)
     .limit(pageOptions.limit)
     .then(data => data)
