@@ -70,6 +70,7 @@ exports.createjobcomponent = async (req, res) => {
 
     return res.json({message: "success"})
 }
+
 exports.listjobcomponent = async (req, res) => {
     const { id, email } = req.user;
     const { projectid } = req.query;
@@ -97,6 +98,15 @@ exports.listjobcomponent = async (req, res) => {
                 }
             },
             { $unwind: '$jobManagerDetails' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: "jobManagerDetails._id",
+                    foreignField: "owner",
+                    as: "jobManagerDeets"
+                }
+            },
+            { $unwind: '$jobManagerDeets' },
             {
                 $lookup: {
                     from: 'teams',
@@ -141,28 +151,19 @@ exports.listjobcomponent = async (req, res) => {
                     from: 'leaves',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $eq: ['$owner', '$$employeeId'] 
+                                } 
+                            }
+                        },
                         {
                             $project: {
                                 _id: 0,
                                 leavedates: {
-                                    $map: {
-                                        input: {
-                                            $range: [
-                                                { $divide: [{ $subtract: ["$leavestart", new Date(0)] }, 86400000] },
-                                                { $add: [{ $divide: [{ $subtract: ["$leaveend", new Date(0)] }, 86400000] }, 1] },
-                                                1
-                                            ]
-                                        },
-                                        as: "day",
-                                        in: {
-                                            $dateAdd: {
-                                                startDate: "$leavestart",
-                                                unit: "day",
-                                                amount: "$$day"
-                                            }
-                                        }
-                                    }
+                                    leavestart: "$leavestart",
+                                    leaveend: "$leaveend"
                                 }
                             }
                         }
@@ -179,7 +180,7 @@ exports.listjobcomponent = async (req, res) => {
                         {
                             $project: {
                                 _id: 0,
-                                wellnessdates: { $dateToString: { format: "%Y-%m-%d", date: "$requestdate" } }
+                                wellnessdates: "$requestdate"
                             }
                         }
                     ],
@@ -196,23 +197,8 @@ exports.listjobcomponent = async (req, res) => {
                             $project: {
                                 _id: 0,
                                 eventdates: {
-                                    $map: {
-                                        input: {
-                                            $range: [
-                                                { $divide: [{ $subtract: ["$startdate", new Date(0)] }, 86400000] },
-                                                { $add: [{ $divide: [{ $subtract: ["$enddate", new Date(0)] }, 86400000] }, 1] },
-                                                1
-                                            ]
-                                        },
-                                        as: "day",
-                                        in: {
-                                            $dateAdd: {
-                                                startDate: "$startdate",
-                                                unit: "day",
-                                                amount: "$$day"
-                                            }
-                                        }
-                                    }
+                                    startdate: "$startdate",
+                                    enddate: "$enddate"
                                 }
                             }
                         }
@@ -258,38 +244,70 @@ exports.listjobcomponent = async (req, res) => {
             {
                 $addFields: {
                     members: {
-                        $map: {
-                            input: '$members',
-                            as: 'member',
-                            in: {
-                                role: '$$member.role',
-                                employee: {
-                                    employeeid: '$$member.employee',
-                                    fullname: { $concat: ['$$member.employee.firstname', ' ', '$$member.employee.lastname'] }
-                                },
+                        // This is for the case when members is NOT an array
+                        role: "$members.role",
+                        employee: {
+                            employeeid: "$members.employee",
+                            fullname: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] }
+                        },
+                        leaveDates: {
+                            $filter: {
+                                input: "$leaveData.leavedates",
+                                as: "leave",
+                                cond: {
+                                    $and: [
+                                        { $gte: ["$$leave", "$projectDetails.startdate"] },
+                                        { $lte: ["$$leave", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
                             }
-                        }
+                        },
+                        wellnessDates: {
+                            $filter: {
+                                input: "$wellnessData.wellnessdates",
+                                as: "wellness",
+                                cond: {
+                                    $and: [
+                                        { $gte: ["$$wellness", "$projectDetails.startdate"] },
+                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
+                            }
+                        },
+                        eventDates: {
+                            $filter: {
+                                input: "$eventData.eventdates",
+                                as: "event",
+                                cond: {
+                                    $and: [
+                                        { $gte: ["$$event", "$projectDetails.startdate"] },
+                                        { $lte: ["$$event", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
+                            }
+                        },
+                        allDates: '$allDates'
                     }
                 }
+                
             },
             {
                 $group: {
                     _id: '$_id',
                     componentid: { $first: '$_id' },
-                    teamname: { $first: '$teamDetails.name' },
+                    teamname: { $first: '$teamDetails.teamname' },
                     projectname: { $first: { projectid: '$projectDetails._id', name: '$projectDetails.projectname' } },
                     clientname: { $first: { clientid: '', name: 'Client Name' } },
                     jobno: { $first: '$jobno' },
                     jobmanager: {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
-                            fullname: { $concat: ['$jobManagerDetails.firstname', ' ', '$jobManagerDetails.lastname'] },
+                            fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
                             isManager: '$isManager',
                             isJobManager: { $eq: ['$jobmanager', new mongoose.Types.ObjectId(id)] }
                         }
                     },
                     jobcomponent: { $first: '$jobcomponent' },
-                    notes: { $first: '$notes' },
                     members: { $push: '$members' }
                 }
             }
