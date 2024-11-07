@@ -11,10 +11,6 @@ const JobcomponentSchema = new mongoose.Schema(
             type: Date,
             index: true
         },
-        client: {
-            type: Date,
-            index: true
-        },
         jobmanager: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Users',

@@ -11,6 +11,7 @@ const routers = app => {
     app.use("/wfh", require("./wfh"))
     app.use("/email", require("./email"))
     app.use("/projects", require("./projects"))
+    app.use("/jobcomponent", require("./jobcomponent"))
 }
 
 module.exports = routers
