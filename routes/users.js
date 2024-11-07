@@ -25,4 +25,11 @@ router
 
     //  #endregion
 
+    //  #region MANAGER
+
+    .get("/employeesearchlistmanager", protectsuperadmin, employeesearchlist)
+    .get("/managerlistmanager", protectsuperadmin, managerlist)
+
+    //  #endregion
+
 module.exports = router;
