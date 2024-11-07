@@ -285,8 +285,7 @@ exports.listjobcomponent = async (req, res) => {
                                     ]
                                 }
                             }
-                        },
-                        allDates: '$allDates'
+                        }
                     }
                 }
                 
@@ -308,6 +307,7 @@ exports.listjobcomponent = async (req, res) => {
                         }
                     },
                     jobcomponent: { $first: '$jobcomponent' },
+                    allDates: {$first: '$allDates'},
                     members: { $push: '$members' }
                 }
             }
