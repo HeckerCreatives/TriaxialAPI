@@ -39,10 +39,10 @@ exports.protectsuperadmin = async (req, res, next) => {
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
             }
     
-            if (decodedToken.token != admin.token){
-                res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
-                return res.status(401).json({ message: 'failed', data: `Your account had been opened on another device! You will now be logged out.` });
-            }
+            // if (decodedToken.token != admin.token){
+            //     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+            //     return res.status(401).json({ message: 'failed', data: `Your account had been opened on another device! You will now be logged out.` });
+            // }
 
             req.user = decodedToken;
             next();
@@ -80,10 +80,10 @@ exports.protectusers = async (req, res, next) => {
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
             }
     
-            if (decodedToken.token != user.token){
-                res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
-                return res.status(401).json({ message: 'failed', data: `Your account had been opened on another device! You will now be logged out.` });
-            }
+            // if (decodedToken.token != user.token){
+            //     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+            //     return res.status(401).json({ message: 'failed', data: `Your account had been opened on another device! You will now be logged out.` });
+            // }
 
             req.user = decodedToken;
             next();
@@ -121,10 +121,10 @@ exports.protectemployee = async(req, res, next) => {
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
             }
     
-            if (decodedToken.token != user.token){
-                res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
-                return res.status(401).json({ message: 'failed', data: `Your account had been opened on another device! You will now be logged out.` });
-            }
+            // if (decodedToken.token != user.token){
+            //     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+            //     return res.status(401).json({ message: 'failed', data: `Your account had been opened on another device! You will now be logged out.` });
+            // }
 
             req.user = decodedToken;
             next();
@@ -162,10 +162,10 @@ exports.protectmanager = async(req, res, next) => {
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
             }
     
-            if (decodedToken.token != user.token){
-                res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
-                return res.status(401).json({ message: 'failed', data: `Your account had been opened on another device! You will now be logged out.` });
-            }
+            // if (decodedToken.token != user.token){
+            //     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+            //     return res.status(401).json({ message: 'failed', data: `Your account had been opened on another device! You will now be logged out.` });
+            // }
 
             req.user = decodedToken;
             next();
@@ -203,10 +203,10 @@ exports.protecthr = async(req, res, next) => {
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
             }
     
-            if (decodedToken.token != user.token){
-                res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
-                return res.status(401).json({ message: 'failed', data: `Your account had been opened on another device! You will now be logged out.` });
-            }
+            // if (decodedToken.token != user.token){
+            //     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+            //     return res.status(401).json({ message: 'failed', data: `Your account had been opened on another device! You will now be logged out.` });
+            // }
 
             req.user = decodedToken;
             next();

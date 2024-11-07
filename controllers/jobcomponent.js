@@ -70,7 +70,6 @@ exports.createjobcomponent = async (req, res) => {
 
     return res.json({message: "success"})
 }
-
 exports.listjobcomponent = async (req, res) => {
     const { id, email } = req.user;
     const { projectid } = req.query;
@@ -80,7 +79,6 @@ exports.listjobcomponent = async (req, res) => {
             {
                 $match: { project: new mongoose.Types.ObjectId(projectid) }
             },
-
             {
                 $lookup: {
                     from: 'projects',
@@ -90,7 +88,6 @@ exports.listjobcomponent = async (req, res) => {
                 }
             },
             { $unwind: '$projectDetails' },
-
             {
                 $lookup: {
                     from: 'users',
@@ -100,7 +97,6 @@ exports.listjobcomponent = async (req, res) => {
                 }
             },
             { $unwind: '$jobManagerDetails' },
-
             {
                 $lookup: {
                     from: 'teams',
@@ -110,7 +106,6 @@ exports.listjobcomponent = async (req, res) => {
                 }
             },
             { $unwind: { path: '$teamDetails', preserveNullAndEmptyArrays: true } },
-
             {
                 $addFields: {
                     isManager: {
@@ -122,9 +117,7 @@ exports.listjobcomponent = async (req, res) => {
                     }
                 }
             },
-
             { $unwind: '$members' },
-
             {
                 $lookup: {
                     from: 'users',
@@ -134,7 +127,6 @@ exports.listjobcomponent = async (req, res) => {
                 }
             },
             { $unwind: '$employeeDetails' },
-
             {
                 $lookup: {
                     from: 'userdetails',
@@ -144,7 +136,6 @@ exports.listjobcomponent = async (req, res) => {
                 }
             },
             { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
-
             {
                 $lookup: {
                     from: 'leaves',
@@ -158,13 +149,19 @@ exports.listjobcomponent = async (req, res) => {
                                     $map: {
                                         input: {
                                             $range: [
-                                                { $toLong: "$leavestart" },
-                                                { $add: [{ $toLong: "$leaveend" }, 86400000] },
-                                                86400000
+                                                { $divide: [{ $subtract: ["$leavestart", new Date(0)] }, 86400000] },
+                                                { $add: [{ $divide: [{ $subtract: ["$leaveend", new Date(0)] }, 86400000] }, 1] },
+                                                1
                                             ]
                                         },
-                                        as: "date",
-                                        in: { $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$$date" } } }
+                                        as: "day",
+                                        in: {
+                                            $dateAdd: {
+                                                startDate: "$leavestart",
+                                                unit: "day",
+                                                amount: "$$day"
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -173,7 +170,6 @@ exports.listjobcomponent = async (req, res) => {
                     as: 'leaveData'
                 }
             },
-
             {
                 $lookup: {
                     from: 'wellnessdays',
@@ -190,7 +186,6 @@ exports.listjobcomponent = async (req, res) => {
                     as: 'wellnessData'
                 }
             },
-
             {
                 $lookup: {
                     from: 'events',
@@ -202,13 +197,21 @@ exports.listjobcomponent = async (req, res) => {
                                 _id: 0,
                                 eventdates: {
                                     $map: {
-                                        input: { $range: [
-                                            { $toLong: "$startdate" }, 
-                                            { $add: [{ $toLong: "$enddate" }, 86400000] },
-                                            86400000
-                                        ] },
-                                        as: "date",
-                                        in: { $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$$date" } } }
+                                        input: {
+                                            $range: [
+                                                { $divide: [{ $subtract: ["$startdate", new Date(0)] }, 86400000] },
+                                                { $add: [{ $divide: [{ $subtract: ["$enddate", new Date(0)] }, 86400000] }, 1] },
+                                                1
+                                            ]
+                                        },
+                                        as: "day",
+                                        in: {
+                                            $dateAdd: {
+                                                startDate: "$startdate",
+                                                unit: "day",
+                                                amount: "$$day"
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -217,23 +220,58 @@ exports.listjobcomponent = async (req, res) => {
                     as: 'eventData'
                 }
             },
-
             {
                 $addFields: {
                     allDates: {
-                        $map: {
-                            input: { $range: [
-                                { $toLong: "$projectDetails.startdate" },
-                                { $toLong: "$projectDetails.deadlinedate" },
-                                86400000
-                            ] },
-                            as: "date",
-                            in: { $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$$date" } } }
+                        $let: {
+                            vars: {
+                                startDate: "$projectDetails.startdate",
+                                endDate: "$projectDetails.deadlinedate"
+                            },
+                            in: {
+                                $map: {
+                                    input: {
+                                        $range: [
+                                            0, // start from day 0
+                                            { 
+                                                $add: [
+                                                    { $divide: [{ $subtract: ["$$endDate", "$$startDate"] }, 86400000] },
+                                                    1
+                                                ]
+                                            } // end at the total number of days + 1 for inclusive range
+                                        ]
+                                    },
+                                    as: "daysFromStart",
+                                    in: {
+                                        $dateAdd: {
+                                            startDate: "$$startDate",
+                                            unit: "day",
+                                            amount: "$$daysFromStart"
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             },
-
+            {
+                $addFields: {
+                    members: {
+                        $map: {
+                            input: '$members',
+                            as: 'member',
+                            in: {
+                                role: '$$member.role',
+                                employee: {
+                                    employeeid: '$$member.employee',
+                                    fullname: { $concat: ['$$member.employee.firstname', ' ', '$$member.employee.lastname'] }
+                                },
+                            }
+                        }
+                    }
+                }
+            },
             {
                 $group: {
                     _id: '$_id',
@@ -252,31 +290,20 @@ exports.listjobcomponent = async (req, res) => {
                     },
                     jobcomponent: { $first: '$jobcomponent' },
                     notes: { $first: '$notes' },
-                    members: {
-                        $push: {
-                            role: '$members.role',
-                            employee: {
-                                employeeid: '$userDetails.owner',
-                                fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] }
-                            },
-                            dates: '$members.dates',
-                            leaveDates: '$leaveData.leavedates',
-                            wellnessDates: '$wellnessData.wellnessdates',
-                            eventDates: '$eventData.eventdates',
-                            allDates: '$allDates'
-                        }
-                    }
+                    members: { $push: '$members' }
                 }
             }
         ]);
 
         return res.json({ message: "success", data: result });
-
     } catch (err) {
         console.error(err);
         return res.status(500).json({ message: "Error processing request", error: err.message });
     }
 }
+
+
+
 
 
 // exports.editprojectmanager = async (req, res) => {
