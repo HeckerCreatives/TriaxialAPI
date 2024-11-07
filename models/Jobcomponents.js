@@ -8,7 +8,7 @@ const JobcomponentSchema = new mongoose.Schema(
             index: true
         },
         jobno: {
-            type: Date,
+            type: String,
             index: true
         },
         jobmanager: {
@@ -41,11 +41,17 @@ const JobcomponentSchema = new mongoose.Schema(
             dates: [
                 {
                   date: {
-                    type: Date
+                    type: Date,
+                    index: true
+                  },
+                  hours: {
+                    type: Number,
+                    index: true
                   },
                   status: [
                         {
-                            type: String
+                            type: String,
+                            index: true
                         }
                     ]
                 },

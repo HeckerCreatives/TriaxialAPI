@@ -568,18 +568,24 @@ exports.searchteam = async (req, res) => {
 // const data = {
 //     graph: [
 //         {
+//             componentid: "",
 //             teamname: "team test",
-//             projectname: "project test",
-//             clientname: "client test",
+//             projectname: {
+//                 projectid: "",
+//                 name: "project test"
+//             },
+//             clientname: {
+//                 clientid: "",
+//                 name: "client test"
+//             },
 //             jobno: 1,
 //             jobmanager: {
 //                 employeeid: "id here",
-//                 fullname: "Darel Honrejas"
+//                 fullname: "Darel Honrejas",
+//                 isManager: false,
+//                 isJobManager: false
 //             },
-//             jobcomponent: {
-//                 componentid: "id here",
-//                 componentname: "testing component"
-//             },
+//             jobcomponent: "testing component",
 //             notes: "notes here",
 //             members: [
 //                 {
@@ -591,7 +597,7 @@ exports.searchteam = async (req, res) => {
 //                     dates: [
 //                         {
 //                             date: "05/11/2024",
-//                             status: 0 ("none") 1 ("25%") 2 ("50%") 3 ("75%") 4 ("100%") 5 ("Due on") 6 ("CNST PH."),
+//                             status: [0, 1, 2],
 //                             hours: 9,
 //                             isOnLeave: false,
 //                             isOnWellnessday: false,
@@ -599,58 +605,37 @@ exports.searchteam = async (req, res) => {
 //                         },
 //                         {
 //                             date: "05/12/2024",
-//                             status: 0 ("none") 1 ("25%") 2 ("50%") 3 ("75%") 4 ("100%") 5 ("Due on") 6 ("CNST PH."),
-//                             hours: 9,
+//                             status: [],
+//                             hours: 0,
 //                             isOnLeave: false,
-//                             isOnWellnessday: false,
+//                             isOnWellnessday: true,
 //                             isOnEvent: false
 //                         },
 //                         {
 //                             date: "05/13/2024",
-//                             status: 0 ("none") 1 ("25%") 2 ("50%") 3 ("75%") 4 ("100%") 5 ("Due on") 6 ("CNST PH."),
-//                             hours: 9,
-//                             isOnLeave: false,
+//                             status: [],
+//                             hours: 0,
+//                             isOnLeave: true,
 //                             isOnWellnessday: false,
 //                             isOnEvent: false
 //                         },
 //                         {
 //                             date: "05/14/2024",
-//                             status: 0 ("none") 1 ("25%") 2 ("50%") 3 ("75%") 4 ("100%") 5 ("Due on") 6 ("CNST PH."),
-//                             hours: 9,
+//                             status: [],
+//                             hours: 0,
+//                             isOnLeave: false,
+//                             isOnWellnessday: false,
+//                             isOnEvent: true
+//                         },
+//                         {
+//                             date: "05/15/2024",
+//                             status: [],
+//                             hours: 0,
 //                             isOnLeave: false,
 //                             isOnWellnessday: false,
 //                             isOnEvent: false
 //                         },
-//                         {
-//                             date: "05/15/2024",
-//                             status: 0 ("none") 1 ("25%") 2 ("50%") 3 ("75%") 4 ("100%") 5 ("Due on") 6 ("CNST PH."),
-//                             hours: 9,
-//                             isOnLeave: false,
-//                             isOnWellnessday: false,
-//                             isOnEvent: false
-//                         }
 //                     ]
-//                 },
-//                 {
-//                     role: "Engineer Reviewer (Engr. Revr.)",
-//                     employee: {
-//                         employeeid: "id here",
-//                         fullname: "Bien Daniel"
-//                     }
-//                 },
-//                 {
-//                     role: "Drafter (Drft.)",
-//                     employee: {
-//                         employeeid: "id here",
-//                         fullname: "Joshua De Guzman"
-//                     }
-//                 },
-//                 {
-//                     role: "Drafter Reviewer (Drft. Revr.)",
-//                     employee: {
-//                         employeeid: "id here",
-//                         fullname: "Jomarie Luistro"
-//                     }
 //                 },
 //             ]
 //         }
