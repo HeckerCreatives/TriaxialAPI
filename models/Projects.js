@@ -11,7 +11,9 @@ const ProjectSchema = new mongoose.Schema(
             type: String
         },
         client: {
-            type: String
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Clients',
+            index: true
         },
         invoiced: {
             type: Number
