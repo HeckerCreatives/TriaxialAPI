@@ -89,7 +89,7 @@ exports.editjobcomponentdetails = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Select a valid job manager"})
     }
 
-    await Jobcomponents.findOneAndUpdate({_id: new mongoose.Types.ObjectId}, {project: new mongoose.Types.ObjectId(project), jobno: jobno, jobmanager: new mongoose.Types.ObjectId(jobmanagerid)})
+    await Jobcomponents.findOneAndUpdate({_id: new mongoose.Types.ObjectId(jobcomponentid)}, {project: new mongoose.Types.ObjectId(projectid), jobno: jobno, jobmanager: new mongoose.Types.ObjectId(jobmanagerid)})
     .catch(err => {
         console.log(`There's a problem with editing the job component details ${jobcomponentid}. Error: ${err}`)
 
