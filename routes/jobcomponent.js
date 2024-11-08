@@ -21,7 +21,7 @@ router
 
     //  #region SUPERADMIN
 
-    .get("/listjobcomponentsa", protectmanager, listjobcomponent)
+    .get("/listjobcomponentsa", protectsuperadmin, listjobcomponent)
 
     //  #endregion
 
