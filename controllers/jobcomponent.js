@@ -99,6 +99,8 @@ exports.editjobcomponentdetails = async (req, res) => {
     return res.json({message: "success"})
 }
 
+
+
 //  #endregion
 
 
@@ -668,5 +670,62 @@ exports.yourworkload = async (req, res) => {
     }
 }
 
+exports.editjobmanagercomponents = async (req, res) => {
+    const {id, email} = req.user
+
+    const {jobcomponentid, members} = req.body
+
+    if (!Array.isArray(members) || members.length < 1 || members.length > 4) {
+        return res.status(400).json({ message: "failed", data: "Invalid members data. There should be 1 to 4 members." });
+    }
+
+    const jobcomponent = await Jobcomponents.findById(new mongoose.Types.ObjectId(jobcomponentid));
+
+    if (!jobcomponent) {
+      return res.status(404).json({ message: "Jobcomponent not found" });
+    }
+
+     // Iterate over each incoming member to update
+     members.forEach((memberData) => {
+        const { employee, role, notes } = memberData;
+  
+        // Find the index of the existing member by employee ID
+        const memberIndex = jobcomponent.members.findIndex(
+          (m) => m.employee.toString() === employee.toString()
+        );
+  
+        // If the member exists, update their role and notes (don't reset dates yet)
+        if (memberIndex !== -1) {
+          jobcomponent.members[memberIndex].role = role || jobcomponent.members[memberIndex].role;
+          jobcomponent.members[memberIndex].notes = notes || jobcomponent.members[memberIndex].notes;
+        } else {
+          // If the member doesn't exist, we need to replace an existing one (if there are 4 members)
+          if (jobcomponent.members.length >= 4) {
+            // Replace the first member (FIFO) or find the member to replace by index
+            const replaceIndex = jobcomponent.members.findIndex(m => m.employee.toString() === members[0].employee.toString());
+  
+            if (replaceIndex !== -1) {
+              // Reset the dates and replace with the new member (e.g., user5)
+              jobcomponent.members[replaceIndex].employee = employee;
+              jobcomponent.members[replaceIndex].role = role;
+              jobcomponent.members[replaceIndex].notes = notes;
+              jobcomponent.members[replaceIndex].dates = [];  // Reset dates
+            }
+          } else {
+            jobcomponent.members.push({
+              employee,
+              role,
+              notes,
+              dates: [] // Start with an empty array of dates for the new member
+            });
+          }
+        }
+      });
+  
+      // Save the updated jobcomponent
+      await jobcomponent.save();
+
+      return res.json({message: "success"})
+}
 
 //  #endregion
