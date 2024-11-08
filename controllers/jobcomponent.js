@@ -72,7 +72,31 @@ exports.createjobcomponent = async (req, res) => {
 }
 
 exports.editjobcomponentdetails = async (req, res) => {
+    const {id, email} = req.user
 
+    const {jobcomponentid, projectid, jobno, jobmanagerid} = req.body
+
+    if (!jobcomponentid){
+        return res.status(400).json({message: "failed", data: "Select a valid job component"})
+    }
+    else if (!jobno) {
+        return res.status(400).json({message: "failed", data: "Enter a job no."})
+    }
+    else if(!projectid){
+        return res.status(400).json({message: "failed", data: "Select a valid project"})
+    }
+    else if (!jobmanagerid){
+        return res.status(400).json({message: "failed", data: "Select a valid job manager"})
+    }
+
+    await Jobcomponents.findOneAndUpdate({_id: new mongoose.Types.ObjectId}, {project: new mongoose.Types.ObjectId(project), jobno: jobno, jobmanager: new mongoose.Types.ObjectId(jobmanagerid)})
+    .catch(err => {
+        console.log(`There's a problem with editing the job component details ${jobcomponentid}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact cusotmer support"})
+    })
+
+    return res.json({message: "success"})
 }
 
 //  #endregion
