@@ -24,6 +24,7 @@ router
 
     .get("/listjobcomponentemployee", protectemployee, listjobcomponent)
     .post("/editstatushoursemployee", protectemployee, editstatushours)
+    .post("/editjobmanagercomponentsjbmngr", protectemployee, editjobmanagercomponents)
 
     //  #endregion
 
