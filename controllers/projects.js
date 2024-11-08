@@ -65,6 +65,15 @@ exports.listprojects = async (req, res) => {
         { $unwind: { path: '$teamData', preserveNullAndEmptyArrays: true } },
         {
             $lookup: {
+                from: 'clients',
+                localField: 'client',
+                foreignField: '_id',
+                as: 'clientData'
+            }
+        },
+        { $unwind: { path: '$clientData', preserveNullAndEmptyArrays: true } },
+        {
+            $lookup: {
                 from: 'jobcomponents',
                 localField: '_id',
                 foreignField: 'project',
@@ -102,6 +111,7 @@ exports.listprojects = async (req, res) => {
                 startdate: { $first: '$startdate' },
                 deadlinedate: { $first: '$deadlinedate' },
                 teamname: { $first: '$teamData.teamname' },
+                client: { $first: '$clientData.clientname'},
                 managerName: { $first: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] } },
                 createdAt: { $first: '$createdAt' },
                 updatedAt: { $first: '$updatedAt' }
@@ -302,6 +312,15 @@ exports.saprojectlist = async (req, res) => {
             }
         },
         { $unwind: { path: '$teamData', preserveNullAndEmptyArrays: true } },
+        {
+            $lookup: {
+                from: 'clients',
+                localField: 'client',
+                foreignField: '_id',
+                as: 'clientData'
+            }
+        },
+        { $unwind: { path: '$clientData', preserveNullAndEmptyArrays: true } },
         // Lookup for manager details
         {
             $lookup: {
@@ -321,6 +340,7 @@ exports.saprojectlist = async (req, res) => {
                 startdate: { $first: '$startdate' },
                 deadlinedate: { $first: '$deadlinedate' },
                 teamname: { $first: '$teamData.teamname' },
+                client: { $first: '$clientData.clientname' },
                 managerName: { $first: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] } },
                 createdAt: { $first: '$createdAt' },
                 updatedAt: { $first: '$updatedAt' }
@@ -380,6 +400,15 @@ exports.listprojectsemployee = async (req, res) => {
         { $unwind: { path: '$teamData', preserveNullAndEmptyArrays: true } },
         {
             $lookup: {
+                from: 'clients',
+                localField: 'client',
+                foreignField: '_id',
+                as: 'clientData'
+            }
+        },
+        { $unwind: { path: '$clientData', preserveNullAndEmptyArrays: true } },
+        {
+            $lookup: {
                 from: 'jobcomponents',
                 localField: '_id',
                 foreignField: 'project',
@@ -414,6 +443,7 @@ exports.listprojectsemployee = async (req, res) => {
                 startdate: { $first: '$startdate' },
                 deadlinedate: { $first: '$deadlinedate' },
                 teamname: { $first: '$teamData.teamname' },
+                client: { $first: '$clientData.clientname' },
                 managerName: { $first: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] } },
                 createdAt: { $first: '$createdAt' },
                 updatedAt: { $first: '$updatedAt' }
