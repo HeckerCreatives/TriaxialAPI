@@ -565,81 +565,45 @@ exports.searchteam = async (req, res) => {
     return res.json({message: "success", data: data})
 }
 
-// const data = {
-//     graph: [
-//         {
-//             componentid: "",
-//             teamname: "team test",
-//             projectname: {
-//                 projectid: "",
-//                 name: "project test"
-//             },
-//             clientname: {
-//                 clientid: "",
-//                 name: "client test"
-//             },
-//             jobno: 1,
-//             jobmanager: {
-//                 employeeid: "id here",
-//                 fullname: "Darel Honrejas",
-//                 isManager: false,
-//                 isJobManager: false
-//             },
-//             jobcomponent: "testing component",
-//             notes: "notes here",
-//             members: [
-//                 {
-//                     role: "Engineer (Engr.)",
-//                     employee: {
-//                         employeeid: "id here",
-//                         fullname: "Bien Daniel"
-//                     },
-//                     dates: [
-//                         {
-//                             date: "05/11/2024",
-//                             status: [0, 1, 2],
-//                             hours: 9,
-//                             isOnLeave: false,
-//                             isOnWellnessday: false,
-//                             isOnEvent: false
-//                         },
-//                         {
-//                             date: "05/12/2024",
-//                             status: [],
-//                             hours: 0,
-//                             isOnLeave: false,
-//                             isOnWellnessday: true,
-//                             isOnEvent: false
-//                         },
-//                         {
-//                             date: "05/13/2024",
-//                             status: [],
-//                             hours: 0,
-//                             isOnLeave: true,
-//                             isOnWellnessday: false,
-//                             isOnEvent: false
-//                         },
-//                         {
-//                             date: "05/14/2024",
-//                             status: [],
-//                             hours: 0,
-//                             isOnLeave: false,
-//                             isOnWellnessday: false,
-//                             isOnEvent: true
-//                         },
-//                         {
-//                             date: "05/15/2024",
-//                             status: [],
-//                             hours: 0,
-//                             isOnLeave: false,
-//                             isOnWellnessday: false,
-//                             isOnEvent: false
-//                         },
-//                     ]
-//                 },
-//             ]
-//         }
-//     ]
-// }
+const data = {
+    graph: [
+        {
+            componentid: "",
+            teamname: "team test",
+            projectname: {
+                projectid: "",
+                name: "project test"
+            },
+            clientname: {
+                clientid: "",
+                name: "client test"
+            },
+            jobno: 1,
+            jobmanager: {
+                employeeid: "id here",
+                fullname: "Darel Honrejas",
+                isManager: false,
+                isJobManager: false
+            },
+            jobcomponent: "testing component",
+            notes: "notes here",
+            members: [
+                {
+                    role: "Engineer (Engr.)",
+                    employee: {
+                        employeeid: "id here",
+                        fullname: "Bien Daniel"
+                    },
+                    dates: [
+                        {
+                            date: "05/11/2024",
+                            status: [0, 1, 2]
+                        },
+                    ]
+                },
+            ]
+        }
+    ]
+}
 
 //  #endregion

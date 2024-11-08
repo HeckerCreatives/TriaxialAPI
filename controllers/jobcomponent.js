@@ -71,6 +71,10 @@ exports.createjobcomponent = async (req, res) => {
     return res.json({message: "success"})
 }
 
+exports.editjobcomponentdetails = async (req, res) => {
+
+}
+
 //  #endregion
 
 
@@ -330,10 +334,10 @@ exports.listjobcomponent = async (req, res) => {
 exports.editstatushours = async (req, res) => {
     const {id, email} = req.user
 
-    const {projectid, employeeid, date, status, hours} = req.body
+    const {jobcomponentid, employeeid, date, status, hours} = req.body
 
-    if (!projectid){
-        return res.status(400).json({message: "failed", data: "Please select a valid project"})
+    if (!jobcomponentid){
+        return res.status(400).json({message: "failed", data: "Please select a valid job component"})
     }
     else if (!employeeid){
         return res.status(400).json({message: "failed", data: "Please select a valid employee"})
@@ -349,11 +353,11 @@ exports.editstatushours = async (req, res) => {
     }
 
     const jobComponent = await Jobcomponents.findOne({
-        project: new mongoose.Types.ObjectId(projectid)
+        _id: new mongoose.Types.ObjectId(jobcomponentid)
     })
     .then(data => data)
     .catch(err => {
-        console.log(`There's a problem finding the job component ${projectid}. Error ${err}`)
+        console.log(`There's a problem finding the job component ${jobcomponentid}. Error ${err}`)
 
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
     });
