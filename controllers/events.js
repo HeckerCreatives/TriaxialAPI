@@ -11,7 +11,11 @@ const moment = require('moment');
 exports.geteventsusers = async (req, res) => {
     const {id, email} = req.user
 
-    const teams = await Teams.find({members: new mongoose.Types.ObjectId(id)})
+    const teams = await Teams.find({$or: [
+        {members: new mongoose.Types.ObjectId(id)},
+        {teamleader: new mongoose.Types.ObjectId(id)},
+        {manager: new mongoose.Types.ObjectId(id)}
+    ]})
 
     if (teams.length <= 0){
         return res.status(400).json({message: "failed", data: "The user doesn't have any team"})
