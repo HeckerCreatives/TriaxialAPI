@@ -309,6 +309,8 @@ exports.listjobcomponent = async (req, res) => {
                     projectname: { $first: { projectid: '$projectDetails._id', name: '$projectDetails.projectname' } },
                     clientname: { $first: { clientid: '', name: 'Client Name' } },
                     jobno: { $first: '$jobno' },
+                    budgettype: { $first: '$budgettype'},
+                    estimatedbudget: { $first: '$estimatedbudget'},
                     jobmanager: {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
