@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { createproject, listprojects, viewprojectdetails, editproject, changeprojectstatus, saprojectlist } = require("../controllers/projects")
+const { createproject, listprojects, viewprojectdetails, editproject, changeprojectstatus, saprojectlist, listprojectsemployee } = require("../controllers/projects")
 const { protectsuperadmin, protectemployee, protectmanager, protectusers } = require("../middleware/middleware")
 
 router
@@ -17,6 +17,12 @@ router
     //  #region SUPERADMIN
 
     .get("/saprojectlist", protectsuperadmin, saprojectlist)
+
+    //  #endregion
+
+    //  #region EMPLOYEE
+
+    .get("/listprojectsemployee", protectemployee, listprojectsemployee)
 
     //  #endregion
 
