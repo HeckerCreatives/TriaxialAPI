@@ -46,13 +46,7 @@ exports.createjobcomponent = async (req, res) => {
                 role: role,
                 notes: "",
                 hours: 0,
-                dates: [
-                    {
-                        date: "2024/11/12",
-                        status: [1, 2],
-                        hours: 8
-                    }
-                ]
+                dates: []
             };
         });
 
