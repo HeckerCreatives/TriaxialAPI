@@ -74,7 +74,7 @@ exports.createjobcomponent = async (req, res) => {
 //  #endregion
 
 
-//  #region MANAGER & EMPLOYEE
+//  #region MANAGER & EMPLOYEE & SUPERADMIN
 
 exports.listjobcomponent = async (req, res) => {
     const { id, email } = req.user;

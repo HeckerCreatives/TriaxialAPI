@@ -19,4 +19,10 @@ router
 
     //  #endregion
 
+    //  #region SUPERADMIN
+
+    .get("/listjobcomponentsa", protectmanager, listjobcomponent)
+
+    //  #endregion
+
 module.exports = router;
