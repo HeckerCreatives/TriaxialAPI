@@ -279,6 +279,37 @@ exports.changeprojectstatus = async (req, res) => {
     return res.json({message: "success"})
 }
 
+exports.listallprojects = async (req, res) => {
+    const { id, email } = req.user;
+    const { searchproject } = req.query;
+
+    // Search filter
+    let matchStage = {};
+    if (searchproject) {
+        matchStage["projectname"] = {
+            $regex: searchproject, $options: 'i'
+        };
+    }
+
+    const projectlist = await Projects.find(matchStage)
+    .then(data => data);
+
+    const data = {
+        projectlist: []
+    };
+
+    projectlist.forEach(tempdata => {
+        const {_id, projectname} = tempdata
+
+        data.projectlist.push({
+            projectid: _id,
+            projectname: projectname
+        })
+    })
+
+    return res.json({message: "success", data: data})
+};
+
 //  #endregion
 
 //  #region SUPERADMIN
