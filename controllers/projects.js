@@ -24,7 +24,7 @@ exports.createproject = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Please select a deadline date"})
     }
 
-    await Projects.create({team: new mongoose.Types.ObjectId(team), projectname: projectname, client: client, invoiced: 0, status: "On-going", startdate: new Date(startdate), deadlinedate: new Date(deadlinedate)})
+    await Projects.create({team: new mongoose.Types.ObjectId(team), projectname: projectname, client: new mongoose.Types.ObjectId(client), invoiced: 0, status: "On-going", startdate: new Date(startdate), deadlinedate: new Date(deadlinedate)})
     .catch(err => {
         console.log(`There's a problem creating projects, project name: ${projectname}. Error ${err}`)
 
