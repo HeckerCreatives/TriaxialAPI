@@ -75,8 +75,8 @@ exports.listprojects = async (req, res) => {
         {
             $match: {
                 $or: [
-                    { 'teamData.manager': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } },
-                    { 'teamData.teamleader': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } },
+                    { 'teamData.manager': new mongoose.Types.ObjectId(id) },
+                    { 'teamData.teamleader': new mongoose.Types.ObjectId(id)},
                     { 'teamData.members': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } },
                     { 'jobComponentData.members': { $elemMatch: { employee: new mongoose.Types.ObjectId(id) } } },
                     { 'jobComponentData.jobmanager': new mongoose.Types.ObjectId(id) }
@@ -134,8 +134,8 @@ exports.listprojects = async (req, res) => {
         {
             $match: {
                 $or: [
-                    { 'teamData.manager': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } },
-                    { 'teamData.teamleader': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } },
+                    { 'teamData.manager': new mongoose.Types.ObjectId(id) },
+                    { 'teamData.teamleader': new mongoose.Types.ObjectId(id) },
                     { 'teamData.members': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } },
                     { 'jobComponentData.members': { $elemMatch: { employee: new mongoose.Types.ObjectId(id) } } },
                     { 'jobComponentData.jobmanager': new mongoose.Types.ObjectId(id) }
