@@ -171,6 +171,8 @@ exports.clientlistall = async (req, res) => {
     
     const {clientname} = req.query
 
+    
+
     const matchStage = {}
 
     if (clientname){
@@ -178,8 +180,7 @@ exports.clientlistall = async (req, res) => {
     }
 
     const clients = await Clients.find(matchStage)
-    .skip(pageOptions.page * pageOptions.limit)
-    .limit(pageOptions.limit)
+  
     .then(data => data)
     .catch(err => {
         console.log(`There's a problem getting clients list. Error ${err}`)
@@ -194,8 +195,8 @@ exports.clientlistall = async (req, res) => {
     clients.forEach(tempdata => {
         const {_id, clientname} = tempdata
 
-        data.teamlist.push({
-            teamid: _id,
+        data.clients.push({
+            clientid: _id,
             clientname: clientname,
         })
     })
