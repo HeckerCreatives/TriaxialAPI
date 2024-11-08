@@ -395,4 +395,250 @@ exports.editstatushours = async (req, res) => {
     return res.json({message: "success"})
 }
 
+exports.yourworkload = async (req, res) => {
+    const { id, email } = req.user; // User ID from the request
+    const { memberId } = req.query;  // Member ID from query parameter
+
+    try {
+        const result = await Jobcomponents.aggregate([
+            {
+                // Filter by memberId (the user should be in the members array)
+                $match: {
+                    members: {
+                        $elemMatch: { employee: new mongoose.Types.ObjectId(id) } // Match by user id
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'projects',
+                    localField: 'project',
+                    foreignField: '_id',
+                    as: 'projectDetails'
+                }
+            },
+            { $unwind: '$projectDetails' },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'jobmanager',
+                    foreignField: '_id',
+                    as: 'jobManagerDetails'
+                }
+            },
+            { $unwind: '$jobManagerDetails' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: "jobManagerDetails._id",
+                    foreignField: "owner",
+                    as: "jobManagerDeets"
+                }
+            },
+            { $unwind: '$jobManagerDeets' },
+            {
+                $lookup: {
+                    from: 'teams',
+                    localField: 'projectDetails.team',
+                    foreignField: '_id',
+                    as: 'teamDetails'
+                }
+            },
+            { $unwind: { path: '$teamDetails', preserveNullAndEmptyArrays: true } },
+            {
+                $addFields: {
+                    isManager: {
+                        $cond: {
+                            if: { $eq: [new mongoose.Types.ObjectId(id), '$teamDetails.manager'] },
+                            then: true,
+                            else: false
+                        }
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'members.employee',
+                    foreignField: '_id',
+                    as: 'employeeDetails'
+                }
+            },
+            { $unwind: '$employeeDetails' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'employeeDetails._id',
+                    foreignField: 'owner',
+                    as: 'userDetails'
+                }
+            },
+            { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'leaves',
+                    let: { employeeId: '$members.employee' },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $eq: ['$owner', '$$employeeId'] 
+                                } 
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                leavedates: {
+                                    leavestart: "$leavestart",
+                                    leaveend: "$leaveend"
+                                }
+                            }
+                        }
+                    ],
+                    as: 'leaveData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'wellnessdays',
+                    let: { employeeId: '$members.employee' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        {
+                            $project: {
+                                _id: 0,
+                                wellnessdates: "$requestdate"
+                            }
+                        }
+                    ],
+                    as: 'wellnessData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'events',
+                    let: { teamId: '$teamDetails._id' },
+                    pipeline: [
+                        { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
+                        {
+                            $project: {
+                                _id: 0,
+                                eventdates: {
+                                    startdate: "$startdate",
+                                    enddate: "$enddate"
+                                }
+                            }
+                        }
+                    ],
+                    as: 'eventData'
+                }
+            },
+            {
+                $addFields: {
+                    allDates: {
+                        $let: {
+                            vars: {
+                                startDate: "$projectDetails.startdate",
+                                endDate: "$projectDetails.deadlinedate"
+                            },
+                            in: {
+                                $map: {
+                                    input: {
+                                        $range: [
+                                            0, // start from day 0
+                                            { 
+                                                $add: [
+                                                    { $divide: [{ $subtract: ["$$endDate", "$$startDate"] }, 86400000] },
+                                                    1
+                                                ]
+                                            } // end at the total number of days + 1 for inclusive range
+                                        ]
+                                    },
+                                    as: "daysFromStart",
+                                    in: {
+                                        $dateAdd: {
+                                            startDate: "$$startDate",
+                                            unit: "day",
+                                            amount: "$$daysFromStart"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $addFields: {
+                    members: {
+                        // For each member, we will display their specific details
+                        role: "$members.role",
+                        employee: {
+                            employeeid: "$members.employee",
+                            fullname: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] }
+                        },
+                        leaveDates: {
+                            $filter: {
+                                input: "$leaveData.leavedates",
+                                as: "leave",
+                                cond: {
+                                    $and: [
+                                        { $gte: ["$$leave.leavestart", "$projectDetails.startdate"] },
+                                        { $lte: ["$$leave.leaveend", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
+                            }
+                        },
+                        wellnessDates: {
+                            $filter: {
+                                input: "$wellnessData.wellnessdates",
+                                as: "wellness",
+                                cond: {
+                                    $and: [
+                                        { $gte: ["$$wellness", "$projectDetails.startdate"] },
+                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
+                            }
+                        },
+                        eventDates: {
+                            $filter: {
+                                input: "$eventData.eventdates",
+                                as: "event",
+                                cond: {
+                                    $and: [
+                                        { $gte: ["$$event.startdate", "$projectDetails.startdate"] },
+                                        { $lte: ["$$event.enddate", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    componentid: '$_id',
+                    teamname: '$teamDetails.teamname',
+                    projectname: '$projectDetails.projectname',
+                    jobmanager: {
+                        employeeid: '$jobManagerDetails._id',
+                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
+                    },
+                    jobcomponent: '$jobcomponent',
+                    allDates: '$allDates',
+                    members: 1 // Only include the members field
+                }
+            }
+        ]);
+
+        return res.json({ message: "success", data: result });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Error processing request", error: err.message });
+    }
+}
+
+
 //  #endregion
