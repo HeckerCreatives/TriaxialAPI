@@ -518,7 +518,7 @@ exports.yourworkload = async (req, res) => {
         // Use filterDate if provided; otherwise, default to today
         const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
-        const endOfRange = referenceDate.add(8, 'weeks').endOf('isoWeek').toDate();
+        const endOfRange = referenceDate.add(2, 'weeks').endOf('isoWeek').toDate();
 
         // Calculate the total days between startOfWeek and endOfRange
         const totalDays = Math.ceil((endOfRange - startOfWeek) / (1000 * 60 * 60 * 24));
