@@ -46,7 +46,6 @@ exports.createjobcomponent = async (req, res) => {
                 employee: employeeid ? new mongoose.Types.ObjectId(employeeid) : null,
                 role: role,
                 notes: "",
-                hours: 0,
                 dates: []
             };
         });
