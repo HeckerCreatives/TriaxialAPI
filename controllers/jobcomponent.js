@@ -264,7 +264,42 @@ exports.listjobcomponent = async (req, res) => {
                         }
                     }
                 }
-            },            
+            },
+            {
+                $addFields: {
+                    allDates: {
+                        $let: {
+                            vars: {
+                                startDate: "$projectDetails.startdate",
+                                endDate: "$projectDetails.deadlinedate"
+                            },
+                            in: {
+                                $map: {
+                                    input: {
+                                        $range: [
+                                            0, // start from day 0
+                                            { 
+                                                $add: [
+                                                    { $divide: [{ $subtract: ["$$endDate", "$$startDate"] }, 86400000] },
+                                                    1
+                                                ]
+                                            } // end at the total number of days + 1 for inclusive range
+                                        ]
+                                    },
+                                    as: "daysFromStart",
+                                    in: {
+                                        $dateAdd: {
+                                            startDate: "$$startDate",
+                                            unit: "day",
+                                            amount: "$$daysFromStart"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },      
             {
                 $group: {
                     _id: '$_id',
