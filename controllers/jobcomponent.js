@@ -237,12 +237,7 @@ exports.listjobcomponent = async (req, res) => {
                             if: { $eq: ["$members.employee", null] },
                             then: { _id: null, fullname: "N/A" }, // Default or fallback value
                             else: {
-                                $lookup: {
-                                    from: 'users',
-                                    localField: 'members.employee',
-                                    foreignField: '_id',
-                                    as: 'employeeDetails'
-                                }
+                                _id: null, fullname: "N/A"
                             }
                         }
                     }
