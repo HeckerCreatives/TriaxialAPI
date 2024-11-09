@@ -429,71 +429,73 @@ exports.listjobcomponent = async (req, res) => {
 }
 
 exports.editstatushours = async (req, res) => {
-    const {id, email} = req.user
+    const { id, email } = req.user;
+    const { jobcomponentid, employeeid, date, status, hours } = req.body;
 
-    const {jobcomponentid, employeeid, date, status, hours} = req.body
-
-    if (!jobcomponentid){
-        return res.status(400).json({message: "failed", data: "Please select a valid job component"})
-    }
-    else if (!employeeid){
-        return res.status(400).json({message: "failed", data: "Please select a valid employee"})
-    }
-    else if (!date){
-        return res.status(400).json({message: "failed", data: "Invalid graph item"})
-    }
-    else if (!Array.isArray(status)){
-        return res.status(400).json({message: "failed", data: "Invalid status types"})
-    }
-    else if (!hours){
-        return res.status(400).json({message: "failed", data: "Please input hours"})
+    // Validate input fields
+    if (!jobcomponentid) {
+        return res.status(400).json({ message: "failed", data: "Please select a valid job component" });
+    } else if (employeeid === undefined || employeeid === null) {
+        // Optional: Handle case when employeeid is empty or null
+        console.log("No employee ID provided");
+    } else if (!date) {
+        return res.status(400).json({ message: "failed", data: "Invalid graph item" });
+    } else if (!Array.isArray(status)) {
+        return res.status(400).json({ message: "failed", data: "Invalid status types" });
+    } else if (!hours) {
+        return res.status(400).json({ message: "failed", data: "Please input hours" });
     }
 
+    // Find the job component by ID
     const jobComponent = await Jobcomponents.findOne({
         _id: new mongoose.Types.ObjectId(jobcomponentid)
     })
-    .then(data => data)
-    .catch(err => {
-        console.log(`There's a problem finding the job component ${jobcomponentid}. Error ${err}`)
-
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
-    });
+        .then(data => data)
+        .catch(err => {
+            console.log(`There's a problem finding the job component ${jobcomponentid}. Error ${err}`);
+            return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details" });
+        });
 
     if (!jobComponent) {
-        return res.status(400).json({message: "failed", data: "Job component does not exist"})
+        return res.status(400).json({ message: "failed", data: "Job component does not exist" });
     }
 
-    // Find the member corresponding to the employee
-    const member = jobComponent.members.find(m => m.employee.toString() === employeeid);
+    // If employeeid is provided, proceed with finding the member
+    if (employeeid) {
+        const member = jobComponent.members.find(m => m.employee.toString() === employeeid);
 
-    if (!member) {
-        return res.status(400).json({message: "failed", data: "Employee not found in job component"});
-    }
+        if (!member) {
+            return res.status(400).json({ message: "failed", data: "Employee not found in job component" });
+        }
 
-    // Check if the date already exists in the member's dates array
-    const dateIndex = member.dates.findIndex(d => d.date.toString() === new Date(date).toString());
+        // Check if the date already exists in the member's dates array
+        const dateIndex = member.dates.findIndex(d => d.date.toString() === new Date(date).toString());
 
-    if (dateIndex !== -1) {
-        // If the date exists, update the hours and status
-        member.dates[dateIndex].hours = hours;
-        member.dates[dateIndex].status = status;
+        if (dateIndex !== -1) {
+            // If the date exists, update the hours and status
+            member.dates[dateIndex].hours = hours;
+            member.dates[dateIndex].status = status;
+        } else {
+            // If the date does not exist, push a new entry
+            member.dates.push({
+                date: new Date(date),
+                hours,
+                status: status  // Assuming you want to store the status as an array
+            });
+        }
     } else {
-        // If the date does not exist, push a new entry
-        member.dates.push({
-            date: new Date(date),
-            hours,
-            status: status  // Assuming you want to store the status as an array
-        });
+        // If employeeid is not provided, you could handle it differently
+        console.log("No employeeid provided, skipping member update.");
     }
 
+    // Save the updated job component
     await jobComponent.save()
-    .catch(err => {
-        console.log(`There's a problem saving the job component ${jobComponent._id}. Error ${err}`)
+        .catch(err => {
+            console.log(`There's a problem saving the job component ${jobComponent._id}. Error ${err}`);
+            return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details" });
+        });
 
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
-    });
-
-    return res.json({message: "success"})
+    return res.json({ message: "success" });
 }
 
 exports.yourworkload = async (req, res) => {
