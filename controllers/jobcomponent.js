@@ -416,6 +416,9 @@ exports.listjobcomponent = async (req, res) => {
                     allDates: { $first: '$allDates' },
                     members: { $push: '$members' }
                 }
+            },
+            {
+                $sort: { createdAt: 1}
             }
         ]);
 
