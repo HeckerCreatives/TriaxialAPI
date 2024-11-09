@@ -36,8 +36,8 @@ exports.createjobcomponent = async (req, res) => {
     for (let i = 0; i < jobcomponentvalue.length; i++) {
         const { jobmanager, budgettype, estimatedbudget, jobcomponent, members } = jobcomponentvalue[i];
 
-        if (!Array.isArray(members) || members.length < 4) {
-            return res.status(400).json({ message: "failed", data: "Please select at least 4 employees for the members" });
+        if (!Array.isArray(members)) {
+            return res.status(400).json({ message: "failed", data: "Invalid selected members" });
         }
 
         const membersArray = members.map(tempdata => {
