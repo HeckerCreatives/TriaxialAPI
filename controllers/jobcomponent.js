@@ -178,9 +178,7 @@ exports.listjobcomponent = async (req, res) => {
 
     try {
         const result = await Jobcomponents.aggregate([
-            {
-                $match: { project: new mongoose.Types.ObjectId(projectid) }
-            },
+            { $match: { project: new mongoose.Types.ObjectId(projectid) } },
             {
                 $lookup: {
                     from: 'projects',
@@ -202,9 +200,9 @@ exports.listjobcomponent = async (req, res) => {
             {
                 $lookup: {
                     from: 'userdetails',
-                    localField: "jobManagerDetails._id",
-                    foreignField: "owner",
-                    as: "jobManagerDeets"
+                    localField: 'jobManagerDetails._id',
+                    foreignField: 'owner',
+                    as: 'jobManagerDeets'
                 }
             },
             { $unwind: '$jobManagerDeets' },
@@ -217,39 +215,24 @@ exports.listjobcomponent = async (req, res) => {
                 }
             },
             { $unwind: { path: '$teamDetails', preserveNullAndEmptyArrays: true } },
-            {
-                $addFields: {
-                    isManager: {
-                        $cond: {
+            { 
+                $addFields: { 
+                    isManager: { 
+                        $cond: { 
                             if: { $eq: [new mongoose.Types.ObjectId(id), '$teamDetails.manager'] },
                             then: true,
-                            else: false
-                        }
-                    }
+                            else: false 
+                        } 
+                    } 
                 }
             },
             { $unwind: '$members' },
-            // Lookup for employee details - this is done here, before the conditional logic
             {
                 $lookup: {
                     from: 'users',
                     localField: 'members.employee',
                     foreignField: '_id',
                     as: 'employeeDetails'
-                }
-            },
-            {
-                $addFields: {
-                    // Check if employeeDetails is empty or null and provide default values
-                    employeeDetails: {
-                        $cond: {
-                            if: { $eq: [{ $size: "$employeeDetails" }, 0] }, // If employeeDetails is empty (not found)
-                            then: { _id: null, fullname: "N/A" }, // Provide default values
-                            else: { // Otherwise, use the first element of employeeDetails array
-                                $arrayElemAt: ["$employeeDetails", 0]
-                            }
-                        }
-                    }
                 }
             },
             {
@@ -260,102 +243,28 @@ exports.listjobcomponent = async (req, res) => {
                     as: 'userDetails'
                 }
             },
-            { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
-            {
-                $lookup: {
-                    from: 'leaves',
-                    let: { employeeId: '$members.employee' },
-                    pipeline: [
-                        { 
-                            $match: { 
-                                $expr: { 
-                                    $eq: ['$owner', '$$employeeId'] 
-                                } 
-                            }
-                        },
-                        {
-                            $project: {
-                                _id: 0,
-                                leavedates: {
-                                    leavestart: "$leavestart",
-                                    leaveend: "$leaveend"
-                                }
-                            }
-                        }
-                    ],
-                    as: 'leaveData'
-                }
-            },
-            {
-                $lookup: {
-                    from: 'wellnessdays',
-                    let: { employeeId: '$members.employee' },
-                    pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
-                        {
-                            $project: {
-                                _id: 0,
-                                wellnessdates: "$requestdate"
-                            }
-                        }
-                    ],
-                    as: 'wellnessData'
-                }
-            },
-            {
-                $lookup: {
-                    from: 'events',
-                    let: { teamId: '$teamDetails._id' },
-                    pipeline: [
-                        { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
-                        {
-                            $project: {
-                                _id: 0,
-                                eventdates: {
-                                    startdate: "$startdate",
-                                    enddate: "$enddate"
-                                }
-                            }
-                        }
-                    ],
-                    as: 'eventData'
-                }
-            },
             {
                 $addFields: {
-                    allDates: {
-                        $let: {
-                            vars: {
-                                startDate: "$projectDetails.startdate",
-                                endDate: "$projectDetails.deadlinedate"
-                            },
-                            in: {
-                                $map: {
-                                    input: {
-                                        $range: [
-                                            0, // start from day 0
-                                            { 
-                                                $add: [
-                                                    { $divide: [{ $subtract: ["$$endDate", "$$startDate"] }, 86400000] },
-                                                    1
-                                                ]
-                                            } // end at the total number of days + 1 for inclusive range
+                    members: {
+                        employee: { 
+                            $cond: {
+                                if: { $gt: [{ $size: "$employeeDetails" }, 0] },
+                                then: { 
+                                    _id: { $arrayElemAt: ['$employeeDetails._id', 0] },
+                                    fullname: { 
+                                        $concat: [
+                                            { $ifNull: [{ $arrayElemAt: ['$userDetails.firstname', 0] }, ''] },
+                                            ' ',
+                                            { $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }
                                         ]
-                                    },
-                                    as: "daysFromStart",
-                                    in: {
-                                        $dateAdd: {
-                                            startDate: "$$startDate",
-                                            unit: "day",
-                                            amount: "$$daysFromStart"
-                                        }
                                     }
-                                }
+                                },
+                                else: { _id: null, fullname: "N/A" }
                             }
                         }
                     }
                 }
-            },
+            },            
             {
                 $group: {
                     _id: '$_id',
@@ -375,7 +284,7 @@ exports.listjobcomponent = async (req, res) => {
                         }
                     },
                     jobcomponent: { $first: '$jobcomponent' },
-                    allDates: {$first: '$allDates'},
+                    allDates: { $first: '$allDates' },
                     members: { $push: '$members' }
                 }
             }
@@ -387,7 +296,6 @@ exports.listjobcomponent = async (req, res) => {
         return res.status(500).json({ message: "Error processing request", error: err.message });
     }
 }
-
 
 exports.editstatushours = async (req, res) => {
     const {id, email} = req.user
