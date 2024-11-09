@@ -229,10 +229,13 @@ exports.viewprojectdetails = async (req, res) => {
 exports.editproject = async (req, res) => {
     const {id, email} = req.user
 
-    const {projectid, team, projectname, startdate, deadlinedate} = req.body
+    const {projectid, clientid, team, projectname, startdate, deadlinedate} = req.body
 
     if (!projectid){
         return res.status(400).json({message: "failed", data: "Please select a valid project first!"})
+    }
+    else if (!clientid){
+        return res.status(400).json({message: "failed", data: "Please select a valid client first!"})
     }
     else if (!team){
         return res.status(400).json({message: "failed", data: "Please select a team first!"})
@@ -247,7 +250,7 @@ exports.editproject = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Please select a deadline date"})
     }
 
-    await Projects.findOneAndUpdate({_id: new mongoose.Types.ObjectId(projectid)}, {team: new mongoose.Types.ObjectId(team), projectname: projectname, invoiced: 0, status: "On-going", startdate: new Date(startdate), deadlinedate: new Date(deadlinedate)})
+    await Projects.findOneAndUpdate({_id: new mongoose.Types.ObjectId(projectid)}, {team: new mongoose.Types.ObjectId(team), client: clientid, projectname: projectname, invoiced: 0, status: "On-going", startdate: new Date(startdate), deadlinedate: new Date(deadlinedate)})
     .catch(err => {
         console.log(`There's a problem updating projects, project name: ${projectname}. Error ${err}`)
 
