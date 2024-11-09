@@ -1,6 +1,7 @@
 const { default: mongoose } = require("mongoose")
 const Jobcomponents = require("../models/Jobcomponents")
 const Projects = require("../models/Projects")
+const moment = require('moment');
 
 //  #region MANAGER
 
@@ -33,7 +34,7 @@ exports.createjobcomponent = async (req, res) => {
 
     // Loop through jobcomponentvalue array
     for (let i = 0; i < jobcomponentvalue.length; i++) {
-        const { jobno, jobmanager, budgettype, estimatedbudget, jobcomponent, members } = jobcomponentvalue[i];
+        const { jobmanager, budgettype, estimatedbudget, jobcomponent, members } = jobcomponentvalue[i];
 
         if (!Array.isArray(members) || members.length < 4) {
             return res.status(400).json({ message: "failed", data: "Please select at least 4 employees for the members" });
@@ -52,7 +53,6 @@ exports.createjobcomponent = async (req, res) => {
 
         componentBulkWrite.push({
             project: new mongoose.Types.ObjectId(projectdata._id),
-            jobno: jobno,
             jobmanager: new mongoose.Types.ObjectId(jobmanager),
             budgettype: budgettype,
             estimatedbudget: estimatedbudget,
@@ -405,7 +405,7 @@ exports.listjobcomponent = async (req, res) => {
                     teamname: { $first: '$teamDetails.teamname' },
                     projectname: { $first: { projectid: '$projectDetails._id', name: '$projectDetails.projectname' } },
                     clientname: { $first: { clientid: '', name: 'Client Name' } },
-                    jobno: { $first: '$jobno' },
+                    jobno: { $first: '$projectDetails.jobno' },
                     budgettype: { $first: '$budgettype'},
                     estimatedbudget: { $first: '$estimatedbudget'},
                     jobmanager: {
@@ -499,16 +499,31 @@ exports.editstatushours = async (req, res) => {
 }
 
 exports.yourworkload = async (req, res) => {
-    const { id, email } = req.user; // User ID from the request
-    const { memberId } = req.query;  // Member ID from query parameter
-
+    const { id, email } = req.user;
+    const { filterDate } = req.query; // Assuming the filter date is passed as a query parameter
     try {
+        // Use filterDate if provided; otherwise, default to today
+        const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
+        const startOfWeek = referenceDate.startOf('isoWeek').toDate();
+        const endOfRange = referenceDate.add(8, 'weeks').endOf('isoWeek').toDate();
+
+        // Calculate the total days between startOfWeek and endOfRange
+        const totalDays = Math.ceil((endOfRange - startOfWeek) / (1000 * 60 * 60 * 24));
+
         const result = await Jobcomponents.aggregate([
             {
-                // Filter by memberId (the user should be in the members array)
                 $match: {
                     members: {
-                        $elemMatch: { employee: new mongoose.Types.ObjectId(id) } // Match by user id
+                        $elemMatch: { 
+                            employee: new mongoose.Types.ObjectId(id),
+                            dates: {
+                                $elemMatch: {
+                                  date: {
+                                    $gte: startOfWeek,  // Start of the reference week
+                                  }
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -533,9 +548,9 @@ exports.yourworkload = async (req, res) => {
             {
                 $lookup: {
                     from: 'userdetails',
-                    localField: "jobManagerDetails._id",
-                    foreignField: "owner",
-                    as: "jobManagerDeets"
+                    localField: 'jobManagerDetails._id',
+                    foreignField: 'owner',
+                    as: 'jobManagerDeets'
                 }
             },
             { $unwind: '$jobManagerDeets' },
@@ -560,6 +575,17 @@ exports.yourworkload = async (req, res) => {
                 }
             },
             {
+                $addFields: {
+                    members: {
+                        $filter: {
+                            input: '$members',
+                            as: 'member',
+                            cond: { $eq: ['$$member.employee', new mongoose.Types.ObjectId(id)] }
+                        }
+                    }
+                }
+            },
+            {
                 $lookup: {
                     from: 'users',
                     localField: 'members.employee',
@@ -578,143 +604,50 @@ exports.yourworkload = async (req, res) => {
             },
             { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
             {
-                $lookup: {
-                    from: 'leaves',
-                    let: { employeeId: '$members.employee' },
-                    pipeline: [
-                        { 
-                            $match: { 
-                                $expr: { 
-                                    $eq: ['$owner', '$$employeeId'] 
-                                } 
-                            }
-                        },
-                        {
-                            $project: {
-                                _id: 0,
-                                leavedates: {
-                                    leavestart: "$leavestart",
-                                    leaveend: "$leaveend"
-                                }
-                            }
+                $addFields: {
+                    members: {
+                        role: '$members.role',
+                        employee: {
+                            employeeid: '$members.employee',
+                            fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] }
                         }
-                    ],
-                    as: 'leaveData'
-                }
-            },
-            {
-                $lookup: {
-                    from: 'wellnessdays',
-                    let: { employeeId: '$members.employee' },
-                    pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
-                        {
-                            $project: {
-                                _id: 0,
-                                wellnessdates: "$requestdate"
-                            }
-                        }
-                    ],
-                    as: 'wellnessData'
-                }
-            },
-            {
-                $lookup: {
-                    from: 'events',
-                    let: { teamId: '$teamDetails._id' },
-                    pipeline: [
-                        { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
-                        {
-                            $project: {
-                                _id: 0,
-                                eventdates: {
-                                    startdate: "$startdate",
-                                    enddate: "$enddate"
-                                }
-                            }
-                        }
-                    ],
-                    as: 'eventData'
+                    },
+                    // totalHoursPerDay: {
+                    //     $map: {
+                    //         input: '$members.dates',
+                    //         as: 'dateInfo',
+                    //         in: {
+                    //             date: '$$dateInfo.date',
+                    //             totalHours: {
+                    //                 $sum: '$$dateInfo.hours'
+                    //             }
+                    //         }
+                    //     }
+                    // }
                 }
             },
             {
                 $addFields: {
                     allDates: {
-                        $let: {
-                            vars: {
-                                startDate: "$projectDetails.startdate",
-                                endDate: "$projectDetails.deadlinedate"
-                            },
-                            in: {
+                        $filter: {
+                            input: {
                                 $map: {
-                                    input: {
-                                        $range: [
-                                            0, // start from day 0
-                                            { 
-                                                $add: [
-                                                    { $divide: [{ $subtract: ["$$endDate", "$$startDate"] }, 86400000] },
-                                                    1
-                                                ]
-                                            } // end at the total number of days + 1 for inclusive range
-                                        ]
-                                    },
+                                    input: { $range: [0, totalDays] },
                                     as: "daysFromStart",
                                     in: {
                                         $dateAdd: {
-                                            startDate: "$$startDate",
+                                            startDate: startOfWeek,
                                             unit: "day",
                                             amount: "$$daysFromStart"
                                         }
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                $addFields: {
-                    members: {
-                        // For each member, we will display their specific details
-                        role: "$members.role",
-                        employee: {
-                            employeeid: "$members.employee",
-                            fullname: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] }
-                        },
-                        leaveDates: {
-                            $filter: {
-                                input: "$leaveData.leavedates",
-                                as: "leave",
-                                cond: {
-                                    $and: [
-                                        { $gte: ["$$leave.leavestart", "$projectDetails.startdate"] },
-                                        { $lte: ["$$leave.leaveend", "$projectDetails.deadlinedate"] }
-                                    ]
-                                }
-                            }
-                        },
-                        wellnessDates: {
-                            $filter: {
-                                input: "$wellnessData.wellnessdates",
-                                as: "wellness",
-                                cond: {
-                                    $and: [
-                                        { $gte: ["$$wellness", "$projectDetails.startdate"] },
-                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] }
-                                    ]
-                                }
-                            }
-                        },
-                        eventDates: {
-                            $filter: {
-                                input: "$eventData.eventdates",
-                                as: "event",
-                                cond: {
-                                    $and: [
-                                        { $gte: ["$$event.startdate", "$projectDetails.startdate"] },
-                                        { $lte: ["$$event.enddate", "$projectDetails.deadlinedate"] }
-                                    ]
-                                }
+                            },
+                            as: "date",
+                            cond: {
+                                $not: [
+                                    { $in: [{ $dayOfWeek: "$$date" }, [1, 7]] } // Exclude Sunday (1) and Saturday (7)
+                                ]
                             }
                         }
                     }
@@ -731,17 +664,52 @@ exports.yourworkload = async (req, res) => {
                     },
                     jobcomponent: '$jobcomponent',
                     allDates: '$allDates',
-                    members: 1 // Only include the members field
+                    members: 1
                 }
             }
         ]);
 
-        return res.json({ message: "success", data: result });
+        // Assuming `response.data` is the current array of job data you received
+        const data = {
+            data: {
+                alldates: [],
+                yourworkload: []
+            }
+        };
+
+        // Extract all dates and unique members
+        result.forEach(job => {
+            // Combine and deduplicate dates
+            data.data.alldates = [
+                ...new Set([...data.data.alldates, ...job.allDates])
+            ];
+
+            // Restructure member data
+            const members = job.members.map(member => ({
+                employee: member.employee,
+                role: member.role,
+                notes: member.notes,
+                dates: member.dates
+            }));
+
+            // Push members into the yourworkload array
+            data.data.yourworkload.push({
+                _id: job._id,
+                jobmanager: job.jobmanager,
+                componentid: job.componentid,
+                teamname: job.teamname,
+                projectname: job.projectname,
+                jobcomponent: job.jobcomponent,
+                members
+            });
+        });
+
+        return res.json({ message: 'success', data: data.data });
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ message: "Error processing request", error: err.message });
+        return res.status(500).json({ message: 'Error processing request', error: err.message });
     }
-}
+};
 
 exports.editjobmanagercomponents = async (req, res) => {
     const {id, email} = req.user

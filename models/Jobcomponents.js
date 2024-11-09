@@ -7,10 +7,6 @@ const JobcomponentSchema = new mongoose.Schema(
             ref: 'Projects',
             index: true
         },
-        jobno: {
-            type: String,
-            index: true
-        },
         jobmanager: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Users',

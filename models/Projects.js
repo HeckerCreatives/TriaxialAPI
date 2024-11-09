@@ -7,6 +7,10 @@ const ProjectSchema = new mongoose.Schema(
             ref: 'Teams',
             index: true
         },
+        jobno: {
+            type: String,
+            index: true
+        },
         projectname: {
             type: String
         },
