@@ -43,7 +43,7 @@ exports.createjobcomponent = async (req, res) => {
         const membersArray = members.map(tempdata => {
             const { employeeid, role } = tempdata;
             return {
-                employee: new mongoose.Types.ObjectId(employeeid),
+                employee: employeeid ? new mongoose.Types.ObjectId(employeeid) : null,
                 role: role,
                 notes: "",
                 hours: 0,
@@ -231,14 +231,30 @@ exports.listjobcomponent = async (req, res) => {
             },
             { $unwind: '$members' },
             {
-                $lookup: {
-                    from: 'users',
-                    localField: 'members.employee',
-                    foreignField: '_id',
-                    as: 'employeeDetails'
+                $addFields: {
+                    // Handling cases where employee might be null or empty
+                    employeeDetails: {
+                        $cond: {
+                            if: { $eq: ["$members.employee", null] },
+                            then: { _id: null, fullname: "N/A" }, // Default or fallback value
+                            else: {
+                                $lookup: {
+                                    from: 'users',
+                                    localField: 'members.employee',
+                                    foreignField: '_id',
+                                    as: 'employeeDetails'
+                                }
+                            }
+                        }
+                    }
                 }
             },
-            { $unwind: '$employeeDetails' },
+            {
+                $unwind: {
+                    path: '$employeeDetails',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
             {
                 $lookup: {
                     from: 'userdetails',
@@ -346,11 +362,16 @@ exports.listjobcomponent = async (req, res) => {
             {
                 $addFields: {
                     members: {
-                        // This is for the case when members is NOT an array
                         role: "$members.role",
                         employee: {
                             employeeid: "$members.employee",
-                            fullname: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] }
+                            fullname: {
+                                $cond: {
+                                    if: { $eq: ["$userDetails.firstname", null] },
+                                    then: "Unassigned", // Fallback if no userDetails
+                                    else: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] }
+                                }
+                            }
                         },
                         leaveDates: {
                             $filter: {
@@ -390,7 +411,6 @@ exports.listjobcomponent = async (req, res) => {
                         }
                     }
                 }
-                
             },
             {
                 $group: {
@@ -400,8 +420,8 @@ exports.listjobcomponent = async (req, res) => {
                     projectname: { $first: { projectid: '$projectDetails._id', name: '$projectDetails.projectname' } },
                     clientname: { $first: { clientid: '', name: 'Client Name' } },
                     jobno: { $first: '$projectDetails.jobno' },
-                    budgettype: { $first: '$budgettype'},
-                    estimatedbudget: { $first: '$estimatedbudget'},
+                    budgettype: { $first: '$budgettype' },
+                    estimatedbudget: { $first: '$estimatedbudget' },
                     jobmanager: {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
@@ -411,7 +431,7 @@ exports.listjobcomponent = async (req, res) => {
                         }
                     },
                     jobcomponent: { $first: '$jobcomponent' },
-                    allDates: {$first: '$allDates'},
+                    allDates: { $first: '$allDates' },
                     members: { $push: '$members' }
                 }
             }
@@ -703,7 +723,7 @@ exports.yourworkload = async (req, res) => {
         console.error(err);
         return res.status(500).json({ message: 'Error processing request', error: err.message });
     }
-};
+}
 
 exports.editjobmanagercomponents = async (req, res) => {
     const {id, email} = req.user
