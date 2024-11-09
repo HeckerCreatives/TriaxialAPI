@@ -244,25 +244,63 @@ exports.listjobcomponent = async (req, res) => {
                 }
             },
             {
-                $addFields: {
-                    members: {
-                        employee: { 
-                            $cond: {
-                                if: { $gt: [{ $size: "$employeeDetails" }, 0] },
-                                then: { 
-                                    _id: { $arrayElemAt: ['$employeeDetails._id', 0] },
-                                    fullname: { 
-                                        $concat: [
-                                            { $ifNull: [{ $arrayElemAt: ['$userDetails.firstname', 0] }, ''] },
-                                            ' ',
-                                            { $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }
-                                        ]
-                                    }
-                                },
-                                else: { _id: null, fullname: "N/A" }
+                $lookup: {
+                    from: 'leaves',
+                    let: { employeeId: '$members.employee' },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $eq: ['$owner', '$$employeeId'] 
+                                } 
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                leavedates: {
+                                    leavestart: "$leavestart",
+                                    leaveend: "$leaveend"
+                                }
                             }
                         }
-                    }
+                    ],
+                    as: 'leaveData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'wellnessdays',
+                    let: { employeeId: '$members.employee' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        {
+                            $project: {
+                                _id: 0,
+                                wellnessdates: "$requestdate"
+                            }
+                        }
+                    ],
+                    as: 'wellnessData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'events',
+                    let: { teamId: '$teamDetails._id' },
+                    pipeline: [
+                        { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
+                        {
+                            $project: {
+                                _id: 0,
+                                eventdates: {
+                                    startdate: "$startdate",
+                                    enddate: "$enddate"
+                                }
+                            }
+                        }
+                    ],
+                    as: 'eventData'
                 }
             },
             {
@@ -299,7 +337,65 @@ exports.listjobcomponent = async (req, res) => {
                         }
                     }
                 }
-            },      
+            },     
+            {
+                $addFields: {
+                    members: {
+                        employee: { 
+                            $cond: {
+                                if: { $gt: [{ $size: "$employeeDetails" }, 0] },
+                                then: { 
+                                    _id: { $arrayElemAt: ['$employeeDetails._id', 0] },
+                                    fullname: { 
+                                        $concat: [
+                                            { $ifNull: [{ $arrayElemAt: ['$userDetails.firstname', 0] }, ''] },
+                                            ' ',
+                                            { $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }
+                                        ]
+                                    }
+                                },
+                                else: { _id: null, fullname: "N/A" }
+                            }
+                        },
+                        leaveDates: {
+                            $filter: {
+                                input: "$leaveData.leavedates",
+                                as: "leave",
+                                cond: {
+                                    $and: [
+                                        { $gte: ["$$leave.leavestart", "$projectDetails.startdate"] },
+                                        { $lte: ["$$leave.leaveend", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
+                            }
+                        },
+                        wellnessDates: {
+                            $filter: {
+                                input: "$wellnessData.wellnessdates",
+                                as: "wellness",
+                                cond: {
+                                    $and: [
+                                        { $gte: ["$$wellness", "$projectDetails.startdate"] },
+                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
+                            }
+                        },
+                        eventDates: {
+                            $filter: {
+                                input: "$eventData.eventdates",
+                                as: "event",
+                                cond: {
+                                    $and: [
+                                        { $gte: ["$$event.startdate", "$projectDetails.startdate"] },
+                                        { $lte: ["$$event.enddate", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }, 
             {
                 $group: {
                     _id: '$_id',
