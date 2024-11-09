@@ -109,6 +109,7 @@ exports.listprojects = async (req, res) => {
             $group: {
                 _id: '$_id',
                 projectname: { $first: '$projectname' },
+                jobno: { $first: '$jobno'},
                 invoiced: { $first: '$invoiced' },
                 status: { $first: '$status' },
                 startdate: { $first: '$startdate' },
@@ -232,10 +233,13 @@ exports.viewprojectdetails = async (req, res) => {
 exports.editproject = async (req, res) => {
     const {id, email} = req.user
 
-    const {projectid, clientid, team, projectname, startdate, deadlinedate} = req.body
+    const {projectid, jobno, clientid, team, projectname, startdate, deadlinedate} = req.body
 
     if (!projectid){
         return res.status(400).json({message: "failed", data: "Please select a valid project first!"})
+    }
+    else if (!jobno){
+        return res.status(400).json({message: "failed", data: "Enter a job number first!"})
     }
     else if (!clientid){
         return res.status(400).json({message: "failed", data: "Please select a valid client first!"})
@@ -253,7 +257,7 @@ exports.editproject = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Please select a deadline date"})
     }
 
-    await Projects.findOneAndUpdate({_id: new mongoose.Types.ObjectId(projectid)}, {team: new mongoose.Types.ObjectId(team), client: clientid, projectname: projectname, invoiced: 0, status: "On-going", startdate: new Date(startdate), deadlinedate: new Date(deadlinedate)})
+    await Projects.findOneAndUpdate({_id: new mongoose.Types.ObjectId(projectid)}, {team: new mongoose.Types.ObjectId(team), jobno: jobno, client: clientid, projectname: projectname, invoiced: 0, status: "On-going", startdate: new Date(startdate), deadlinedate: new Date(deadlinedate)})
     .catch(err => {
         console.log(`There's a problem updating projects, project name: ${projectname}. Error ${err}`)
 
@@ -476,6 +480,7 @@ exports.listprojectsemployee = async (req, res) => {
             $group: {
                 _id: '$_id',
                 projectname: { $first: '$projectname' },
+                jobno: { $first: '$jobno' },
                 status: { $first: '$status' },
                 startdate: { $first: '$startdate' },
                 deadlinedate: { $first: '$deadlinedate' },
