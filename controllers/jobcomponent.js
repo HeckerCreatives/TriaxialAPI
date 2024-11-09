@@ -363,8 +363,7 @@ exports.listjobcomponent = async (req, res) => {
                                 as: "leave",
                                 cond: {
                                     $and: [
-                                        { $gte: ["$$leave.leavestart", "$projectDetails.startdate"] },
-                                        { $lte: ["$$leave.leaveend", "$projectDetails.deadlinedate"] }
+                                        { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] }
                                     ]
                                 }
                             }
@@ -383,12 +382,11 @@ exports.listjobcomponent = async (req, res) => {
                         },
                         eventDates: {
                             $filter: {
-                                input: "$eventData.eventdates",
+                                input: ["$eventData.eventdates"],
                                 as: "event",
                                 cond: {
                                     $and: [
-                                        { $gte: ["$$event.startdate", "$projectDetails.startdate"] },
-                                        { $lte: ["$$event.enddate", "$projectDetails.deadlinedate"] }
+                                        { $lte: ["$$event.startdate", "$projectDetails.deadlinedate"] }
                                     ]
                                 }
                             }
