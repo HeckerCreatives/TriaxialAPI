@@ -229,24 +229,27 @@ exports.listjobcomponent = async (req, res) => {
                 }
             },
             { $unwind: '$members' },
+            // Lookup for employee details - this is done here, before the conditional logic
             {
-                $addFields: {
-                    // Handling cases where employee might be null or empty
-                    employeeDetails: {
-                        $cond: {
-                            if: { $eq: ["$members.employee", null] },
-                            then: { _id: null, fullname: "N/A" }, // Default or fallback value
-                            else: {
-                                _id: null, fullname: "N/A"
-                            }
-                        }
-                    }
+                $lookup: {
+                    from: 'users',
+                    localField: 'members.employee',
+                    foreignField: '_id',
+                    as: 'employeeDetails'
                 }
             },
             {
-                $unwind: {
-                    path: '$employeeDetails',
-                    preserveNullAndEmptyArrays: true
+                $addFields: {
+                    // Check if employeeDetails is empty or null and provide default values
+                    employeeDetails: {
+                        $cond: {
+                            if: { $eq: [{ $size: "$employeeDetails" }, 0] }, // If employeeDetails is empty (not found)
+                            then: { _id: null, fullname: "N/A" }, // Provide default values
+                            else: { // Otherwise, use the first element of employeeDetails array
+                                $arrayElemAt: ["$employeeDetails", 0]
+                            }
+                        }
+                    }
                 }
             },
             {
@@ -354,59 +357,6 @@ exports.listjobcomponent = async (req, res) => {
                 }
             },
             {
-                $addFields: {
-                    members: {
-                        role: "$members.role",
-                        employee: {
-                            employeeid: "$members.employee",
-                            fullname: {
-                                $cond: {
-                                    if: { $eq: ["$userDetails.firstname", null] },
-                                    then: "Unassigned", // Fallback if no userDetails
-                                    else: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] }
-                                }
-                            }
-                        },
-                        leaveDates: {
-                            $filter: {
-                                input: "$leaveData.leavedates",
-                                as: "leave",
-                                cond: {
-                                    $and: [
-                                        { $gte: ["$$leave.leavestart", "$projectDetails.startdate"] },
-                                        { $lte: ["$$leave.leaveend", "$projectDetails.deadlinedate"] }
-                                    ]
-                                }
-                            }
-                        },
-                        wellnessDates: {
-                            $filter: {
-                                input: "$wellnessData.wellnessdates",
-                                as: "wellness",
-                                cond: {
-                                    $and: [
-                                        { $gte: ["$$wellness", "$projectDetails.startdate"] },
-                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] }
-                                    ]
-                                }
-                            }
-                        },
-                        eventDates: {
-                            $filter: {
-                                input: "$eventData.eventdates",
-                                as: "event",
-                                cond: {
-                                    $and: [
-                                        { $gte: ["$$event.startdate", "$projectDetails.startdate"] },
-                                        { $lte: ["$$event.enddate", "$projectDetails.deadlinedate"] }
-                                    ]
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            {
                 $group: {
                     _id: '$_id',
                     componentid: { $first: '$_id' },
@@ -414,8 +364,8 @@ exports.listjobcomponent = async (req, res) => {
                     projectname: { $first: { projectid: '$projectDetails._id', name: '$projectDetails.projectname' } },
                     clientname: { $first: { clientid: '', name: 'Client Name' } },
                     jobno: { $first: '$projectDetails.jobno' },
-                    budgettype: { $first: '$budgettype' },
-                    estimatedbudget: { $first: '$estimatedbudget' },
+                    budgettype: { $first: '$budgettype'},
+                    estimatedbudget: { $first: '$estimatedbudget'},
                     jobmanager: {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
@@ -425,7 +375,7 @@ exports.listjobcomponent = async (req, res) => {
                         }
                     },
                     jobcomponent: { $first: '$jobcomponent' },
-                    allDates: { $first: '$allDates' },
+                    allDates: {$first: '$allDates'},
                     members: { $push: '$members' }
                 }
             }
@@ -437,6 +387,7 @@ exports.listjobcomponent = async (req, res) => {
         return res.status(500).json({ message: "Error processing request", error: err.message });
     }
 }
+
 
 exports.editstatushours = async (req, res) => {
     const {id, email} = req.user
@@ -524,13 +475,6 @@ exports.yourworkload = async (req, res) => {
                     members: {
                         $elemMatch: { 
                             employee: new mongoose.Types.ObjectId(id),
-                            dates: {
-                                $elemMatch: {
-                                  date: {
-                                    $gte: startOfWeek,  // Start of the reference week
-                                  }
-                                }
-                            }
                         }
                     }
                 }
