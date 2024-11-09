@@ -528,6 +528,30 @@ exports.yourworkload = async (req, res) => {
             },
             { $unwind: '$projectDetails' },
             {
+                $match: {
+                    $or: [
+                        { 
+                            $and: [
+                                { 'projectDetails.startdate': { $gte: startOfWeek } },
+                                { 'projectDetails.startdate': { $lte: endOfRange } }
+                            ]
+                        },
+                        { 
+                            $and: [
+                                { 'projectDetails.deadlinedate': { $gte: startOfWeek } },
+                                { 'projectDetails.deadlinedate': { $lte: endOfRange } }
+                            ]
+                        },
+                        { 
+                            $and: [
+                                { 'projectDetails.startdate': { $lte: startOfWeek } },
+                                { 'projectDetails.deadlinedate': { $gte: endOfRange } }
+                            ]
+                        }
+                    ]
+                }
+            },
+            {
                 $lookup: {
                     from: 'users',
                     localField: 'jobmanager',
