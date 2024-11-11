@@ -659,7 +659,6 @@ exports.yourworkload = async (req, res) => {
 
         while (currentDate <= endOfRange) {
             const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-            console.log(dayOfWeek, currentDate)
             if (dayOfWeek !== 1 && dayOfWeek !== 0) { // Only add weekdays (1-5)
                 dateList.push(new Date(currentDate).toISOString().split('T')[0]); // Format as YYYY-MM-DD
             }
@@ -693,7 +692,7 @@ exports.yourworkload = async (req, res) => {
                 componentid: job.componentid,
                 teamname: job.teamname,
                 projectname: job.projectname,
-                jobno: job.no,
+                jobno: job.jobno,
                 jobcomponent: job.jobcomponent,
                 members
             });
