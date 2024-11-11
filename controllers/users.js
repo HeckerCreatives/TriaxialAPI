@@ -434,7 +434,8 @@ exports.employeesearchlist = async (req, res) => {
             $match: {
                 $and: [
                     {ne: {auth: "hr"}},
-                    {ne: {auth: "finance"}}
+                    {ne: {auth: "finance"}},
+                    {ne: {auth: "superadmin"}}
                 ]
             }
         },
