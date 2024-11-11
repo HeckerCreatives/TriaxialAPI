@@ -382,7 +382,7 @@ exports.listjobcomponent = async (req, res) => {
                         },
                         eventDates: {
                             $filter: {
-                                input: ["$eventData.eventdates"],
+                                input: "$eventData.eventdates",
                                 as: "event",
                                 cond: {
                                     $and: [
