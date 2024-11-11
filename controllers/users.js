@@ -432,11 +432,9 @@ exports.employeesearchlist = async (req, res) => {
     const managers = await Users.aggregate([
         {
             $match: {
-                $and: [
-                    {ne: {auth: "hr"}},
-                    {ne: {auth: "finance"}},
-                    {ne: {auth: "superadmin"}}
-                ]
+                auth: {
+                    $nin: ["hr", "finance", "superadmin"]
+                }
             }
         },
         {
