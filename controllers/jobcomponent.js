@@ -643,6 +643,7 @@ exports.yourworkload = async (req, res) => {
                     componentid: '$_id',
                     teamname: '$teamDetails.teamname',
                     projectname: '$projectDetails.projectname',
+                    jobno: '$projectDetails.jobno',
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
                         fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
@@ -692,6 +693,7 @@ exports.yourworkload = async (req, res) => {
                 componentid: job.componentid,
                 teamname: job.teamname,
                 projectname: job.projectname,
+                jobno: job.no,
                 jobcomponent: job.jobcomponent,
                 members
             });
