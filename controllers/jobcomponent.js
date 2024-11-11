@@ -504,7 +504,7 @@ exports.yourworkload = async (req, res) => {
         // Use filterDate if provided; otherwise, default to today
         const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
-        const endOfRange = referenceDate.add(2, 'weeks').endOf('isoWeek').toDate();
+        const endOfRange = referenceDate.add(1, 'weeks').endOf('isoWeek').toDate();
 
         // Calculate the total days between startOfWeek and endOfRange
         const totalDays = Math.ceil((endOfRange - startOfWeek) / (1000 * 60 * 60 * 24));
@@ -531,27 +531,23 @@ exports.yourworkload = async (req, res) => {
             {
                 $match: {
                     $or: [
+                        // Case 1: Project starts within the 2-week range and ends after the start of the range
                         { 
                             $and: [
-                                { 'projectDetails.startdate': { $gte: startOfWeek } },
-                                { 'projectDetails.startdate': { $lte: endOfRange } }
+                                { 'projectDetails.startdate': { $lte: endOfRange } },
+                                { 'projectDetails.deadlinedate': { $gte: startOfWeek } }
                             ]
                         },
-                        { 
+                        // Case 2: Project ends within the 2-week range and starts before the end of the range
+                        {
                             $and: [
-                                { 'projectDetails.deadlinedate': { $gte: startOfWeek } },
-                                { 'projectDetails.deadlinedate': { $lte: endOfRange } }
-                            ]
-                        },
-                        { 
-                            $and: [
-                                { 'projectDetails.startdate': { $lte: startOfWeek } },
-                                { 'projectDetails.deadlinedate': { $gte: endOfRange } }
+                                { 'projectDetails.startdate': { $lte: endOfRange } },
+                                { 'projectDetails.deadlinedate': { $gte: startOfWeek } }
                             ]
                         }
                     ]
                 }
-            },
+            },            
             {
                 $lookup: {
                     from: 'users',
@@ -643,33 +639,6 @@ exports.yourworkload = async (req, res) => {
                 }
             },
             {
-                $addFields: {
-                    allDates: {
-                        $filter: {
-                            input: {
-                                $map: {
-                                    input: { $range: [0, totalDays] },
-                                    as: "daysFromStart",
-                                    in: {
-                                        $dateAdd: {
-                                            startDate: startOfWeek,
-                                            unit: "day",
-                                            amount: "$$daysFromStart"
-                                        }
-                                    }
-                                }
-                            },
-                            as: "date",
-                            cond: {
-                                $not: [
-                                    { $in: [{ $dayOfWeek: "$$date" }, [1, 7]] } // Exclude Sunday (1) and Saturday (7)
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            {
                 $project: {
                     componentid: '$_id',
                     teamname: '$teamDetails.teamname',
@@ -679,26 +648,29 @@ exports.yourworkload = async (req, res) => {
                         fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
                     },
                     jobcomponent: '$jobcomponent',
-                    allDates: '$allDates',
                     members: 1
                 }
             }
         ]);
 
+        const dateList = [];
+        let currentDate = new Date(startOfWeek);
+
+        while (currentDate <= endOfRange) {
+            dateList.push(new Date(currentDate)); // Add the current date to the list
+            currentDate.setDate(currentDate.getDate() + 1); // Move to the next day
+        }
+
         // Assuming `response.data` is the current array of job data you received
         const data = {
             data: {
-                alldates: [],
+                alldates: dateList ,
                 yourworkload: []
             }
         };
 
         // Extract all dates and unique members
         result.forEach(job => {
-            // Combine and deduplicate dates
-            data.data.alldates = [
-                ...new Set([...data.data.alldates, ...job.allDates])
-            ];
 
             // Restructure member data
             const members = job.members.map(member => ({
