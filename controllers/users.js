@@ -431,6 +431,14 @@ exports.employeesearchlist = async (req, res) => {
 
     const managers = await Users.aggregate([
         {
+            $match: {
+                $and: [
+                    {ne: {auth: "hr"}},
+                    {ne: {auth: "finance"}}
+                ]
+            }
+        },
+        {
             $lookup: {
                 from: 'userdetails', // Collection name for the 'userDetails' schema
                 localField: '_id',
