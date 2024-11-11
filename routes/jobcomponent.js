@@ -18,6 +18,7 @@ router
     .post("/editjobcomponentdetails", protectmanager, editjobcomponentdetails)
     .post("/editjobmanagercomponents", protectmanager, editjobmanagercomponents)
     .post("/editalljobcomponentdetails", protectmanager, editalljobcomponentdetails)
+    .post("/getjobcomponentdashboardmanager", protectmanager, getjobcomponentdashboard)
 
     //  #endregion
 

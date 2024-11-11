@@ -1065,11 +1065,4 @@ exports.getjobcomponentdashboard = async (req, res) => {
     }
 };
 
-
-
-
-
-
-
-
 //  #endregion
