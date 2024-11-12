@@ -26,6 +26,7 @@ router
 
     .get("/managerlistownteam", protectmanager, listownteam)
     .get("/managersearchteam", protectmanager, searchteam)
+    .get("/listteammembersmanager", protectmanager, listteammembers)
 
     //  #endregion 
 

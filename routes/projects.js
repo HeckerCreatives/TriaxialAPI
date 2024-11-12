@@ -14,6 +14,7 @@ router
 
     .get("/listprojects", protectmanager, listprojects)
     .get("/viewprojectdetails", protectmanager, viewprojectdetails)
+    .get("/teamprojectlistmanager", protectmanager, teamprojectlist)
     .post("/changeprojectstatus", protectmanager, changeprojectstatus)
     .post("/createproject", protectmanager, createproject)
     .post("/editproject", protectmanager, editproject)
