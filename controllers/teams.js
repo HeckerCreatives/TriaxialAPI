@@ -1,5 +1,5 @@
 const { default: mongoose } = require("mongoose")
-const Users = require("../models/Users")
+const Userdetails = require("../models/Userdetails")
 const Teams = require("../models/Teams")
 const Events = require("../models/events")
 const Clients = require("../models/Clients")
@@ -565,43 +565,36 @@ exports.searchteam = async (req, res) => {
     return res.json({message: "success", data: data})
 }
 
-const data = {
-    graph: [
+//  #endregion
+
+//  #region SUPERADMIN & MANAGER
+
+exports.listteammembers = async (req, res) => {
+    const {id, email} = req.user
+
+    const {teamid, usersearch, page, limit} = req.query
+
+    // Set pagination options
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10,
+    };
+
+    const matchStage = {}
+    if (usersearch){
+        matchStage["$or"] = [
+            { 'details.firstname': { $regex: usersearch, $options: 'i' } },
+            { 'details.lastname': { $regex: usersearch, $options: 'i' } },
+            { $expr: { $regexMatch: { input: { $concat: ['$details.firstname', ' ', '$details.lastname'] }, regex: usersearch, options: 'i' } } } // Search for first + last name
+        ];
+    }
+
+    const result = await Userdetails.aggregate[
         {
-            componentid: "",
-            teamname: "team test",
-            projectname: {
-                projectid: "",
-                name: "project test"
-            },
-            clientname: {
-                clientid: "",
-                name: "client test"
-            },
-            jobno: 1,
-            jobmanager: {
-                employeeid: "id here",
-                fullname: "Darel Honrejas",
-                isManager: false,
-                isJobManager: false
-            },
-            jobcomponent: "testing component",
-            notes: "notes here",
-            members: [
-                {
-                    role: "Engineer (Engr.)",
-                    employee: {
-                        employeeid: "id here",
-                        fullname: "Bien Daniel"
-                    },
-                    dates: [
-                        {
-                            date: "05/11/2024",
-                            status: [0, 1, 2]
-                        },
-                    ]
-                },
-            ]
+            $match: matchStage
+        },
+        {
+            
         }
     ]
 }
