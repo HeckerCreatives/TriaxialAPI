@@ -642,13 +642,13 @@ exports.listteammembers = async (req, res) => {
             $project: {
                 _id: 0,
                 manager: {
-                    employeeid: '$managerDetails._id',
+                    employeeid: '$managerDetails.owner',
                     fullname: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] },
                     resources: '$managerDetails.resource',
                     role: "manager"
                 },
                 teamleader: {
-                    employeeid: '$teamLeaderDetails._id',
+                    employeeid: '$teamLeaderDetails.owner',
                     fullname: { $concat: ['$teamLeaderDetails.firstname', ' ', '$teamLeaderDetails.lastname'] },
                     resources: '$teamLeaderDetails.resource',
                     role: "teamleader"
@@ -658,7 +658,7 @@ exports.listteammembers = async (req, res) => {
                         input: "$members",
                         as: "member",
                         in: {
-                            employeeid: '$$member._id',
+                            employeeid: '$$member.owner',
                             fullname: "$$member.fullname",
                             resources: "$$member.resource",
                             role: "$$member.role"
