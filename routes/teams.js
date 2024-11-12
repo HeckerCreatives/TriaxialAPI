@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { createteam, listteam, teamsearchlist, deleteteams, teamdata, editteam, listownteam, searchteam } = require("../controllers/teams")
+const { createteam, listteam, teamsearchlist, deleteteams, teamdata, editteam, listownteam, searchteam, listteammembers } = require("../controllers/teams")
 const { protectsuperadmin, protecthr, protectmanager, protectemployee } = require("../middleware/middleware")
 
 router
@@ -9,6 +9,7 @@ router
     .get("/teamdata", protectsuperadmin, teamdata)
     .get("/teamsearchlist", protectsuperadmin, teamsearchlist)
     .get("/listteam", protectsuperadmin, listteam)
+    .get("/listteammembers", protectsuperadmin, listteammembers)
     .post("/createteam", protectsuperadmin, createteam)
     .post("/deleteteams", protectsuperadmin, deleteteams)
     .post("/editteam", protectsuperadmin, editteam)

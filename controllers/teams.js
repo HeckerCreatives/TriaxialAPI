@@ -570,9 +570,8 @@ exports.searchteam = async (req, res) => {
 //  #region SUPERADMIN & MANAGER
 
 exports.listteammembers = async (req, res) => {
-    const {id, email} = req.user
-
-    const {teamid, usersearch, page, limit} = req.query
+    const { id, email } = req.user;
+    const { teamid, usersearch, page, limit } = req.query;
 
     // Set pagination options
     const pageOptions = {
@@ -580,23 +579,124 @@ exports.listteammembers = async (req, res) => {
         limit: parseInt(limit) || 10,
     };
 
-    const matchStage = {}
-    if (usersearch){
+    // Construct the match stage based on search criteria
+    const matchStage = {};
+    if (usersearch) {
         matchStage["$or"] = [
-            { 'details.firstname': { $regex: usersearch, $options: 'i' } },
-            { 'details.lastname': { $regex: usersearch, $options: 'i' } },
-            { $expr: { $regexMatch: { input: { $concat: ['$details.firstname', ' ', '$details.lastname'] }, regex: usersearch, options: 'i' } } } // Search for first + last name
+            { 'memberDetails.firstname': { $regex: usersearch, $options: 'i' } },
+            { 'memberDetails.lastname': { $regex: usersearch, $options: 'i' } },
+            { $expr: { $regexMatch: { input: { $concat: ['$memberDetails.firstname', ' ', '$memberDetails.lastname'] }, regex: usersearch, options: 'i' } } } // Search for first + last name
         ];
     }
 
-    const result = await Userdetails.aggregate[
+    const result = await Teams.aggregate([
         {
-            $match: matchStage
+            $match: { _id: new mongoose.Types.ObjectId(teamid) } // Match the specific team
+        },
+        // Lookup manager details
+        {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'manager',
+                foreignField: 'owner',
+                as: 'managerDetails'
+            }
+        },
+        { $unwind: { path: "$managerDetails", preserveNullAndEmptyArrays: true } },
+        // Lookup team leader details
+        {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'teamleader',
+                foreignField: 'owner',
+                as: 'teamLeaderDetails'
+            }
+        },
+        { $unwind: { path: "$teamLeaderDetails", preserveNullAndEmptyArrays: true } },
+        // Lookup members details
+        {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'members',
+                foreignField: 'owner',
+                as: 'memberDetails'
+            }
+        },
+        { $unwind: "$memberDetails" }, // Unwind each member
+        { $match: matchStage }, // Apply search filters if any
+        {
+            $addFields: {
+                "memberDetails.fullname": { $concat: ['$memberDetails.firstname', ' ', '$memberDetails.lastname'] },
+                "memberDetails.role": "member" // Add a role field for each member
+            }
         },
         {
-            
-        }
-    ]
-}
+            $group: {
+                _id: "$_id",
+                managerDetails: { $first: "$managerDetails" },
+                teamLeaderDetails: { $first: "$teamLeaderDetails" },
+                members: { $push: "$memberDetails" }
+            }
+        },
+        {
+            $project: {
+                _id: 0,
+                manager: {
+                    employeeid: '$managerDetails._id',
+                    fullname: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] },
+                    resources: '$managerDetails.resource',
+                    role: "manager"
+                },
+                teamleader: {
+                    employeeid: '$teamLeaderDetails._id',
+                    fullname: { $concat: ['$teamLeaderDetails.firstname', ' ', '$teamLeaderDetails.lastname'] },
+                    resources: '$teamLeaderDetails.resource',
+                    role: "teamleader"
+                },
+                members: {
+                    $map: {
+                        input: "$members",
+                        as: "member",
+                        in: {
+                            employeeid: '$$member._id',
+                            fullname: "$$member.fullname",
+                            resources: "$$member.resource",
+                            role: "$$member.role"
+                        }
+                    }
+                }
+            }
+        },
+        { $skip: pageOptions.page * pageOptions.limit },
+        { $limit: pageOptions.limit }
+    ]);
+
+    // Count total documents for pagination
+    const total = await Teams.aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(teamid) } },
+        {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'members',
+                foreignField: 'owner',
+                as: 'memberDetails'
+            }
+        },
+        { $unwind: "$memberDetails" },
+        { $match: matchStage },
+        { $count: 'total' }
+    ]);
+
+    const totalPages = Math.ceil((total[0]?.total || 0) / pageOptions.limit);
+
+    const data = {
+        teammembers: result,
+        totalpage: totalPages
+    };
+
+    return res.json({ message: "success", data: data });
+};
+
 
 //  #endregion
+
