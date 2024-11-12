@@ -1189,12 +1189,12 @@ exports.individualworkload = async (req, res) => {
             {
                 $lookup: {
                     from: 'leaves',
-                    let: { employeeId: '$members.employee' },
+                    let: { employeeId: new mongoose.Types.ObjectId(employeeid) },
                     pipeline: [
                         { 
                             $match: { 
                                 $expr: { 
-                                    $eq: ['$owner', '$$employeeId'] 
+                                    $eq: ['$owner', new mongoose.Types.ObjectId(employeeid)] 
                                 } 
                             }
                         },
@@ -1214,9 +1214,9 @@ exports.individualworkload = async (req, res) => {
             {
                 $lookup: {
                     from: 'wellnessdays',
-                    let: { employeeId: '$members.employee' },
+                    let: { employeeId: new mongoose.Types.ObjectId(employeeid) },
                     pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        { $match: { $expr: { $eq: ['$owner', new mongoose.Types.ObjectId(employeeid)] } } },
                         {
                             $project: {
                                 _id: 0,
