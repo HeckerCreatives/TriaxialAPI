@@ -34,7 +34,7 @@ exports.geteventsusers = async (req, res) => {
     const currentEvents = await Events.find({
         startdate: { $lte: today }, // Events that have started before or on today
         enddate: { $gte: today }, // Events that end on or after today
-        teams: userteams
+        teams: { $in: userteams } 
     })
     .populate({
         path: "teams",
