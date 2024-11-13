@@ -253,73 +253,76 @@ exports.teamdata = async (req, res) => {
         },
         {
             $lookup: {
-                from: 'users', // Collection name of the Users schema
+                from: 'users',
                 localField: 'manager',
                 foreignField: '_id',
                 as: 'managerData',
             },
         },
         {
-            $unwind: '$managerData', // Unwind the managerData array to get a single object
+            $unwind: '$managerData',
         },
         {
             $lookup: {
-                from: 'userdetails', // Collection name of the userDetails schema
+                from: 'userdetails',
                 localField: 'managerData._id',
-                foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+                foreignField: 'owner',
                 as: 'managerDetails',
             },
         },
         {
-            $unwind: '$managerDetails', // Unwind the managerDetails array to get a single object
+            $unwind: '$managerDetails',
         },
         {
             $lookup: {
-                from: 'users', // Collection name of the Users schema
+                from: 'users',
                 localField: 'teamleader',
                 foreignField: '_id',
                 as: 'teamleaderData',
             },
         },
         {
-            $unwind: '$teamleaderData', // Unwind the teamleaderData array to get a single object
+            $unwind: '$teamleaderData',
         },
         {
             $lookup: {
-                from: 'userdetails', // Collection name of the userDetails schema
+                from: 'userdetails',
                 localField: 'teamleaderData._id',
-                foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+                foreignField: 'owner',
                 as: 'teamleaderDetails',
             },
         },
         {
-            $unwind: '$teamleaderDetails', // Unwind the teamleaderDetails array to get a single object
+            $unwind: '$teamleaderDetails',
         },
         {
             $lookup: {
-                from: 'userdetails', // Collection name of the userDetails schema
+                from: 'userdetails',
                 localField: 'directorpartner',
-                foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+                foreignField: 'owner',
                 as: 'directorPartnerDetails',
             },
         },
         {
-            $unwind: '$directorPartnerDetails', // Unwind the teamleaderDetails array to get a single object
+            $unwind: '$directorPartnerDetails',
         },
         {
             $lookup: {
-                from: 'userdetails', // Collection name of the userDetails schema
+                from: 'userdetails',
                 localField: 'associate',
-                foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+                foreignField: 'owner',
                 as: 'associateDetails',
             },
         },
         {
-            $unwind: '$associateDetails', // Unwind the teamleaderDetails array to get a single object
+            $unwind: {
+                path: '$associateDetails',
+                preserveNullAndEmptyArrays: true, // Preserve if `associate` is null
+            },
         },
         {
             $lookup: {
-                from: 'users', // Collection name of the Users schema
+                from: 'users',
                 localField: 'members',
                 foreignField: '_id',
                 as: 'membersData',
@@ -327,23 +330,28 @@ exports.teamdata = async (req, res) => {
         },
         {
             $lookup: {
-                from: 'userdetails', // Collection name of the userDetails schema
+                from: 'userdetails',
                 localField: 'membersData._id',
-                foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+                foreignField: 'owner',
                 as: 'membersDetails',
             },
         },
         {
             $project: {
-                _id: 1, // Include the team ID
-                teamname: 1, // Include the team name
+                _id: 1,
+                teamname: 1,
                 directorpartner: {
                     fullname: { $concat: ['$directorPartnerDetails.firstname', ' ', '$directorPartnerDetails.lastname'] },
                     dpid: '$directorPartnerDetails.owner'
                 },
                 associate: {
-                    fullname: { $concat: ['$associateDetails.firstname', ' ', '$associateDetails.lastname'] },
-                    associateid: '$associateDetails.owner'
+                    fullname: { 
+                        $ifNull: [
+                            { $concat: ['$associateDetails.firstname', ' ', '$associateDetails.lastname'] },
+                            null
+                        ]
+                    },
+                    associateid: { $ifNull: ['$associateDetails.owner', null] }
                 },
                 manager: {
                     fullname: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] },
@@ -355,7 +363,7 @@ exports.teamdata = async (req, res) => {
                 },
                 members: {
                     $map: {
-                        input: '$membersDetails', // Use the membersDetails array
+                        input: '$membersDetails',
                         as: 'member',
                         in: {
                             fullname: { $concat: ['$$member.firstname', ' ', '$$member.lastname'] },
