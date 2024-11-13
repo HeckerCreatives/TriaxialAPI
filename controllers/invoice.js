@@ -160,4 +160,29 @@ exports.getinvoicelist = async (req, res) => {
     return res.json({message: "success", data: result})
 }
 
+exports.approvedenieinvoice = async (req, res) => {
+    const {id, email} = req.user
+
+    const {invoiceid, status} = req.body
+
+    if (!invoiceid){
+        return res.status(400).json({message: "failed", data: "Please select a valid!"})
+    }
+    else if (!status){
+        return res.status(400).json({message: "failed", data: "Please enter a status!"})
+    }
+    else if (status != "Approved" && status != "Denied"){
+        return res.status(400).json({message: "failed", data: "Please select Approved or Denied only!"})
+    }
+
+    await Invoice.findOneAndUpdate({_id: new mongoose.Types.ObjectId(invoiceid)}, {status: status})
+    .catch(err => {
+        console.log(`There's a problem with updating the invoice for ${invoiceid} with status ${status}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    return res.json({message: "success"})
+}
+
 //  #endregion
