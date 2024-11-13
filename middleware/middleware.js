@@ -219,3 +219,44 @@ exports.protecthr = async(req, res, next) => {
         return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
     }
 }
+
+exports.protectfinance = async(req, res, next) => {
+    const token = req.headers.cookie?.split('; ').find(row => row.startsWith('sessionToken='))?.split('=')[1]
+    
+    if (!token){
+        res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+        return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
+    }
+
+    try {
+        const decodedToken = await verifyJWT(token);
+
+        if (decodedToken.auth != "finance"){
+            res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+            return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
+        }
+
+        const user = await Users.findOne({email: decodedToken.email})
+            .then(data => data)
+
+            if (!user){
+                res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+                return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
+            }
+    
+            // if (decodedToken.token != user.token){
+            //     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+            //     return res.status(401).json({ message: 'failed', data: `Your account had been opened on another device! You will now be logged out.` });
+            // }
+
+            req.user = decodedToken;
+            next();
+            return;
+
+    } catch (error) {
+        console.log(`Middleware error: ${error}`)
+
+        res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
+        return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
+    }
+}

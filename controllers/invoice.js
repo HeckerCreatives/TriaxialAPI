@@ -46,13 +46,13 @@ exports.createinvoice = async (req, res) => {
     if (!jobcomponentid){
         return res.status(400).json({message: "failed", data: "Please select a valid job component"})
     }
-    else if (!currentinvoice){
+    else if (isNaN(currentinvoice)){
         return res.status(400).json({message: "failed", data: "Please enter a current invoice"})
     }
-    else if (!newinvoice){
+    else if (isNaN(currentinvoice)){
         return res.status(400).json({message: "failed", data: "Please enter a new invoice"})
     }
-    else if (!invoiceamount){
+    else if (isNaN(currentinvoice)){
         return res.status(400).json({message: "failed", data: "Please enter a invoice amount"})
     }
 
@@ -76,6 +76,59 @@ exports.createinvoice = async (req, res) => {
     })
 
     return res.json({message: "success"})
+}
+
+//  #endregion
+
+//  #region FINANCE
+
+exports.getinvoicelist = async (req, res) => {
+    const {id, email} = req.user
+
+    const {page, limit, status, searchfilter} = req.query
+
+    if (!status){
+        return res.status(400).json({message: "failed", data: "Please enter a status!"})
+    }
+    
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10
+    };
+
+    const matchStage = {}
+    if (searchfilter){
+        matchStage[""]
+    }
+
+    const result = await Invoice.aggregate([
+        {
+            $match: {
+                status: status
+            }
+        },
+        {
+            $lookup: {
+                from: 'jobcomponents',
+                localField: 'jobcomponent',
+                foreignField: '_id',
+                as: 'jobComponentDetails'
+            }
+        },
+        { $unwind: '$jobComponentDetails' },
+        
+        {
+            $lookup: {
+                from: 'projects',
+                localField: 'jobComponentDetails.project',
+                foreignField: '_id',
+                as: 'projectDetails'
+            }
+        },
+        { $unwind: '$projectDetails' }
+    ])
+
+    return res.json({message: "success", data: result})
 }
 
 //  #endregion

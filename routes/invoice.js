@@ -1,13 +1,13 @@
 const router = require("express").Router()
-const { getinvoicedata, createinvoice } = require("../controllers/invoice")
-const { protectsuperadmin, protectusers, protectemployee, protectmanager } = require("../middleware/middleware")
+const { getinvoicedata, createinvoice, getinvoicelist } = require("../controllers/invoice")
+const { protectsuperadmin, protectusers, protectemployee, protectmanager, protectfinance } = require("../middleware/middleware")
 
 router
 
     //  #region MANAGER
 
     .get("/getinvoicedatamanager", protectmanager, getinvoicedata)
-    .post("/createinvoicemanager", protectmanager, createinvoice)
+    .post("/createinvoicemanager", createinvoice)
 
     //  #endregion
 
@@ -15,6 +15,12 @@ router
 
     .get("/getinvoicedataemployee", protectemployee, getinvoicedata)
     .post("/createinvoicemployee", protectemployee, createinvoice)
+
+    //  #endregion
+
+    //  #region FINANCE
+
+    .get("/getinvoicelist", protectfinance, getinvoicelist)
 
     //  #endregion
 
