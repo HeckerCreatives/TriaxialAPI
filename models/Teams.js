@@ -7,10 +7,14 @@ const TeamsSchema = new mongoose.Schema(
             index: true
         },
         directorpartner: {
-            type: String
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Users',
+            index: true
         },
         associate: {
-            type: String
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Users',
+            index: true
         },
         manager: {
             type: mongoose.Schema.Types.ObjectId,

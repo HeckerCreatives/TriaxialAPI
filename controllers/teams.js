@@ -18,9 +18,6 @@ exports.createteam = async (req, res) => {
     else if (!directorpartner){
         return res.status(400).json({message: "failed", data: "Please enter a director partner"})
     }
-    else if (!associate){
-        return res.status(400).json({message: "failed", data: "Please enter a associate"})
-    }
     else if (!managerid){
         return res.status(400).json({message: "failed", data: "Please select a manager"})
     }
@@ -40,7 +37,7 @@ exports.createteam = async (req, res) => {
         memberusers.push(new mongoose.Types.ObjectId(tempdata))
     })
 
-    await Teams.create({teamname: teamname, directorpartner: directorpartner, associate: associate, manager: new mongoose.Types.ObjectId(managerid), teamleader: new mongoose.Types.ObjectId(teamleader), members: members})
+    await Teams.create({teamname: teamname, directorpartner: new mongoose.Types.ObjectId(directorpartner), associate: !associate ? null : new mongoose.Types.ObjectId(associate), manager: new mongoose.Types.ObjectId(managerid), teamleader: new mongoose.Types.ObjectId(teamleader), members: members})
     .catch(err => {
         console.log(`There's a problem with saving teams for ${teamname}. Error: ${err}`)
 
@@ -300,6 +297,28 @@ exports.teamdata = async (req, res) => {
         },
         {
             $lookup: {
+                from: 'userdetails', // Collection name of the userDetails schema
+                localField: 'directorpartner',
+                foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+                as: 'directorPartnerDetails',
+            },
+        },
+        {
+            $unwind: '$directorPartnerDetails', // Unwind the teamleaderDetails array to get a single object
+        },
+        {
+            $lookup: {
+                from: 'userdetails', // Collection name of the userDetails schema
+                localField: 'associate',
+                foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+                as: 'associateDetails',
+            },
+        },
+        {
+            $unwind: '$associateDetails', // Unwind the teamleaderDetails array to get a single object
+        },
+        {
+            $lookup: {
                 from: 'users', // Collection name of the Users schema
                 localField: 'members',
                 foreignField: '_id',
@@ -318,8 +337,14 @@ exports.teamdata = async (req, res) => {
             $project: {
                 _id: 1, // Include the team ID
                 teamname: 1, // Include the team name
-                directorpartner: 1,
-                associate: 1,
+                directorpartner: {
+                    fullname: { $concat: ['$directorPartnerDetails.firstname', ' ', '$directorPartnerDetails.lastname'] },
+                    dpid: '$directorPartnerDetails.owner'
+                },
+                associate: {
+                    fullname: { $concat: ['$associateDetails.firstname', ' ', '$associateDetails.lastname'] },
+                    associateid: '$associateDetails.owner'
+                },
                 manager: {
                     fullname: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] },
                     managerid: '$managerDetails.owner'
@@ -383,9 +408,6 @@ exports.editteam = async (req, res) => {
     else if (!directorpartner){
         return res.status(400).json({message: "failed", data: "Enter a director partner first!"})
     }
-    else if (!associate){
-        return res.status(400).json({message: "failed", data: "Enter an associate first!"})
-    }
     else if (!manager){
         return res.status(400).json({message: "failed", data: "Select a manager first!"})
     }
@@ -405,7 +427,7 @@ exports.editteam = async (req, res) => {
         memberlist.push(new mongoose.Types.ObjectId(tempdata))
     })
 
-    await Teams.findOneAndUpdate({_id: new mongoose.Types.ObjectId(teamid)}, {teamname: teamname, directorpartner: directorpartner, associate: associate, manager: new mongoose.Types.ObjectId(manager), teamleader: new mongoose.Types.ObjectId(teamleader), members: memberlist})
+    await Teams.findOneAndUpdate({_id: new mongoose.Types.ObjectId(teamid)}, {teamname: teamname, directorpartner: new mongoose.Types.ObjectId(directorpartner), associate: !associate ? null : new mongoose.Types.ObjectId(associate), manager: new mongoose.Types.ObjectId(manager), teamleader: new mongoose.Types.ObjectId(teamleader), members: memberlist})
     .catch(err => {
         console.log(`There's a problem editing the team ${teamname}. Error: ${err}`)
 
