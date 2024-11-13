@@ -7,7 +7,7 @@ router
     //  #region MANAGER
 
     .get("/getinvoicedatamanager", protectmanager, getinvoicedata)
-    .post("/createinvoicemanager", createinvoice)
+    .post("/createinvoicemanager", protectmanager, createinvoice)
 
     //  #endregion
 

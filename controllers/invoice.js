@@ -83,9 +83,8 @@ exports.createinvoice = async (req, res) => {
 //  #region FINANCE
 
 exports.getinvoicelist = async (req, res) => {
-    const {id, email} = req.user
 
-    const {page, limit, status, searchfilter} = req.query
+    const {page, limit, status, jobnofilter} = req.query
 
     if (!status){
         return res.status(400).json({message: "failed", data: "Please enter a status!"})
@@ -97,8 +96,8 @@ exports.getinvoicelist = async (req, res) => {
     };
 
     const matchStage = {}
-    if (searchfilter){
-        matchStage[""]
+    if (jobnofilter){
+        matchStage["projectDetails.jobno"] = { $regex: jobnofilter, $options: 'i' }
     }
 
     const result = await Invoice.aggregate([
@@ -116,7 +115,6 @@ exports.getinvoicelist = async (req, res) => {
             }
         },
         { $unwind: '$jobComponentDetails' },
-        
         {
             $lookup: {
                 from: 'projects',
@@ -125,7 +123,38 @@ exports.getinvoicelist = async (req, res) => {
                 as: 'projectDetails'
             }
         },
-        { $unwind: '$projectDetails' }
+        { $unwind: '$projectDetails' },
+        {
+            $match: matchStage
+        },
+        {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'jobComponentDetails.jobmanager',
+                foreignField: 'owner',
+                as: 'userDetails'
+            }
+        },
+        { $unwind: '$userDetails' },
+        {
+            $project: {
+                _id: 0,
+                invoiceid: '$_id',
+                currentinvoice: 1,
+                newinvoice: 1,
+                invoiceamount: 1,
+                status: 1,
+                jobcomponent: {
+                    name: '$jobComponentDetails.jobcomponent',
+                    jobmanager: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']},
+                    budgettype: '$jobComponentDetails.budgettype',
+                    budget: '$jobComponentDetails.estimatedbudget',
+                    jobno: '$projectDetails.jobno'
+                }
+            }
+        },
+        { $skip: pageOptions.page * pageOptions.limit },
+        { $limit: pageOptions.limit }
     ])
 
     return res.json({message: "success", data: result})
