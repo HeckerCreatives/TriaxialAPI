@@ -18,6 +18,13 @@ const InvoiceSchema = new mongoose.Schema(
         },
         comments: {
             type: String
+        },
+        reasonfordenie: {
+            type: String
+        },
+        status: {
+            type: String,
+            index: true
         }
     },
     {
