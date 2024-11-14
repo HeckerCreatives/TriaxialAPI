@@ -13,11 +13,7 @@ exports.getinvoicedata = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Please select a valid job component"})
     }
 
-    const invoicedata = await Invoice.findOne({jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Approved"})
-    .populate({
-        path: "jobcomponent",
-        select: "budgettype estimatedbudget"
-    })
+    const invoicedata = await Invoice.find({jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Approved"})
     .sort({createdAt: -1})
     .limit(1)
     .then(data => data)
