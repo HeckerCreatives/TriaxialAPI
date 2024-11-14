@@ -157,7 +157,44 @@ exports.getinvoicelist = async (req, res) => {
         { $limit: pageOptions.limit }
     ])
 
-    return res.json({message: "success", data: result})
+    const total = await Invoice.aggregate([
+        {
+            $match: {
+                status: status
+            }
+        },
+        {
+            $lookup: {
+                from: 'jobcomponents',
+                localField: 'jobcomponent',
+                foreignField: '_id',
+                as: 'jobComponentDetails'
+            }
+        },
+        { $unwind: '$jobComponentDetails' },
+        {
+            $lookup: {
+                from: 'projects',
+                localField: 'jobComponentDetails.project',
+                foreignField: '_id',
+                as: 'projectDetails'
+            }
+        },
+        { $unwind: '$projectDetails' },
+        {
+            $match: matchStage
+        },
+        { $count: "total" }
+    ])
+
+    const totalPages = Math.ceil(total.length > 0 ? total[0].total / pageOptions.limit : 0 / pageOptions.limit);
+
+    const data = {
+        totalpage: totalPages,
+        data: result
+    }
+
+    return res.json({message: "success", data: data})
 }
 
 exports.approvedenieinvoice = async (req, res) => {

@@ -440,9 +440,6 @@ exports.superadminleaverequestlist = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details."})
     });
 
-    console.log(requestlist, total)
-
-
     const totalPages = Math.ceil(total.length > 0 ? total[0].total / pageOptions.limit : 0 / pageOptions.limit);
 
     const data = {
