@@ -13,6 +13,7 @@ const routers = app => {
     app.use("/projects", require("./projects"))
     app.use("/jobcomponent", require("./jobcomponent"))
     app.use("/invoice", require("./invoice"))
+    app.use("/projectinvoice", require("./projectinvoice"))
 }
 
 module.exports = routers
