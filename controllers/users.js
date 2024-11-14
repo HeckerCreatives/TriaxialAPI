@@ -512,7 +512,7 @@ exports.viewemployeedata = async (req, res) => {
 
     const employee = await Users.aggregate([
         {
-            $match: { _id: new mongoose.Types.ObjectId(employeeid)}
+            $match: { _id: new mongoose.Types.ObjectId(employeeid) }
         },
         {
             $lookup: {
@@ -534,7 +534,11 @@ exports.viewemployeedata = async (req, res) => {
             }
         },
         {
-            $unwind: '$reportingto' // Deconstruct the 'details' array to a single object
+            // Use preserveNullAndEmptyArrays to keep documents with no matching 'reportingto'
+            $unwind: {
+                path: '$reportingto',
+                preserveNullAndEmptyArrays: true
+            }
         },
         {
             $project: {
@@ -552,7 +556,10 @@ exports.viewemployeedata = async (req, res) => {
                 resource: '$details.resource'
             }
         }
-    ])
+    ]);
+    
+
+    console.log(employee)
 
     if (!employee[0]){
         return res.status(400).json({message: "failed", data: "Selected employee does not exist!"})

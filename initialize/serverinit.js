@@ -37,7 +37,7 @@ exports.serverinit = async () => {
     if (!firstmanager){
         await Users.create({_id: new mongoose.Types.ObjectId(process.env.FIRST_MANAGER), email: "firstmanager@triaxial.com", password: "3qmdYDmHHV71", token: "", bandate: "", status: "active", auth: "manager"})
 
-        await Userdetails.create({owner: new mongoose.Types.ObjectId(process.env.FIRST_MANAGER), firstname: "First", lastname: "Manager", initial: "Triaxial", contactno: "09672852303"})
+        await Userdetails.create({owner: new mongoose.Types.ObjectId(process.env.FIRST_MANAGER), firstname: "First", lastname: "Manager", initial: "Triaxial", contactno: "09672852303", reportingto: null, resource: ""})
         .catch(err => {
             console.log(`There's a problem creating user details. Error ${err}`)
 
