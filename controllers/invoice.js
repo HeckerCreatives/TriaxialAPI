@@ -24,7 +24,7 @@ exports.getinvoicedata = async (req, res) => {
     })
 
     const data = {
-        currinvoice: invoicedata ? invoicedata.currentinvoice : 0
+        currinvoice: invoicedata.length > 0 ? invoicedata[0].currentinvoice : 0
     }
 
     return res.json({message: "success", data: data})
