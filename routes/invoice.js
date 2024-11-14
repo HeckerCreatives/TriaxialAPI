@@ -25,4 +25,10 @@ router
 
     //  #endregion
 
+    //  #region SUPERADMIN
+
+    .get("/getinvoicelistsa", protectsuperadmin, getinvoicelist)
+
+    //  #endregion
+
 module.exports = router;
