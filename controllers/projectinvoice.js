@@ -127,8 +127,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
             },
             {
                 $project: {
-                    _id: 0,
-                    componentid: '$id',
+                    _id: 1,
                     jobnumber: '$projectDetails.jobno',
                     jobcomponent: '$jobcomponent',
                     estimatedbudget: '$estimatedbudget',
@@ -151,6 +150,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                 data: {
                     allDates: allDates,
                     list: result.map(item => ({
+                        componentid: item._id,
                         jobnumber: item.jobnumber,
                         jobcomponent: item.jobcomponent,
                         estimatedbudget: item.estimatedbudget,
