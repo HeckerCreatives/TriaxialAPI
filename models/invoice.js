@@ -4,7 +4,7 @@ const InvoiceSchema = new mongoose.Schema(
     {
         jobcomponent: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Jobcomponent',
+            ref: 'Jobcomponents',
             index: true
         },
         currentinvoice: {

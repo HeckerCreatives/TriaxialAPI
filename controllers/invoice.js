@@ -4,10 +4,6 @@ const Jobcomponent = require("../models/Jobcomponents")
 
 //  #region EMPLOYEE & MANAGER
 
-exports.getjobcomponents = async (req, res) => {
-
-}
-
 exports.getinvoicedata = async (req, res) => {
     const {id, email} = req.user
 
