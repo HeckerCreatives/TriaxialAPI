@@ -630,7 +630,9 @@ exports.editemployees = async (req, res) => {
             return res.status(400).json({message: "failed", data: "Only alphanumeric and selected special characters (@/[]#) only!"})
         }
 
-        userloginupdate["password"] = password
+        const finalpassword = await encrypt(password)
+
+        userloginupdate["password"] = finalpassword
     }
 
     const userdeets = await Userdetails.findOne({
