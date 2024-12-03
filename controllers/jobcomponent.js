@@ -1075,6 +1075,7 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
         const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
 
+        console.log(referenceDate)
         const result = await Jobcomponents.aggregate([
             {
                 $lookup: {
@@ -1182,22 +1183,24 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
             },
             {
                 $lookup: {
-                    from: 'teams', // Assuming teams is a collection where team information is stored
-                    localField: 'projectDetails.team', // The team field in projectDetails
-                    foreignField: '_id', // The _id field in the teams collection
+                    from: 'teams',
+                    localField: 'projectDetails.team',
+                    foreignField: '_id',
                     as: 'teamData'
                 }
             },
-            { $unwind: '$teamData' }, // Unwind team data to get the team name
+            { $unwind: '$teamData' },
             {
                 $group: {
                     _id: {
-                        team: "$teamData.teamname", // Grouping by team
-                        employee: "$userDetails._id", // Grouping by employee
-                        date: "$members.dates.date" // Retaining the date
+                        team: "$teamData.teamname",
+                        employeeId: "$userDetails._id", // Include employee ID in grouping
+                        employeeName: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] },
+                        date: "$members.dates.date"
                     },
                     employee: {
                         $first: {
+                            id: "$userDetails.owner",
                             fullname: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] },
                             initial: "$userDetails.initial",
                             resource: "$userDetails.resource"
@@ -1220,18 +1223,17 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                     leaveData: 1,
                     wellnessData: 1,
                     eventData: 1,
-                    teamName: "$_id.team", // Including team name in the projection
-                    _id: 0
+                    teamName: "$_id.team"
                 }
             },
-            { $sort: { "teamName": 1, "employee": 1, "date": 1 } } // Sorting by team, employee, and date
+            { $sort: { "teamName": 1, "employee": 1, "date": 1 } }
         ]);
 
         const data = {
             alldates: [],
-            teams: [] // Grouping data by teams
+            teams: []
         };
-
+        console.log(result)
         // Populate the list of all dates (excluding weekends)
         let currentDate = new Date(startOfWeek);
         while (currentDate <= endOfRange) {
@@ -1243,24 +1245,22 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
 
         // Organize the result by team and then by employee
         result.forEach(entry => {
-            const { teamName, employee, date, status, totalHours, leaveData, wellnessData, eventData } = entry;
+            const { teamName, employee, date, status, totalHours, leaveData, wellnessData, eventData} = entry;
             const formattedDate = new Date(date).toISOString().split('T')[0];
 
-            // Group data by team
             let teamData = data.teams.find(team => team.name === teamName);
             if (!teamData) {
                 teamData = {
                     name: teamName,
-                    members: [] // Store members under each team
+                    members: []
                 };
                 data.teams.push(teamData);
             }
 
-            // Group data by employee within each team
             let employeeData = teamData.members.find(emp => emp.name === employee.fullname);
             if (!employeeData) {
                 employeeData = {
-                    id: employee._id,
+                    id: employee.id,
                     name: employee.fullname,
                     initial: employee.initial,
                     resource: employee.resource,
@@ -1280,17 +1280,14 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                     eventDay: false
                 };
 
-                // Check leaveData for this date
                 if (leaveData && leaveData.some(leave => new Date(leave.leavedates.leavestart) <= date && date <= new Date(leave.leavedates.leaveend))) {
                     dateEntry.leave = true;
                 }
 
-                // Check wellnessData for this date
                 if (wellnessData && wellnessData.some(wellness => wellness.wellnessdates.toISOString().split('T')[0] === formattedDate)) {
                     dateEntry.wellnessDay = true;
                 }
 
-                // Check eventData for this date
                 if (eventData && eventData.some(event => new Date(event.eventdates.startdate) <= date && date <= new Date(event.eventdates.enddate))) {
                     dateEntry.eventDay = true;
                 }
