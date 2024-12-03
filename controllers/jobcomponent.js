@@ -1181,6 +1181,15 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                 }
             },
             {
+                $lookup: {
+                    from: 'teams', // Assuming teams is a collection where team information is stored
+                    localField: 'projectDetails.team', // The team field in projectDetails
+                    foreignField: '_id', // The _id field in the teams collection
+                    as: 'teamData'
+                }
+            },
+            { $unwind: '$teamData' }, // Unwind team data to get the team name
+            {
                 $group: {
                     _id: {
                         employee: "$userDetails._id",
@@ -1198,7 +1207,8 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                     totalHours: { $sum: "$members.dates.hours" },
                     leaveData: { $first: "$leaveData" },
                     wellnessData: { $first: "$wellnessData" },
-                    eventData: { $first: "$eventData" }
+                    eventData: { $first: "$eventData" },
+                    teamName: { $first: "$teamData.teamname" } // Add team name here
                 }
             },
             {
@@ -1210,13 +1220,12 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                     leaveData: 1,
                     wellnessData: 1,
                     eventData: 1,
-                    _id: 0
+                    teamName: 1, // Add team name to the projection
+                    _id: 1
                 }
             },
             { $sort: { date: 1 } }
         ]);
-
-        console.log(result);
         
         const data = {
             alldates: [],
@@ -1233,15 +1242,17 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
         }
 
         result.forEach(entry => {
-            const { employee, date, status, totalHours, leaveData, wellnessData, eventData } = entry;
+            const { employee, date, status, totalHours, leaveData, wellnessData, eventData, teamName, _id } = entry;
             const formattedDate = new Date(date).toISOString().split('T')[0];
 
             let employeeData = data.yourworkload.find(emp => emp.name === employee.fullname);
             if (!employeeData) {
                 employeeData = {
+                    id: _id.employee,
                     name: employee.fullname,
                     initial: employee.initial,
                     resource: employee.resource,
+                    team: teamName, // Add team name to the employee data
                     dates: []
                 };
                 data.yourworkload.push(employeeData);
@@ -1283,6 +1294,7 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
         return res.status(500).json({ message: 'Error processing request', error: err.message });
     }
 };
+
 //  #endregion
 
 //  #region MANAGER & EMPLOYEE
