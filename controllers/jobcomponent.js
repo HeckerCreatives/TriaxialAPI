@@ -1070,6 +1070,7 @@ exports.getjobcomponentdashboard = async (req, res) => {
 exports.getmanagerjobcomponentdashboard = async (req, res) => {
     const { id, email } = req.user;
     const { filterDate } = req.query;
+    
     try {
         const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
