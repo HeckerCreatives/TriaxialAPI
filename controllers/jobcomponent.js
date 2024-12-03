@@ -1066,11 +1066,10 @@ exports.getjobcomponentdashboard = async (req, res) => {
     }
 };
 
-
 exports.getmanagerjobcomponentdashboard = async (req, res) => {
     const { id, email } = req.user;
     const { filterDate } = req.query;
-    
+
     try {
         const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
@@ -1193,8 +1192,9 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
             {
                 $group: {
                     _id: {
-                        employee: "$userDetails._id",
-                        date: "$members.dates.date"
+                        team: "$teamData.teamname", // Grouping by team
+                        employee: "$userDetails._id", // Grouping by employee
+                        date: "$members.dates.date" // Retaining the date
                     },
                     employee: {
                         $first: {
@@ -1208,8 +1208,7 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                     totalHours: { $sum: "$members.dates.hours" },
                     leaveData: { $first: "$leaveData" },
                     wellnessData: { $first: "$wellnessData" },
-                    eventData: { $first: "$eventData" },
-                    teamName: { $first: "$teamData.teamname" } // Add team name here
+                    eventData: { $first: "$eventData" }
                 }
             },
             {
@@ -1221,16 +1220,16 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                     leaveData: 1,
                     wellnessData: 1,
                     eventData: 1,
-                    teamName: 1, // Add team name to the projection
-                    _id: 1
+                    teamName: "$_id.team", // Including team name in the projection
+                    _id: 0
                 }
             },
-            { $sort: { date: 1 } }
+            { $sort: { "teamName": 1, "employee": 1, "date": 1 } } // Sorting by team, employee, and date
         ]);
-        
+
         const data = {
             alldates: [],
-            yourworkload: []
+            teams: [] // Grouping data by teams
         };
 
         // Populate the list of all dates (excluding weekends)
@@ -1242,21 +1241,32 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
             currentDate.setDate(currentDate.getDate() + 1);
         }
 
+        // Organize the result by team and then by employee
         result.forEach(entry => {
-            const { employee, date, status, totalHours, leaveData, wellnessData, eventData, teamName, _id } = entry;
+            const { teamName, employee, date, status, totalHours, leaveData, wellnessData, eventData } = entry;
             const formattedDate = new Date(date).toISOString().split('T')[0];
 
-            let employeeData = data.yourworkload.find(emp => emp.name === employee.fullname);
+            // Group data by team
+            let teamData = data.teams.find(team => team.name === teamName);
+            if (!teamData) {
+                teamData = {
+                    name: teamName,
+                    members: [] // Store members under each team
+                };
+                data.teams.push(teamData);
+            }
+
+            // Group data by employee within each team
+            let employeeData = teamData.members.find(emp => emp.name === employee.fullname);
             if (!employeeData) {
                 employeeData = {
-                    id: _id.employee,
+                    id: employee._id,
                     name: employee.fullname,
                     initial: employee.initial,
                     resource: employee.resource,
-                    team: teamName, // Add team name to the employee data
                     dates: []
                 };
-                data.yourworkload.push(employeeData);
+                teamData.members.push(employeeData);
             }
 
             let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
