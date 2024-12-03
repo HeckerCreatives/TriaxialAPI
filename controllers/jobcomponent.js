@@ -1066,6 +1066,238 @@ exports.getjobcomponentdashboard = async (req, res) => {
     }
 };
 
+exports.getsuperadminjobcomponentdashboard = async (req, res) => {
+    const { id, email } = req.user;
+    const { filterDate } = req.query;
+
+    try {
+        const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
+        const startOfWeek = referenceDate.startOf('isoWeek').toDate();
+        const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
+
+        const result = await Jobcomponents.aggregate([
+            {
+                $lookup: {
+                    from: 'projects',
+                    localField: 'project',
+                    foreignField: '_id',
+                    as: 'projectDetails'
+                }
+            },
+            { $unwind: '$projectDetails' },
+            {
+                $match: {
+                    $or: [
+                        { 
+                            $and: [
+                                { 'projectDetails.startdate': { $lte: endOfRange } },
+                                { 'projectDetails.deadlinedate': { $gte: startOfWeek } }
+                            ]
+                        },
+                        {
+                            $and: [
+                                { 'projectDetails.startdate': { $lte: endOfRange } },
+                                { 'projectDetails.deadlinedate': { $gte: startOfWeek } }
+                            ]
+                        }
+                    ],
+                }
+            },
+            { $unwind: "$members" },
+            { $unwind: "$members.dates" },
+            {
+                $match: {
+                    "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'members.employee',
+                    foreignField: 'owner',
+                    as: 'userDetails'
+                }
+            },
+            { $unwind: '$userDetails' },
+            {
+                $lookup: {
+                    from: 'leaves',
+                    let: { employeeId: '$members.employee' },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $eq: ['$owner', '$$employeeId'] 
+                                } 
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                leavedates: {
+                                    leavestart: "$leavestart",
+                                    leaveend: "$leaveend"
+                                }
+                            }
+                        }
+                    ],
+                    as: 'leaveData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'wellnessdays',
+                    let: { employeeId: '$members.employee' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        {
+                            $project: {
+                                _id: 0,
+                                wellnessdates: "$requestdate"
+                            }
+                        }
+                    ],
+                    as: 'wellnessData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'events',
+                    let: { teamId: '$projectDetails.team' },
+                    pipeline: [
+                        { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
+                        {
+                            $project: {
+                                _id: 0,
+                                eventdates: {
+                                    startdate: "$startdate",
+                                    enddate: "$enddate"
+                                }
+                            }
+                        }
+                    ],
+                    as: 'eventData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'teams',
+                    localField: 'projectDetails.team',
+                    foreignField: '_id',
+                    as: 'teamData'
+                }
+            },
+            { $unwind: '$teamData' },
+            {
+                $group: {
+                    _id: {
+                        team: "$teamData.teamname",
+                        employeeId: "$userDetails._id", 
+                        employeeName: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] },
+                        date: "$members.dates.date"
+                    },
+                    employee: {
+                        $first: {
+                            id: "$userDetails.owner",
+                            fullname: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] },
+                            initial: "$userDetails.initial",
+                            resource: "$userDetails.resource"
+                        }
+                    },
+                    date: { $first: "$members.dates.date" },
+                    status: { $first: "$members.dates.status" },
+                    totalHours: { $sum: "$members.dates.hours" },
+                    leaveData: { $first: "$leaveData" },
+                    wellnessData: { $first: "$wellnessData" },
+                    eventData: { $first: "$eventData" }
+                }
+            },
+            {
+                $project: {
+                    employee: 1,
+                    date: 1,
+                    status: 1,
+                    totalHours: 1,
+                    leaveData: 1,
+                    wellnessData: 1,
+                    eventData: 1,
+                    teamName: "$_id.team"
+                }
+            },
+            { $sort: { "teamName": 1, "employee": 1, "date": 1 } }
+        ]);
+
+        const data = {
+            alldates: [],
+            teams: []
+        };
+
+        let currentDate = new Date(startOfWeek);
+        while (currentDate <= endOfRange) {
+            if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                data.alldates.push(currentDate.toISOString().split('T')[0]);
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        result.forEach(entry => {
+            const { teamName, employee, date, status, totalHours, leaveData, wellnessData, eventData} = entry;
+            const formattedDate = new Date(date).toISOString().split('T')[0];
+
+            let teamData = data.teams.find(team => team.name === teamName);
+            if (!teamData) {
+                teamData = {
+                    name: teamName,
+                    members: []
+                };
+                data.teams.push(teamData);
+            }
+
+            let employeeData = teamData.members.find(emp => emp.name === employee.fullname);
+            if (!employeeData) {
+                employeeData = {
+                    id: employee.id,
+                    name: employee.fullname,
+                    initial: employee.initial,
+                    resource: employee.resource,
+                    dates: []
+                };
+                teamData.members.push(employeeData);
+            }
+
+            let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
+            if (!dateEntry) {
+                dateEntry = {
+                    date: formattedDate,
+                    status: [...status],
+                    totalhoursofjobcomponents: totalHours,
+                    leave: false,
+                    wellnessDay: false,
+                    eventDay: false
+                };
+
+                if (leaveData && leaveData.some(leave => new Date(leave.leavedates.leavestart) <= date && date <= new Date(leave.leavedates.leaveend))) {
+                    dateEntry.leave = true;
+                }
+
+                if (wellnessData && wellnessData.some(wellness => wellness.wellnessdates.toISOString().split('T')[0] === formattedDate)) {
+                    dateEntry.wellnessDay = true;
+                }
+
+                if (eventData && eventData.some(event => new Date(event.eventdates.startdate) <= date && date <= new Date(event.eventdates.enddate))) {
+                    dateEntry.eventDay = true;
+                }
+
+                employeeData.dates.push(dateEntry);
+            }
+        });
+
+        return res.json({ message: 'success', data });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: 'Error processing request', error: err.message });
+    }
+};
 exports.getmanagerjobcomponentdashboard = async (req, res) => {
     const { id, email } = req.user;
     const { filterDate } = req.query;
@@ -1075,7 +1307,6 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
         const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
 
-        console.log(referenceDate)
         const result = await Jobcomponents.aggregate([
             {
                 $lookup: {
@@ -1194,7 +1425,7 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                 $group: {
                     _id: {
                         team: "$teamData.teamname",
-                        employeeId: "$userDetails._id", // Include employee ID in grouping
+                        employeeId: "$userDetails._id", 
                         employeeName: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] },
                         date: "$members.dates.date"
                     },
@@ -1233,8 +1464,7 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
             alldates: [],
             teams: []
         };
-        console.log(result)
-        // Populate the list of all dates (excluding weekends)
+
         let currentDate = new Date(startOfWeek);
         while (currentDate <= endOfRange) {
             if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
@@ -1243,7 +1473,6 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
             currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        // Organize the result by team and then by employee
         result.forEach(entry => {
             const { teamName, employee, date, status, totalHours, leaveData, wellnessData, eventData} = entry;
             const formattedDate = new Date(date).toISOString().split('T')[0];
