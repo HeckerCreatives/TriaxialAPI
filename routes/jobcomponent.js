@@ -12,6 +12,7 @@ router
 
     //  #region MANAGER
 
+    .get("/getmanagerjobcomponentdashboard", protectmanager, getmanagerjobcomponentdashboard)
     .get("/listjobcomponent", protectmanager, listjobcomponent)
     .post("/createjobcomponent", protectmanager, createjobcomponent)
     .post("/editstatushours", protectmanager, editstatushours)
@@ -19,7 +20,6 @@ router
     .post("/editjobmanagercomponents", protectmanager, editjobmanagercomponents)
     .post("/editalljobcomponentdetails", protectmanager, editalljobcomponentdetails)
     .get("/getjobcomponentdashboardmanager", protectmanager, getjobcomponentdashboard)
-    .get("/getmanagerjobcomponentdashboard", protectmanager, getmanagerjobcomponentdashboard)
     .get("/individualworkloadmanager", protectmanager, individualworkload)
 
     //  #endregion
