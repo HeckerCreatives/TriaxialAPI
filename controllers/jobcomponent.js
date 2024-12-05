@@ -1191,6 +1191,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
             {
                 $group: {
                     _id: {
+                        teamid: "$teamData._id",
                         team: "$teamData.teamname",
                         employeeId: "$userDetails._id", 
                         employeeName: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] },
@@ -1221,6 +1222,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     leaveData: 1,
                     wellnessData: 1,
                     eventData: 1,
+                    teamid: "$_id.teamid",
                     teamName: "$_id.team"
                 }
             },
@@ -1241,12 +1243,13 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         }
 
         result.forEach(entry => {
-            const { teamName, employee, date, status, totalHours, leaveData, wellnessData, eventData} = entry;
+            const { teamName, teamid, employee, date, status, totalHours, leaveData, wellnessData, eventData} = entry;
             const formattedDate = new Date(date).toISOString().split('T')[0];
 
             let teamData = data.teams.find(team => team.name === teamName);
             if (!teamData) {
                 teamData = {
+                    teamid: teamid,
                     name: teamName,
                     members: []
                 };
@@ -1424,6 +1427,7 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
             {
                 $group: {
                     _id: {
+                        teamid: "$teamData._id",
                         team: "$teamData.teamname",
                         employeeId: "$userDetails._id", 
                         employeeName: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] },
@@ -1454,7 +1458,8 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                     leaveData: 1,
                     wellnessData: 1,
                     eventData: 1,
-                    teamName: "$_id.team"
+                    teamid: "$_id.teamid",
+                    teamName: "$_id.team",
                 }
             },
             { $sort: { "teamName": 1, "employee": 1, "date": 1 } }
@@ -1474,12 +1479,13 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
         }
 
         result.forEach(entry => {
-            const { teamName, employee, date, status, totalHours, leaveData, wellnessData, eventData} = entry;
+            const { teamName, teamid, employee, date, status, totalHours, leaveData, wellnessData, eventData} = entry;
             const formattedDate = new Date(date).toISOString().split('T')[0];
 
             let teamData = data.teams.find(team => team.name === teamName);
             if (!teamData) {
                 teamData = {
+                    teamid: teamid,
                     name: teamName,
                     members: []
                 };

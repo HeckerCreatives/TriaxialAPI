@@ -326,7 +326,7 @@ exports.listallprojects = async (req, res) => {
 
 exports.saprojectlist = async (req, res) => {
     const { id, email } = req.user;
-    const { page, limit, searchproject } = req.query;
+    const { page, limit, searchproject, teamid } = req.query;
 
     // Set pagination options
     const pageOptions = {
@@ -341,7 +341,6 @@ exports.saprojectlist = async (req, res) => {
             $regex: searchproject, $options: 'i'
         };
     }
-
     const projectlist = await Projects.aggregate([
         { $match: matchStage },
         {
@@ -353,6 +352,7 @@ exports.saprojectlist = async (req, res) => {
             }
         },
         { $unwind: { path: '$teamData', preserveNullAndEmptyArrays: true } },
+        ...(teamid ? [ { $match: { "teamData._id": new mongoose.Types.ObjectId(teamid)}}]: []),
         {
             $lookup: {
                 from: 'clients',
