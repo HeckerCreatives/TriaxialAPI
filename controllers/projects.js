@@ -37,6 +37,77 @@ exports.createproject = async (req, res) => {
     return res.json({message: "success"})
 }
 
+exports.createprojectvariation = async (req, res) => {
+    const {id, email} = req.user
+
+    const {jobno, team, projectname, client, startdate, deadlinedate, projectid } = req.body
+
+    if (!team){
+        return res.status(400).json({message: "failed", data: "Please select a team first!"})
+    }
+    else if (!jobno){
+        return res.status(400).json({message: "failed", data: "Enter a job number first!"})
+    }
+    else if (!projectname){
+        return res.status(400).json({message: "failed", data: "Enter a project name!"})
+    }
+    else if (!client){
+        return res.status(400).json({message: "failed", data: "Please select a client!"})
+    }
+    else if (!startdate){
+        return res.status(400).json({message: "failed", data: "Please select a start date"})
+    }
+    else if (!deadlinedate){
+        return res.status(400).json({message: "failed", data: "Please select a deadline date"})
+    }
+
+    await Projects.create({
+        team: new mongoose.Types.ObjectId(team),
+        jobno: jobno,
+        projectname: projectname,
+        client: new mongoose.Types.ObjectId(client),
+        invoiced: 0,
+        status: "On-going",
+        startdate: new Date(startdate),
+        deadlinedate: new Date(deadlinedate),
+      })
+        .then(async (newProject) => {
+          const originalData = await Jobcomponents.find({ project: new mongoose.Types.ObjectId(projectid) }).lean();
+      
+          const duplicatedData = originalData.map((doc) => {
+            const newDoc = { ...doc };
+      
+            delete newDoc._id;
+      
+            newDoc.project = newProject._id;
+      
+            newDoc.members = newDoc.members.map((member) => {
+              const newMember = { ...member };
+              delete newMember.dates;
+              return newMember;
+            });
+      
+            newDoc.duplicatedAt = new Date();
+      
+            return newDoc;
+          });
+      
+           await Jobcomponents.insertMany(duplicatedData)
+           .catch(err => {
+            console.log(`There's a problem while creating Project Variation. Error: ${err}`)
+           })
+
+           return res.status(200).json({ message: "success" })
+      
+        })
+        .catch((error) => {
+          console.error("Error creating project and duplicating Jobcomponents:", error);
+        });
+      
+
+    return res.json({message: "success"})
+}
+
 exports.listprojects = async (req, res) => {
     const { id, email } = req.user;
     const { page, limit, searchproject } = req.query;
