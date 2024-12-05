@@ -1,5 +1,6 @@
 const { default: mongoose } = require("mongoose")
 const Projects = require("../models/Projects")
+const Jobcomponents = require("../models/Jobcomponents")
 
 //  #region MANAGER
 
@@ -105,7 +106,6 @@ exports.createprojectvariation = async (req, res) => {
         });
       
 
-    return res.json({message: "success"})
 }
 
 exports.listprojects = async (req, res) => {
