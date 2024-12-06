@@ -15,7 +15,7 @@ router
     .get("/getmanagerjobcomponentdashboard", protectmanager, getmanagerjobcomponentdashboard)
     .get("/listjobcomponent", protectmanager, listjobcomponent)
     .post("/createjobcomponent", protectmanager, createjobcomponent)
-    .post("/completejobcomponent", protectmanager, completejobcomponent)
+    .get("/completejobcomponent", protectmanager, completejobcomponent)
     .post("/editstatushours", protectmanager, editstatushours)
     .post("/editjobcomponentdetails", protectmanager, editjobcomponentdetails)
     .post("/editjobmanagercomponents", protectmanager, editjobmanagercomponents)
