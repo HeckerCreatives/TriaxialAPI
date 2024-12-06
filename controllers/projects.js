@@ -156,17 +156,35 @@ exports.listprojects = async (req, res) => {
         },
         { $unwind: { path: '$jobComponentData', preserveNullAndEmptyArrays: true } },
         {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'jobComponentData.members.employee',
+                foreignField: 'owner',
+                as: 'jobComponentMemberDetails'
+            }
+        },
+        {
+            $addFields: {
+                'jobComponentData.memberInitials': {
+                    $map: {
+                        input: '$jobComponentMemberDetails',
+                        as: 'member',
+                        in: '$$member.initial'
+                    }
+                }
+            }
+        },
+        {
             $match: {
                 $or: [
                     { 'teamData.manager': new mongoose.Types.ObjectId(id) },
-                    { 'teamData.teamleader': new mongoose.Types.ObjectId(id)},
+                    { 'teamData.teamleader': new mongoose.Types.ObjectId(id) },
                     { 'teamData.members': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } },
                     { 'jobComponentData.members': { $elemMatch: { employee: new mongoose.Types.ObjectId(id) } } },
                     { 'jobComponentData.jobmanager': new mongoose.Types.ObjectId(id) }
                 ]
             }
         },
-        // Lookup for manager details
         {
             $lookup: {
                 from: 'userdetails',
@@ -180,21 +198,29 @@ exports.listprojects = async (req, res) => {
             $group: {
                 _id: '$_id',
                 projectname: { $first: '$projectname' },
-                jobno: { $first: '$jobno'},
+                jobno: { $first: '$jobno' },
                 invoiced: { $first: '$invoiced' },
                 status: { $first: '$status' },
                 startdate: { $first: '$startdate' },
                 deadlinedate: { $first: '$deadlinedate' },
                 teamname: { $first: '$teamData.teamname' },
-                client: { $first: '$clientData.clientname'},
+                client: { $first: '$clientData.clientname' },
                 managerName: { $first: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] } },
                 createdAt: { $first: '$createdAt' },
-                updatedAt: { $first: '$updatedAt' }
+                updatedAt: { $first: '$updatedAt' },
+                jobComponents: {
+                    $push: {
+                        name: '$jobComponentData.jobcomponent',
+                        estimatedBudget: '$jobComponentData.estimatedbudget',
+                        members: '$jobComponentData.memberInitials'
+                    }
+                }
             }
         },
         { $skip: pageOptions.page * pageOptions.limit },
         { $limit: pageOptions.limit }
     ]);
+    
 
     const total = await Projects.aggregate([
         { $match: matchStage },
