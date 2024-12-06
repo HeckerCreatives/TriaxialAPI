@@ -22,6 +22,9 @@ const JobcomponentSchema = new mongoose.Schema(
         jobcomponent: {
             type: String
         },
+        status: {
+            type: String
+        },
         members: [{
             employee: {
                 type: mongoose.Schema.Types.ObjectId,
