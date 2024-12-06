@@ -264,6 +264,101 @@ exports.listjobcomponent = async (req, res) => {
                 }
             },
             {
+                $lookup: {
+                    from: 'leaves',
+                    let: { employeeId: '$members.employee' },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $eq: ['$owner', '$$employeeId'] 
+                                } 
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                leavedates: {
+                                    leavestart: "$leavestart",
+                                    leaveend: "$leaveend"
+                                }
+                            }
+                        }
+                    ],
+                    as: 'leaveData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'wellnessdays',
+                    let: { employeeId: '$members.employee' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        {
+                            $project: {
+                                _id: 0,
+                                wellnessdates: "$requestdate"
+                            }
+                        }
+                    ],
+                    as: 'wellnessData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'events',
+                    let: { teamId: '$teamDetails._id' },
+                    pipeline: [
+                        { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
+                        {
+                            $project: {
+                                _id: 0,
+                                eventdates: {
+                                    startdate: "$startdate",
+                                    enddate: "$enddate"
+                                }
+                            }
+                        }
+                    ],
+                    as: 'eventData'
+                }
+            },
+            {
+                $addFields: {
+                    allDates: {
+                        $let: {
+                            vars: {
+                                startDate: "$projectDetails.startdate",
+                                endDate: "$projectDetails.deadlinedate"
+                            },
+                            in: {
+                                $map: {
+                                    input: {
+                                        $range: [
+                                            0, // start from day 0
+                                            { 
+                                                $add: [
+                                                    { $divide: [{ $subtract: ["$$endDate", "$$startDate"] }, 86400000] },
+                                                    1
+                                                ]
+                                            } // end at the total number of days + 1 for inclusive range
+                                        ]
+                                    },
+                                    as: "daysFromStart",
+                                    in: {
+                                        $dateAdd: {
+                                            startDate: "$$startDate",
+                                            unit: "day",
+                                            amount: "$$daysFromStart"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
                 $addFields: {
                     members: {
                         employee: {
@@ -287,6 +382,40 @@ exports.listjobcomponent = async (req, res) => {
                                 },
                                 else: { _id: null, fullname: "N/A", initials: "NA" }
                             }
+                        },
+                        leaveDates: {
+                            $filter: {
+                                input: "$leaveData.leavedates",
+                                as: "leave",
+                                cond: {
+                                    $and: [
+                                        { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
+                            }
+                        },
+                        wellnessDates: {
+                            $filter: {
+                                input: "$wellnessData.wellnessdates",
+                                as: "wellness",
+                                cond: {
+                                    $and: [
+                                        { $gte: ["$$wellness", "$projectDetails.startdate"] },
+                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
+                            }
+                        },
+                        eventDates: {
+                            $filter: {
+                                input: "$eventData.eventdates",
+                                as: "event",
+                                cond: {
+                                    $and: [
+                                        { $lte: ["$$event.startdate", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
+                            }    
                         }
                     }
                 }
@@ -301,11 +430,17 @@ exports.listjobcomponent = async (req, res) => {
                     jobno: { $first: '$projectDetails.jobno' },
                     budgettype: { $first: '$budgettype' },
                     estimatedbudget: { $first: '$estimatedbudget' },
-                    status: { $first: '$status' }, // Add status field here
+                    status: { $first: '$status' }, 
                     jobmanager: {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
                             fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
+                            initials: {
+                            $concat: [
+                                { $substr: ['$jobManagerDeets.firstname', 0, 1] }, 
+                                { $substr: ['$jobManagerDeets.lastname', 0, 1] }  
+                            ]
+                        },
                             isManager: '$isManager',
                             isJobManager: { $eq: ['$jobmanager', new mongoose.Types.ObjectId(id)] }
                         }
