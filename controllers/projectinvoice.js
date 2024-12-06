@@ -126,10 +126,44 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                 $unwind: { path: "$projectedValues", preserveNullAndEmptyArrays: true }
             },
             {
+                $lookup: {
+                    from: 'users',
+                    localField: 'jobmanager',
+                    foreignField: '_id',
+                    as: 'jobManagerDetails'
+                }
+            },
+            { $unwind: '$jobManagerDetails' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'jobManagerDetails._id',
+                    foreignField: 'owner',
+                    as: 'jobManagerDeets'
+                }
+            },
+            { $unwind: '$jobManagerDeets' },
+            {
+                $lookup:{
+                    from: "clients",
+                    localField: "projectDetails.client",
+                    foreignField: "_id",
+                    as: "clientDetails"
+                }
+            },
+            { $unwind: '$clientDetails'},
+            {
                 $project: {
                     _id: 1,
+                    budgettype: "$budgettype",
                     jobnumber: '$projectDetails.jobno',
                     jobcomponent: '$jobcomponent',
+                    clientname: "$clientDetails.clientname",
+                    jobmanager: {
+                        employeeid: '$jobManagerDetails._id',
+                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
+                    },
+                    projectname: '$projectDetails.projectname',
                     estimatedbudget: '$estimatedbudget',
                     alldates: '$allDates',
                     projectedValues: { $ifNull: ['$projectedValues.values', []] },
@@ -153,6 +187,10 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                         componentid: item._id,
                         jobnumber: item.jobnumber,
                         jobcomponent: item.jobcomponent,
+                        jobmanager: item.jobmanager,
+                        clientname: item.clientname,
+                        projectname: item.projectname,
+                        budgettype: item.budgettype,
                         estimatedbudget: item.estimatedbudget,
                         projectedValues: item.projectedValues,
                         invoice: item.invoice
