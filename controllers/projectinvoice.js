@@ -249,7 +249,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
 
 exports.saveprojectinvoicevalue = async (req, res) => {
     const { id } = req.user;
-    const { jobcomponentid, date, amount, subconts } = req.body;
+    const { jobcomponentid, date, amount, } = req.body;
 
     try {
         const finalDate = new Date(date);
@@ -279,6 +279,20 @@ exports.saveprojectinvoicevalue = async (req, res) => {
             );
         }
 
+       
+        return res.json({ message: "success" });
+    } catch (error) {
+        console.error(`There's a problem saving the project invoice value for ${jobcomponentid}. Error: ${error}`);
+        return res.status(500).json({ message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details" });
+    }
+};
+
+exports.savesubconstvalue = async (req, res) => {
+    const { id } = req.user;
+    const { jobcomponentid, subconts } = req.body;
+
+    try {
+        
         const findsubconts = await Subconts.findOneAndUpdate({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid)}, { $set: { value: parseInt(subconts) }})
         .then(data => data)
         .catch(err => {
