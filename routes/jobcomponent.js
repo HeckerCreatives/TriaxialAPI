@@ -13,6 +13,7 @@ router
     //  #region MANAGER
 
     .get("/getmanagerjobcomponentdashboard", protectmanager, getmanagerjobcomponentdashboard)
+    .get("/getindividualrequests", protectmanager, getmanagerjobcomponentdashboard)
     .get("/listjobcomponent", protectmanager, listjobcomponent)
     .get("/viewduedatesgraph", protectmanager, viewduedatesgraph)
     .post("/createjobcomponent", protectmanager, createjobcomponent)
