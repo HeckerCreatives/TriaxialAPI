@@ -1,6 +1,7 @@
 const { default: mongoose } = require("mongoose")
 const Jobcomponents = require("../models/Jobcomponents")
-const Projectedinvoice = require("../models/projectinvoice")
+const Projectedinvoice = require("../models/projectinvoice");
+const Subconts = require("../models/Subconts");
 
 //  #region MANAGER & EMPLOYEE
 
@@ -153,12 +154,22 @@ exports.listcomponentprojectinvoice = async (req, res) => {
             },
             { $unwind: '$clientDetails'},
             {
+                $lookup: {
+                    from: "subconts",
+                    localField: "_id",
+                    foreignField: "jobcomponent",
+                    as: "subconts"
+                }
+            },
+            {   $unwind: { path: "$subconts", preserveNullAndEmptyArrays: true }  },
+            {
                 $project: {
                     _id: 1,
                     budgettype: "$budgettype",
                     jobnumber: '$projectDetails.jobno',
                     jobcomponent: '$jobcomponent',
                     clientname: "$clientDetails.clientname",
+                    subconts: "$subconts.value" || 0,
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
                         fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
@@ -170,7 +181,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     invoice: {
                         percentage: { $ifNull: ["$latestInvoice.newinvoice", 0] },
                         amount:  { $ifNull: ['$latestInvoice.invoiceamount', 0] }
-                    }
+                    },
                 }
             },
             { $sort: { createdAt: 1 } }
@@ -183,20 +194,39 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                 message: "success",
                 data: {
                     allDates: allDates,
-                    list: result.map(item => ({
-                        componentid: item._id,
-                        jobnumber: item.jobnumber,
-                        jobcomponent: item.jobcomponent,
-                        jobmanager: item.jobmanager,
-                        clientname: item.clientname,
-                        projectname: item.projectname,
-                        budgettype: item.budgettype,
-                        estimatedbudget: item.estimatedbudget,
-                        projectedValues: item.projectedValues,
-                        invoice: item.invoice
-                    }))
+                    list: result.map(item => {
+                        // Calculate totals for the first 3 and first 12 objects in projectedValues
+                        const totalFirstThree = item.projectedValues
+                            .slice(0, 3) // Take the first 3 objects
+                            .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
+            
+                        const totalFirstTwelve = item.projectedValues
+                            .slice(0, 12) // Take the first 12 objects
+                            .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
+
+                            return {
+                            componentid: item._id,
+                            jobnumber: item.jobnumber,
+                            jobcomponent: item.jobcomponent,
+                            jobmanager: item.jobmanager,
+                            clientname: item.clientname,
+                            projectname: item.projectname,
+                            budgettype: item.budgettype,
+                            estimatedbudget: item.estimatedbudget,
+                            projectedValues: item.projectedValues,
+                            invoice: item.invoice,
+                            lumpsum: {
+                                invoiced: (item.invoice.percentage / 100) * item.estimatedbudget,
+                                remaining: item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget),
+                                subconts: item.subconts || 0,
+                                catchupinv: (item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve,
+                                wip: (item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve) + totalFirstThree    
+                            }
+                        };
+                    })
                 }
             };
+            
 
             return res.json(responseData);
         } else {
@@ -211,7 +241,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
 
 exports.saveprojectinvoicevalue = async (req, res) => {
     const { id } = req.user;
-    const { jobcomponentid, date, amount } = req.body;
+    const { jobcomponentid, date, amount, subconts } = req.body;
 
     try {
         const finalDate = new Date(date);
@@ -241,6 +271,24 @@ exports.saveprojectinvoicevalue = async (req, res) => {
             );
         }
 
+        const findsubconts = await Subconts.findOneAndUpdate({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid)}, { $set: { value: parseInt(subconts) }})
+        .then(data => data)
+        .catch(err => {
+            console.log(`There's a problem encountered while updating subconts. Error: ${err}`)
+            return res.status(400).json({ message: "bad-request", data: "There's a problem encountered with the server! Please contact customer support for more details."})
+        })
+
+        if(!findsubconts){
+            await Subconts.create({
+                jobcomponent: new mongoose.Types.ObjectId(jobcomponentid),
+                value: parseInt(subconts)
+            })
+            .then(data => data)
+            .catch(err => {
+                 console.log(`There's a problem encountered while creating subconts. Error: ${err}`)
+                 return res.status(400).json({ message: "bad-request", data: "There's a problem with the sever! Please contact customer support for more details."})
+                })
+        }
         return res.json({ message: "success" });
     } catch (error) {
         console.error(`There's a problem saving the project invoice value for ${jobcomponentid}. Error: ${error}`);
