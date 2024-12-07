@@ -204,6 +204,10 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                             .slice(0, 12) // Take the first 12 objects
                             .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
 
+                        const totalvalue = item.projectedValues
+                            .slice(0, 12) // Take the first 12 objects
+                            .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
+
                             return {
                             componentid: item._id,
                             jobnumber: item.jobnumber,
@@ -221,6 +225,10 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                                 subconts: item.subconts || 0,
                                 catchupinv: (item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve,
                                 wip: (item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve) + totalFirstThree    
+                            },
+                            rates: {
+                                invoiced: item.estimatedbudget * totalvalue,
+                                wip: totalFirstThree,
                             }
                         };
                     })
