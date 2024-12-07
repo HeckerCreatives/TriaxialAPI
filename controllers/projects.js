@@ -266,6 +266,8 @@ exports.listprojects = async (req, res) => {
     return res.json({message: "success", data: data})
 };
 
+
+
 exports.viewprojectdetails = async (req, res) => {
     const {id, email} = req.user
 
