@@ -47,10 +47,11 @@ exports.createinvoice = async (req, res) => {
     else if (isNaN(currentinvoice)){
         return res.status(400).json({message: "failed", data: "Please enter a invoice amount"})
     }
-    const { status, budgettype } = await Jobcomponent.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid)}),
-    const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid)})
+    const { status, budgettype } = await Jobcomponent.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid)})
 
-    const checkRemaining = 100 - findCurrinvoice.currentinvoice
+    const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Approved"}).sort({ createdAt: -1 });
+
+    const checkRemaining = 100 - (parseInt(findCurrinvoice?.newinvoice) || 0)
 
     if(status !== 'completed'){
         return res.status(400).json({message: "failed", data: "Request invoice is only available when job component status is completed"})   
@@ -60,6 +61,7 @@ exports.createinvoice = async (req, res) => {
         return res.status(400).json({message: "failed", data: `The remaining invoice is ${checkRemaining}%`})   
     }
 
+    let finalnewinvoice =  parseInt(newinvoice) + (parseInt(findCurrinvoice?.newinvoice) || 0) 
     const invoicedata = await Invoice.findOne({jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Pending"})
     .then(data => data)
     .catch(err => {
@@ -72,7 +74,7 @@ exports.createinvoice = async (req, res) => {
         return res.status(400).json({message: "failed", data: "There's a pending invoice request for this job component"})
     }
     
-    await Invoice.create({jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), currentinvoice: currentinvoice, newinvoice: newinvoice, invoiceamount: invoiceamount, comments: comments, reasonfordenie: "", status: "Pending"})
+    await Invoice.create({jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), currentinvoice: currentinvoice, newinvoice: finalnewinvoice, invoiceamount: invoiceamount, comments: comments, reasonfordenie: "", status: "Pending"})
     .catch(err => {
         console.log(`There's a problem with creating the invoice data for ${jobcomponentid}. Error: ${err}`)
 

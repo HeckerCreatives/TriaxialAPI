@@ -328,13 +328,22 @@ exports.listjobcomponent = async (req, res) => {
                     from: 'invoices',
                     let: { jobComponentId: "$_id" },
                     pipeline: [
-                        { $match: { $expr: { $eq: ["$jobcomponent", "$$jobComponentId"] } } },
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
+                                        { $eq: ["$status", "Approved"] }
+                                    ]
+                                } 
+                            } 
+                        },
                         { $sort: { createdAt: -1 } },
                         { $limit: 1 }
                     ],
                     as: 'latestInvoice'
                 }
-            },
+            },   
             {
                 $unwind: { path: "$latestInvoice", preserveNullAndEmptyArrays: true }
             },
