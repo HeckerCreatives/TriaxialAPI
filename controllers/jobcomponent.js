@@ -1620,6 +1620,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         return res.status(500).json({ message: 'Error processing request', error: err.message });
     }
 };
+
 exports.getmanagerjobcomponentdashboard = async (req, res) => {
     const { id, email } = req.user;
     const { filterDate } = req.query;
@@ -1629,6 +1630,8 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
         const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
 
+        console.log(id, email)
+        
         const result = await Jobcomponents.aggregate([
             {
                 $lookup: {
@@ -1789,6 +1792,8 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
             teams: []
         };
 
+        console.log(result)
+
         let currentDate = new Date(startOfWeek);
         while (currentDate <= endOfRange) {
             if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
@@ -1818,7 +1823,8 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                     name: employee.fullname,
                     initial: employee.initial,
                     resource: employee.resource,
-                    dates: []
+                    dates: [],
+                    leavestart: entry.leaveData
                 };
                 teamData.members.push(employeeData);
             }
@@ -1827,7 +1833,6 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
             if (!dateEntry) {
                 dateEntry = {
                     date: formattedDate,
-                    status: [...status],
                     totalhoursofjobcomponents: totalHours,
                     leave: false,
                     wellnessDay: false,
