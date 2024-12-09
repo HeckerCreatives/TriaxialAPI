@@ -1823,9 +1823,15 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                     name: employee.fullname,
                     initial: employee.initial,
                     resource: employee.resource,
+                    leave: [],
                     dates: [],
-                    leavestart: entry.leaveData
                 };
+                entry.leaveData.forEach(leave => {
+                    employeeData.leave.push({
+                        leavestart: leave.leavedates.leavestart,
+                        leaveend: leave.leavedates.leaveend
+                    })
+                })
                 teamData.members.push(employeeData);
             }
 
