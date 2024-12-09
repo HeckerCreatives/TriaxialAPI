@@ -47,10 +47,17 @@ exports.createinvoice = async (req, res) => {
     else if (isNaN(currentinvoice)){
         return res.status(400).json({message: "failed", data: "Please enter a invoice amount"})
     }
-    const { status } = await Jobcomponent.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid)})
+    const { status, budgettype } = await Jobcomponent.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid)}),
+    const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid)})
+
+    const checkRemaining = 100 - findCurrinvoice.currentinvoice
 
     if(status !== 'completed'){
         return res.status(400).json({message: "failed", data: "Request invoice is only available when job component status is completed"})   
+    }
+
+    if(newinvoice > checkRemaining && budgettype === 'lumpsum'){
+        return res.status(400).json({message: "failed", data: `The remaining invoice is ${checkRemaining}%`})   
     }
 
     const invoicedata = await Invoice.findOne({jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Pending"})
