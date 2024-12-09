@@ -180,7 +180,7 @@ exports.completejobcomponent = async (req, res) => {
     .catch(err => {
         console.log(`There's a problem encountered while updating job component status. Error: ${err}`)
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
-    })
+    })  
 
     return res.status(200).json({ message: "success" })
 }
