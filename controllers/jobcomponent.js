@@ -324,6 +324,29 @@ exports.listjobcomponent = async (req, res) => {
                 }
             },
             {
+                $lookup: {
+                    from: 'invoices',
+                    let: { jobComponentId: "$_id" },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ["$jobcomponent", "$$jobComponentId"] } } },
+                        { $sort: { createdAt: -1 } },
+                        { $limit: 1 }
+                    ],
+                    as: 'latestInvoice'
+                }
+            },
+            {
+                $unwind: { path: "$latestInvoice", preserveNullAndEmptyArrays: true }
+            },
+            {
+                $addFields: {
+                    invoiceDetails: {
+                        percentage: { $ifNull: ["$latestInvoice.newinvoice", 0] },
+                        amount: { $ifNull: ["$latestInvoice.invoiceamount", 0] }
+                    }
+                }
+            },
+            {
                 $addFields: {
                     allDates: {
                         $let: {
@@ -431,6 +454,8 @@ exports.listjobcomponent = async (req, res) => {
                     budgettype: { $first: '$budgettype' },
                     estimatedbudget: { $first: '$estimatedbudget' },
                     status: { $first: '$status' }, 
+                    invoice: { $first: '$invoiceDetails' }, // Use updated invoiceDetails field
+                   
                     jobmanager: {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
@@ -1582,9 +1607,24 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     name: employee.fullname,
                     initial: employee.initial,
                     resource: employee.resource,
-                    dates: []
+                    leave: [],
+                    wellness: entry.wellnessData,
+                    event: [],
+                    dates: [],
                 };
-                teamData.members.push(employeeData);
+                entry.leaveData.forEach(leave => {
+                    employeeData.leave.push({
+                        leavestart: leave.leavedates.leavestart,
+                        leaveend: leave.leavedates.leaveend
+                    })
+                })
+
+                entry.eventData.forEach(event => {
+                    employeeData.event.push({
+                        eventstart: event.eventdates.startdate,
+                        eventend: event.eventdates.enddate
+                    })
+                })
             }
 
             let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
@@ -1593,22 +1633,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     date: formattedDate,
                     status: [...status],
                     totalhoursofjobcomponents: totalHours,
-                    leave: false,
-                    wellnessDay: false,
-                    eventDay: false
                 };
-
-                if (leaveData && leaveData.some(leave => new Date(leave.leavedates.leavestart) <= date && date <= new Date(leave.leavedates.leaveend))) {
-                    dateEntry.leave = true;
-                }
-
-                if (wellnessData && wellnessData.some(wellness => wellness.wellnessdates.toISOString().split('T')[0] === formattedDate)) {
-                    dateEntry.wellnessDay = true;
-                }
-
-                if (eventData && eventData.some(event => new Date(event.eventdates.startdate) <= date && date <= new Date(event.eventdates.enddate))) {
-                    dateEntry.eventDay = true;
-                }
 
                 employeeData.dates.push(dateEntry);
             }
