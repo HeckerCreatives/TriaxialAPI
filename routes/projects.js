@@ -1,6 +1,6 @@
 const router = require("express").Router()
 const { createproject, createprojectvariation, listprojects, viewprojectdetails, editproject, changeprojectstatus, saprojectlist, listprojectsemployee, listallprojects, teamprojectlist } = require("../controllers/projects")
-const { protectsuperadmin, protectemployee, protectmanager, protectusers } = require("../middleware/middleware")
+const { protectsuperadmin, protectemployee, protectmanager, protectusers, protectfinance } = require("../middleware/middleware")
 
 router
 
@@ -36,4 +36,7 @@ router
 
     //  #endregion
 
+    // #region FINANCE
+    .get("/fnprojectlist", protectfinance, saprojectlist)
+    // #endregion
 module.exports = router;
