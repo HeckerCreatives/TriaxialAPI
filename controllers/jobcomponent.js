@@ -1824,6 +1824,8 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                     initial: employee.initial,
                     resource: employee.resource,
                     leave: [],
+                    wellness: entry.wellnessData,
+                    event: [],
                     dates: [],
                 };
                 entry.leaveData.forEach(leave => {
@@ -1832,6 +1834,14 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                         leaveend: leave.leavedates.leaveend
                     })
                 })
+
+                entry.eventData.forEach(event => {
+                    employeeData.event.push({
+                        eventstart: event.eventdates.startdate,
+                        eventend: event.eventdates.enddate
+                    })
+                })
+
                 teamData.members.push(employeeData);
             }
 
@@ -1840,22 +1850,7 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                 dateEntry = {
                     date: formattedDate,
                     totalhoursofjobcomponents: totalHours,
-                    leave: false,
-                    wellnessDay: false,
-                    eventDay: false
                 };
-
-                if (leaveData && leaveData.some(leave => new Date(leave.leavedates.leavestart) <= date && date <= new Date(leave.leavedates.leaveend))) {
-                    dateEntry.leave = true;
-                }
-
-                if (wellnessData && wellnessData.some(wellness => wellness.wellnessdates.toISOString().split('T')[0] === formattedDate)) {
-                    dateEntry.wellnessDay = true;
-                }
-
-                if (eventData && eventData.some(event => new Date(event.eventdates.startdate) <= date && date <= new Date(event.eventdates.enddate))) {
-                    dateEntry.eventDay = true;
-                }
 
                 employeeData.dates.push(dateEntry);
             }
