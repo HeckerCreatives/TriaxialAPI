@@ -324,6 +324,170 @@ exports.savesubconstvalue = async (req, res) => {
 
 //  #region SUPERADMIN
 
+// exports.listcomponentprojectinvoicesa = async (req, res) => {
+//     const { id } = req.user;
+//     const { projectid } = req.query;
+
+//     try {
+//         const result = await Jobcomponents.aggregate([
+//             { 
+//                 $match: { 
+//                     project: new mongoose.Types.ObjectId(projectid),
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'projects',
+//                     localField: 'project',
+//                     foreignField: '_id',
+//                     as: 'projectDetails'
+//                 }
+//             },
+//             { $unwind: '$projectDetails' },
+//             {
+//                 $addFields: {
+//                     allDates: {
+//                         $let: {
+//                             vars: {
+//                                 startDate: "$projectDetails.startdate",
+//                                 endDate: "$projectDetails.deadlinedate",
+//                                 today: new Date()
+//                             },
+//                             in: {
+//                                 $cond: {
+//                                     if: {
+//                                         $and: [
+//                                             { $gte: ["$$today", "$$startDate"] },
+//                                             { $lte: ["$$today", "$$endDate"] }
+//                                         ]
+//                                     },
+//                                     then: {
+//                                         $map: {
+//                                             input: {
+//                                                 $range: [
+//                                                     0,
+//                                                     { 
+//                                                         $add: [
+//                                                             { $dateDiff: { startDate: "$$today", endDate: "$$endDate", unit: "month" } },
+//                                                             1
+//                                                         ]
+//                                                     }
+//                                                 ]
+//                                             },
+//                                             as: "monthsFromToday",
+//                                             in: {
+//                                                 $dateAdd: {
+//                                                     startDate: "$$today",
+//                                                     unit: "month",
+//                                                     amount: "$$monthsFromToday"
+//                                                 }
+//                                             }
+//                                         }
+//                                     },
+//                                     else: {
+//                                         $map: {
+//                                             input: {
+//                                                 $range: [
+//                                                     0,
+//                                                     { 
+//                                                         $add: [
+//                                                             { $dateDiff: { startDate: "$$startDate", endDate: "$$endDate", unit: "month" } },
+//                                                             1
+//                                                         ]
+//                                                     }
+//                                                 ]
+//                                             },
+//                                             as: "monthsFromStart",
+//                                             in: {
+//                                                 $dateAdd: {
+//                                                     startDate: "$$startDate",
+//                                                     unit: "month",
+//                                                     amount: "$$monthsFromStart"
+//                                                 }
+//                                             }
+//                                         }
+//                                     }
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 }
+//             },
+//             {
+//                 $addFields: {
+//                     allDates: { $filter: { input: "$allDates", as: "date", cond: { $ne: ["$$date", null] } } }
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'invoices',
+//                     let: { jobComponentId: "$_id" },
+//                     pipeline: [
+//                         { $match: { $expr: { $eq: ["$jobcomponent", "$$jobComponentId"] } } },
+//                         { $sort: { createdAt: -1 } },
+//                         { $limit: 1 }
+//                     ],
+//                     as: 'latestInvoice'
+//                 }
+//             },
+//             {
+//                 $unwind: { path: "$latestInvoice", preserveNullAndEmptyArrays: true }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'projectedinvoices',
+//                     localField: '_id',
+//                     foreignField: 'jobcomponent',
+//                     as: 'projectedValues'
+//                 }
+//             },
+//             {
+//                 $unwind: { path: "$projectedValues", preserveNullAndEmptyArrays: true }
+//             },
+//             {
+//                 $project: {
+//                     _id: 0,
+//                     jobnumber: '$projectDetails.jobno',
+//                     jobcomponent: '$jobcomponent',
+//                     estimatedbudget: '$estimatedbudget',
+//                     alldates: '$allDates',
+//                     projectedValues: { $ifNull: ['$projectedValues.values', []] },
+//                     invoice: {
+//                         percentage: { $ifNull: ["$latestInvoice.newinvoice", 0] },
+//                         amount:  { $ifNull: ['$latestInvoice.invoiceamount', 0] }
+//                     }
+//                 }
+//             },
+//             { $sort: { createdAt: 1 } }
+//         ]);
+
+//         if (result.length > 0) {
+//             const allDates = result[0].alldates;
+
+//             const responseData = {
+//                 message: "success",
+//                 data: {
+//                     allDates: allDates,
+//                     list: result.map(item => ({
+//                         jobnumber: item.jobnumber,
+//                         jobcomponent: item.jobcomponent,
+//                         estimatedbudget: item.estimatedbudget,
+//                         projectedValues: item.projectedValues,
+//                         invoice: item.invoice
+//                     }))
+//                 }
+//             };
+
+//             return res.json(responseData);
+//         } else {
+//             return res.json({ message: "success", data: { allDates: [], list: [] } });
+//         }
+//     } catch (err) {
+//         console.error(err);
+//         return res.status(500).json({ message: "Error processing request", error: err.message });
+//     }
+// };
+
 exports.listcomponentprojectinvoicesa = async (req, res) => {
     const { id } = req.user;
     const { projectid } = req.query;
@@ -445,17 +609,61 @@ exports.listcomponentprojectinvoicesa = async (req, res) => {
                 $unwind: { path: "$projectedValues", preserveNullAndEmptyArrays: true }
             },
             {
+                $lookup: {
+                    from: 'users',
+                    localField: 'jobmanager',
+                    foreignField: '_id',
+                    as: 'jobManagerDetails'
+                }
+            },
+            { $unwind: '$jobManagerDetails' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'jobManagerDetails._id',
+                    foreignField: 'owner',
+                    as: 'jobManagerDeets'
+                }
+            },
+            { $unwind: '$jobManagerDeets' },
+            {
+                $lookup:{
+                    from: "clients",
+                    localField: "projectDetails.client",
+                    foreignField: "_id",
+                    as: "clientDetails"
+                }
+            },
+            { $unwind: '$clientDetails'},
+            {
+                $lookup: {
+                    from: "subconts",
+                    localField: "_id",
+                    foreignField: "jobcomponent",
+                    as: "subconts"
+                }
+            },
+            {   $unwind: { path: "$subconts", preserveNullAndEmptyArrays: true }  },
+            {
                 $project: {
-                    _id: 0,
+                    _id: 1,
+                    budgettype: "$budgettype",
                     jobnumber: '$projectDetails.jobno',
                     jobcomponent: '$jobcomponent',
+                    clientname: "$clientDetails.clientname",
+                    subconts: "$subconts.value" || 0,
+                    jobmanager: {
+                        employeeid: '$jobManagerDetails._id',
+                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
+                    },
+                    projectname: '$projectDetails.projectname',
                     estimatedbudget: '$estimatedbudget',
                     alldates: '$allDates',
                     projectedValues: { $ifNull: ['$projectedValues.values', []] },
                     invoice: {
                         percentage: { $ifNull: ["$latestInvoice.newinvoice", 0] },
                         amount:  { $ifNull: ['$latestInvoice.invoiceamount', 0] }
-                    }
+                    },
                 }
             },
             { $sort: { createdAt: 1 } }
@@ -468,15 +676,47 @@ exports.listcomponentprojectinvoicesa = async (req, res) => {
                 message: "success",
                 data: {
                     allDates: allDates,
-                    list: result.map(item => ({
-                        jobnumber: item.jobnumber,
-                        jobcomponent: item.jobcomponent,
-                        estimatedbudget: item.estimatedbudget,
-                        projectedValues: item.projectedValues,
-                        invoice: item.invoice
-                    }))
+                    list: result.map(item => {
+                        // Calculate totals for the first 3 and first 12 objects in projectedValues
+                        const totalFirstThree = item.projectedValues
+                            .slice(0, 3) // Take the first 3 objects
+                            .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
+            
+                        const totalFirstTwelve = item.projectedValues
+                            .slice(0, 12) // Take the first 12 objects
+                            .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
+
+                        const totalvalue = item.projectedValues
+                            .slice(0, 12) // Take the first 12 objects
+                            .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
+
+                            return {
+                            componentid: item._id,
+                            jobnumber: item.jobnumber,
+                            jobcomponent: item.jobcomponent,
+                            jobmanager: item.jobmanager,
+                            clientname: item.clientname,
+                            projectname: item.projectname,
+                            budgettype: item.budgettype,
+                            estimatedbudget: item.estimatedbudget,
+                            projectedValues: item.projectedValues,
+                            invoice: item.invoice,
+                            lumpsum: {
+                                invoiced: (item.invoice.percentage / 100) * item.estimatedbudget,
+                                remaining: item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget),
+                                subconts: item.subconts || 0,
+                                catchupinv: (item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve,
+                                wip: (item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve) + totalFirstThree    
+                            },
+                            rates: {
+                                invoiced: item.estimatedbudget * totalvalue,
+                                wip: totalFirstThree,
+                            }
+                        };
+                    })
                 }
             };
+            
 
             return res.json(responseData);
         } else {
