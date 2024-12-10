@@ -129,6 +129,14 @@ exports.editalljobcomponentdetails = async (req, res) =>{
      members.forEach((memberData) => {
         const { employee, role, notes } = memberData;
   
+        const isRoleDuplicate = jobcomponent.members.some(
+            (m) => m.role === role && m.employee.toString() !== employee.toString()
+        );
+    
+        if (isRoleDuplicate) {
+            return res.status(400).json({ message: "failed", data: `${role} is already assigned to other members.`})
+        }
+
         // Find the index of the existing member by employee ID
         const memberIndex = jobcomponent.members.findIndex(
           (m) => m.employee?.toString() === employee.toString()
