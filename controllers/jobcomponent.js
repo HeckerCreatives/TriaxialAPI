@@ -131,7 +131,7 @@ exports.editalljobcomponentdetails = async (req, res) =>{
   
         // Find the index of the existing member by employee ID
         const memberIndex = jobcomponent.members.findIndex(
-          (m) => m.employee.toString() === employee.toString()
+          (m) => m.employee?.toString() === employee.toString()
         );
   
         // If the member exists, update their role and notes (don't reset dates yet)
