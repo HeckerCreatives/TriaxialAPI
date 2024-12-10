@@ -96,85 +96,91 @@ exports.editjobcomponentdetails = async (req, res) => {
     return res.json({message: "success"})
 }
 
-exports.editalljobcomponentdetails = async (req, res) =>{
-    const {jobcomponentid, projectid, jobmanagerid, members} = req.body
+exports.editalljobcomponentdetails = async (req, res) => {
+    const { jobcomponentid, projectid, jobmanagerid, members } = req.body;
 
-    if (!jobcomponentid){
-        return res.status(400).json({message: "failed", data: "Select a valid job component"})
+    if (!jobcomponentid) {
+        return res.status(400).json({ message: "failed", data: "Select a valid job component" });
     }
-    else if(!projectid){
-        return res.status(400).json({message: "failed", data: "Select a valid project"})
+    if (!projectid) {
+        return res.status(400).json({ message: "failed", data: "Select a valid project" });
     }
-    else if (!jobmanagerid){
-        return res.status(400).json({message: "failed", data: "Select a valid job manager"})
+    if (!jobmanagerid) {
+        return res.status(400).json({ message: "failed", data: "Select a valid job manager" });
     }
-    else if (!Array.isArray(members) || members.length < 1 || members.length > 4) {
+    if (!Array.isArray(members) || members.length < 1 || members.length > 4) {
         return res.status(400).json({ message: "failed", data: "Invalid members data. There should be 1 to 4 members." });
     }
 
-    await Jobcomponents.findOneAndUpdate({_id: new mongoose.Types.ObjectId(jobcomponentid)}, {project: new mongoose.Types.ObjectId(projectid), jobmanager: new mongoose.Types.ObjectId(jobmanagerid)})
-    .catch(err => {
-        console.log(`There's a problem with editing the job component details ${jobcomponentid}. Error: ${err}`)
-
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact cusotmer support"})
-    })
-
-    const jobcomponent = await Jobcomponents.findById(new mongoose.Types.ObjectId(jobcomponentid));
-
-    if (!jobcomponent) {
-      return res.status(404).json({ message: "Jobcomponent not found" });
-    }
-
-     // Iterate over each incoming member to update
-     members.forEach((memberData) => {
-        const { employee, role, notes } = memberData;
-  
-        const roles = members.map((m) => m?.role);
-        const hasDuplicateRole = roles?.some((role, index) => roles.indexOf(role) !== index);
-
-    
-        if (hasDuplicateRole) {
-            return res.status(400).json({ message: "failed", data: `${role} is already assigned to other members.`})
-        }
-
-        // Find the index of the existing member by employee ID
-        const memberIndex = jobcomponent.members.findIndex(
-          (m) => m.employee?.toString() === employee.toString()
+    try {
+        // Update project and job manager details
+        await Jobcomponents.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(jobcomponentid) },
+            { project: new mongoose.Types.ObjectId(projectid), jobmanager: new mongoose.Types.ObjectId(jobmanagerid) }
         );
-  
-        // If the member exists, update their role and notes (don't reset dates yet)
-        if (memberIndex !== -1) {
-          jobcomponent.members[memberIndex].role = role || jobcomponent.members[memberIndex].role;
-          jobcomponent.members[memberIndex].notes = notes || jobcomponent.members[memberIndex].notes;
-        } else {
-          // If the member doesn't exist, we need to replace an existing one (if there are 4 members)
-          if (jobcomponent.members.length >= 4) {
-            // Replace the first member (FIFO) or find the member to replace by index
-            const replaceIndex = jobcomponent.members.findIndex(m => m.employee.toString() === members[0].employee.toString());
-  
-            if (replaceIndex !== -1) {
-              // Reset the dates and replace with the new member (e.g., user5)
-              jobcomponent.members[replaceIndex].employee = employee;
-              jobcomponent.members[replaceIndex].role = role;
-              jobcomponent.members[replaceIndex].notes = notes;
-              jobcomponent.members[replaceIndex].dates = [];  // Reset dates
-            }
-          } else {
-            jobcomponent.members.push({
-              employee,
-              role,
-              notes,
-              dates: [] // Start with an empty array of dates for the new member
-            });
-          }
-        }
-      });
-  
-      // Save the updated jobcomponent
-      await jobcomponent.save();
 
-      return res.json({message: "success"})
-}
+        const jobcomponent = await Jobcomponents.findById(new mongoose.Types.ObjectId(jobcomponentid));
+
+        if (!jobcomponent) {
+            return res.status(404).json({ message: "Jobcomponent not found" });
+        }
+
+        // Validate members
+        const employeeRoleMap = new Map();
+
+        for (const memberData of members) {
+            const { employee, role, notes } = memberData;
+
+            // Check for duplicate roles for the same employee
+            if (employeeRoleMap.has(employee)) {
+                return res.status(400).json({
+                    message: "failed",
+                    data: `Employee cannot have more than one role.`,
+                });
+            }
+            employeeRoleMap.set(employee, role);
+
+            // Check if the role is already assigned to another member
+            if ([...employeeRoleMap.values()].filter((r) => r === role).length > 1) {
+                return res.status(400).json({
+                    message: "failed",
+                    data: `${role} is already assigned to another member.`,
+                });
+            }
+
+            // Find or update the member in the job component
+            const memberIndex = jobcomponent.members.findIndex(
+                (m) => m.employee?.toString() === employee.toString()
+            );
+
+            if (memberIndex !== -1) {
+                // Update existing member
+                jobcomponent.members[memberIndex].role = role || jobcomponent.members[memberIndex].role;
+                jobcomponent.members[memberIndex].notes = notes || jobcomponent.members[memberIndex].notes;
+            } else {
+                // Replace or add a new member
+                if (jobcomponent.members.length >= 4) {
+                    // Replace the first member (FIFO)
+                    jobcomponent.members.shift();
+                }
+                jobcomponent.members.push({
+                    employee,
+                    role,
+                    notes,
+                    dates: [], // Reset dates
+                });
+            }
+        }
+
+        // Save the updated jobcomponent
+        await jobcomponent.save();
+
+        return res.json({ message: "success" });
+    } catch (err) {
+        console.error(`Error updating job component details: ${err}`);
+        return res.status(500).json({ message: "server-error", data: "An error occurred. Please contact support." });
+    }
+};
 
 exports.completejobcomponent = async (req, res) => {
     const { id } = req.query
