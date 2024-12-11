@@ -753,6 +753,24 @@ exports.listcomponenttotalinvoice = async (req, res) => {
             { $unwind: '$projectDetails' },
             {
                 $lookup: {
+                    from: 'users',
+                    localField: 'jobmanager',
+                    foreignField: '_id',
+                    as: 'jobManagerDetails'
+                }
+            },
+            { $unwind: '$jobManagerDetails' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'jobManagerDetails._id',
+                    foreignField: 'owner',
+                    as: 'jobManagerDeets'
+                }
+            },
+            { $unwind: '$jobManagerDeets' },
+            {
+                $lookup: {
                     from: 'invoices',
                     let: { jobComponentId: "$_id" },
                     pipeline: [
@@ -787,6 +805,10 @@ exports.listcomponenttotalinvoice = async (req, res) => {
                     jobnumber: '$projectDetails.jobno',
                     jobcomponent: '$jobcomponent',
                     projectname: '$projectDetails.projectname',
+                    jobmanager: {
+                        employeeid: '$jobManagerDetails._id',
+                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
+                    },
                     estimatedbudget: '$estimatedbudget',
                     invoicesByMonth: 1
                 }
@@ -794,7 +816,6 @@ exports.listcomponenttotalinvoice = async (req, res) => {
             { $sort: { createdAt: 1 } }
         ]);
 
-        console.log(result)
 
         if (result.length > 0) {
             const now = new Date();
@@ -837,6 +858,7 @@ exports.listcomponenttotalinvoice = async (req, res) => {
                         componentid: item._id,
                         jobnumber: item.jobnumber,
                         jobcomponent: item.jobcomponent,
+                        jobmanager: item.jobmanager,
                         projectname: item.projectname,
                         budgettype: item.budgettype,
                         estimatedbudget: item.estimatedbudget,
