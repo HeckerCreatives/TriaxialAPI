@@ -770,6 +770,15 @@ exports.listcomponenttotalinvoice = async (req, res) => {
             },
             { $unwind: '$jobManagerDeets' },
             {
+                $lookup:{
+                    from: "clients",
+                    localField: "projectDetails.client",
+                    foreignField: "_id",
+                    as: "clientDetails"
+                }
+            },
+            { $unwind: '$clientDetails'},
+            {
                 $lookup: {
                     from: 'invoices',
                     let: { jobComponentId: "$_id" },
@@ -805,6 +814,7 @@ exports.listcomponenttotalinvoice = async (req, res) => {
                     jobnumber: '$projectDetails.jobno',
                     jobcomponent: '$jobcomponent',
                     projectname: '$projectDetails.projectname',
+                    clientname: '$clientDetails.clientname',
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
                         fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
@@ -822,7 +832,7 @@ exports.listcomponenttotalinvoice = async (req, res) => {
 
             const generateMonthlyLabels = () => {
                 const labels = [];
-                for (let i = 0; i <= 6; i++) {
+                for (let i = 0; i <= 5; i++) {
                     const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
                     labels.push({
                         month: date.getMonth() + 1, 
@@ -859,6 +869,168 @@ exports.listcomponenttotalinvoice = async (req, res) => {
                         jobnumber: item.jobnumber,
                         jobcomponent: item.jobcomponent,
                         jobmanager: item.jobmanager,
+                        client: item.clientname,
+                        projectname: item.projectname,
+                        budgettype: item.budgettype,
+                        estimatedbudget: item.estimatedbudget,
+                        monthlyInvoices
+                    };
+                })
+            };
+        
+            return res.json(responseData);
+        } else {
+            return res.json({ message: "success", data: [] });
+        }
+        
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Error processing request", error: err.message });
+    }
+};
+
+exports.listcomponentclienttotalinvoice = async (req, res) => {
+    const { id } = req.user;
+    const { clientid } = req.query;
+
+    try {
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+        const result = await Jobcomponents.aggregate([
+            {
+                $lookup: {
+                    from: 'projects',
+                    localField: 'project',
+                    foreignField: '_id',
+                    as: 'projectDetails'
+                }
+            },
+            {
+                $match: {
+                    'projectDetails.client': new mongoose.Types.ObjectId(clientid),
+                }
+            },
+            { $unwind: '$projectDetails' },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'jobmanager',
+                    foreignField: '_id',
+                    as: 'jobManagerDetails'
+                }
+            },
+            { $unwind: '$jobManagerDetails' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'jobManagerDetails._id',
+                    foreignField: 'owner',
+                    as: 'jobManagerDeets'
+                }
+            },
+            { $unwind: '$jobManagerDeets' },
+            {
+                $lookup:{
+                    from: "clients",
+                    localField: "projectDetails.client",
+                    foreignField: "_id",
+                    as: "clientDetails"
+                }
+            },
+            { $unwind: '$clientDetails'},
+            {
+                $lookup: {
+                    from: 'invoices',
+                    let: { jobComponentId: "$_id" },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
+                                        { $eq: ["$status", "Approved"] }, // Filter invoices with status "approved"
+                                        { $gte: ["$updatedAt", sixMonthsAgo] }
+                                    ]
+                                } 
+                            } 
+                        },
+                        {
+                            $group: {
+                                _id: {
+                                    year: { $year: "$updatedAt" },
+                                    month: { $month: "$updatedAt" }
+                                },
+                                totalAmount: { $sum: "$invoiceamount" }
+                            }
+                        }
+                    ],
+                    as: 'invoicesByMonth'
+                }
+            },            
+            {
+                $project: {
+                    _id: 1,
+                    budgettype: "$budgettype",
+                    jobnumber: '$projectDetails.jobno',
+                    jobcomponent: '$jobcomponent',
+                    projectname: '$projectDetails.projectname',
+                    clientname: '$clientDetails.clientname',
+                    jobmanager: {
+                        employeeid: '$jobManagerDetails._id',
+                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
+                    },
+                    estimatedbudget: '$estimatedbudget',
+                    invoicesByMonth: 1
+                }
+            },
+            { $sort: { createdAt: 1 } }
+        ]);
+
+
+        if (result.length > 0) {
+            const now = new Date();
+
+            const generateMonthlyLabels = () => {
+                const labels = [];
+                for (let i = 0; i <= 5; i++) {
+                    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    labels.push({
+                        month: date.getMonth() + 1, 
+                        year: date.getFullYear(),
+                        totalAmount: 0 
+                    });
+                }
+                return labels;
+            };
+            
+        
+            const responseData = {
+                message: "success",
+                data: result.map(item => {
+                    const monthlyInvoices = generateMonthlyLabels();
+                    item.invoicesByMonth.forEach(invoice => {
+                        const { year, month } = invoice._id; 
+                        console.log("Searching for Year:", year, "Month:", month);
+                        
+                        const target = monthlyInvoices.find(
+                            m => m.year === year && m.month === month
+                        );
+                        
+                        if (target) {
+                            target.totalAmount += invoice.totalAmount;
+                        } else {
+                            console.warn("No match found for Year:", year, "Month:", month);
+                        }
+                    });
+                                        
+        
+                    return {
+                        componentid: item._id,
+                        jobnumber: item.jobnumber,
+                        jobcomponent: item.jobcomponent,
+                        jobmanager: item.jobmanager,
+                        client: item.clientname,
                         projectname: item.projectname,
                         budgettype: item.budgettype,
                         estimatedbudget: item.estimatedbudget,
