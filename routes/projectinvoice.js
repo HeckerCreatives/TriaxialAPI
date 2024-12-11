@@ -30,6 +30,7 @@ router
 
     //  #endregion
     // #region FINANCE
+    .get("/listcomponenttotalinvoicefn", protectfinance, listcomponenttotalinvoice)
     .get("/listcomponentprojectinvoicefn", protectfinance, listcomponentprojectinvoicesa)
     // #endregion
 module.exports = router;
