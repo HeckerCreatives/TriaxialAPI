@@ -19,6 +19,9 @@ const InvoiceSchema = new mongoose.Schema(
         comments: {
             type: String
         },
+        notes: {
+            type: String
+        },
         reasonfordenie: {
             type: String
         },

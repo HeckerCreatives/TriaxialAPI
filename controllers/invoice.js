@@ -204,28 +204,50 @@ exports.getinvoicelist = async (req, res) => {
 }
 
 exports.approvedenieinvoice = async (req, res) => {
-    const {id, email} = req.user
+    const { id, email } = req.user; 
+    const { invoices } = req.body; // `invoices` is an array of objects, each with `invoiceid`, `status`, and `comment`
 
-    const {invoiceid, status} = req.body
-
-    if (!invoiceid){
-        return res.status(400).json({message: "failed", data: "Please select a valid!"})
-    }
-    else if (!status){
-        return res.status(400).json({message: "failed", data: "Please enter a status!"})
-    }
-    else if (status != "Approved" && status != "Denied"){
-        return res.status(400).json({message: "failed", data: "Please select Approved or Denied only!"})
+    if (!Array.isArray(invoices) || invoices.length === 0) {
+        return res.status(400).json({ message: "failed", data: "Please provide valid invoice details!" });
     }
 
-    await Invoice.findOneAndUpdate({_id: new mongoose.Types.ObjectId(invoiceid)}, {status: status})
-    .catch(err => {
-        console.log(`There's a problem with updating the invoice for ${invoiceid} with status ${status}. Error: ${err}`)
+    const invalidInvoices = invoices.filter(
+        ({ invoiceid, status }) => 
+            !invoiceid || 
+            !status || 
+            (status !== "Approved" && status !== "Denied")
+    );
 
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
-    })
+    if (invalidInvoices.length > 0) {
+        return res.status(400).json({
+            message: "failed",
+            data: "Each invoice must include a valid ID and a status of 'Approved' or 'Denied'."
+        });
+    }
 
-    return res.json({message: "success"})
-}
+    try {
+        for (const { invoiceid, status, notes } of invoices) {
+            await Invoice.findOneAndUpdate(
+                { _id: new mongoose.Types.ObjectId(invoiceid) }, 
+                { 
+                    status: status,
+                    notes: notes || ""
+                }
+            ).catch(err => {
+                console.log(`Error updating invoice ${invoiceid} with status ${status}. Error: ${err}`);
+                throw new Error(`Failed to update invoice ${invoiceid}`);
+            });
+        }
+
+        return res.json({ message: "success", data: "Invoices updated successfully." });
+    } catch (err) {
+        console.log(`There was an issue processing invoice updates: ${err}`);
+        return res.status(500).json({ 
+            message: "failed", 
+            data: "There was an issue updating invoices. Please try again later." 
+        });
+    }
+};
+
 
 //  #endregion
