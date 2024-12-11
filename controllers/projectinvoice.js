@@ -728,4 +728,134 @@ exports.listcomponentprojectinvoicesa = async (req, res) => {
     }
 };
 
+exports.listcomponenttotalinvoice = async (req, res) => {
+    const { id } = req.user;
+    const { teamid } = req.query;
+
+    try {
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+        const result = await Jobcomponents.aggregate([
+            {
+                $lookup: {
+                    from: 'projects',
+                    localField: 'project',
+                    foreignField: '_id',
+                    as: 'projectDetails'
+                }
+            },
+            {
+                $match: {
+                    'projectDetails.team': new mongoose.Types.ObjectId(teamid),
+                }
+            },
+            { $unwind: '$projectDetails' },
+            {
+                $lookup: {
+                    from: 'invoices',
+                    let: { jobComponentId: "$_id" },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
+                                        { $eq: ["$status", "Approved"] }, // Filter invoices with status "approved"
+                                        { $gte: ["$updatedAt", sixMonthsAgo] }
+                                    ]
+                                } 
+                            } 
+                        },
+                        {
+                            $group: {
+                                _id: {
+                                    year: { $year: "$updatedAt" },
+                                    month: { $month: "$updatedAt" }
+                                },
+                                totalAmount: { $sum: "$invoiceamount" }
+                            }
+                        }
+                    ],
+                    as: 'invoicesByMonth'
+                }
+            },            
+            {
+                $project: {
+                    _id: 1,
+                    budgettype: "$budgettype",
+                    jobnumber: '$projectDetails.jobno',
+                    jobcomponent: '$jobcomponent',
+                    projectname: '$projectDetails.projectname',
+                    estimatedbudget: '$estimatedbudget',
+                    invoicesByMonth: 1
+                }
+            },
+            { $sort: { createdAt: 1 } }
+        ]);
+
+        console.log(result)
+
+        if (result.length > 0) {
+            const now = new Date();
+
+            const generateMonthlyLabels = () => {
+                const labels = [];
+                for (let i = 0; i <= 6; i++) {
+                    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    labels.push({
+                        month: date.getMonth() + 1, 
+                        year: date.getFullYear(),
+                        totalAmount: 0 
+                    });
+                }
+                return labels;
+            };
+            
+        
+            const responseData = {
+                message: "success",
+                data: result.map(item => {
+                    const monthlyInvoices = generateMonthlyLabels();
+                    item.invoicesByMonth.forEach(invoice => {
+                        const { year, month } = invoice._id; 
+                        console.log("Searching for Year:", year, "Month:", month);
+                        
+                        const target = monthlyInvoices.find(
+                            m => m.year === year && m.month === month
+                        );
+                        
+                        if (target) {
+                            target.totalAmount += invoice.totalAmount;
+                        } else {
+                            console.warn("No match found for Year:", year, "Month:", month);
+                        }
+                    });
+                                        
+        
+                    return {
+                        componentid: item._id,
+                        jobnumber: item.jobnumber,
+                        jobcomponent: item.jobcomponent,
+                        projectname: item.projectname,
+                        budgettype: item.budgettype,
+                        estimatedbudget: item.estimatedbudget,
+                        monthlyInvoices
+                    };
+                })
+            };
+        
+            return res.json(responseData);
+        } else {
+            return res.json({ message: "success", data: [] });
+        }
+        
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Error processing request", error: err.message });
+    }
+};
+
+
+
 //  #endregion
