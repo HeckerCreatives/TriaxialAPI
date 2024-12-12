@@ -1,6 +1,6 @@
 const router = require("express").Router()
 const { employeeliststats, createemployee, employeelist, changepositionemployee, managerlist, employeesearchlist, banemployees, viewemployeedata, editemployees, changepassword, viewteamemployees } = require("../controllers/users")
-const { protectsuperadmin, protectusers, protectemployee, protectmanager } = require("../middleware/middleware")
+const { protectsuperadmin, protectusers, protectemployee, protectmanager, protectalluser } = require("../middleware/middleware")
 
 router
 
@@ -27,15 +27,19 @@ router
 
     //  #region MANAGER
 
-    .get("/employeesearchlistmanager", protectmanager, employeesearchlist)
-    .get("/managerlistmanager", protectmanager, managerlist)
-
+    
     //  #endregion
-
+    
     //  #region EMPLOYEE
-
+    
     .get("/searchlistemployee", protectemployee, employeesearchlist)
-
+    
     //  #endregion
-
-module.exports = router;
+    
+    // #region ALL USER
+    .get("/managerlistmanager", protectalluser, managerlist)
+    .get("/employeesearchlistmanager", protectalluser, employeesearchlist)
+    
+    // #endregion
+    module.exports = router;
+    

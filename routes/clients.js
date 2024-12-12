@@ -1,6 +1,6 @@
 const router = require("express").Router()
 const { createclients, clientlist, getclientdata, deleteclients, editclient, clientlistall } = require("../controllers/clients")
-const { protectsuperadmin, protectmanager, protectfinance } = require("../middleware/middleware")
+const { protectsuperadmin, protectmanager, protectfinance, protectalluser } = require("../middleware/middleware")
 
 router
 
@@ -16,11 +16,16 @@ router
 
     //  #region MANAGER
 
-    .get("/clientlistallmanager", protectmanager, clientlistall)
-
+    
     //  #endregion
 
-    .get("/clientlistfn", protectfinance, clientlist)
+    // #region FINANCE
 
+    .get("/clientlistfn", protectfinance, clientlist)
+    // #endregion
+
+    // #region ALL USER
+    .get("/clientlistallmanager", protectalluser, clientlistall)
+    // #endregion
 
 module.exports = router;

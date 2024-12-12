@@ -12,26 +12,22 @@ router
 
     //  #region MANAGER
 
-    .get("/getmanagerjobcomponentdashboard", protectmanager, getmanagerjobcomponentdashboard)
-    .get("/getindividualrequests", protectmanager, getmanagerjobcomponentdashboard)
-    .get("/listjobcomponent", protectmanager, listjobcomponent)
-    .get("/viewduedatesgraph", protectmanager, viewduedatesgraph)
-    .post("/createjobcomponent", protectmanager, createjobcomponent)
-    .get("/completejobcomponent", protectmanager, completejobcomponent)
-    .post("/editstatushours", protectmanager, editstatushours)
-    .post("/editjobcomponentdetails", protectmanager, editjobcomponentdetails)
-    .post("/editjobmanagercomponents", protectmanager, editjobmanagercomponents)
-    .post("/editalljobcomponentdetails", protectmanager, editalljobcomponentdetails)
-    .get("/getjobcomponentdashboardmanager", protectmanager, getjobcomponentdashboard)
-    .get("/individualworkloadmanager", protectmanager, individualworkload)
+    .get("/getmanagerjobcomponentdashboard", protectalluser, getmanagerjobcomponentdashboard)
+    .get("/getindividualrequests", protectalluser, getmanagerjobcomponentdashboard)
+    .get("/viewduedatesgraph", protectalluser, viewduedatesgraph)
+    .post("/createjobcomponent", protectalluser, createjobcomponent)
+    .get("/completejobcomponent", protectalluser, completejobcomponent)
+    .post("/editalljobcomponentdetails", protectalluser, editalljobcomponentdetails)
+    .get("/getjobcomponentdashboardmanager", protectalluser, getjobcomponentdashboard)
+    .get("/individualworkloadmanager", protectalluser, individualworkload)
     
     //  #endregion
     
     //  #region EMPLOYEE
     
-    .get("/listjobcomponentemployee", protectemployee, listjobcomponent)
-    .post("/editstatushoursemployee", protectemployee, editstatushours)
-    .post("/editjobmanagercomponentsjbmngr", protectemployee, editjobmanagercomponents)
+    .get("/listjobcomponentemployee", protectalluser, listjobcomponent)
+    .post("/editstatushoursemployee", protectalluser, editstatushours)
+    .post("/editjobmanagercomponentsjbmngr", protectalluser, editjobmanagercomponents)
     
     //  #endregion
     
@@ -43,10 +39,14 @@ router
     .get("/getsuperadminjobcomponentdashboard", protectsuperadmin, getsuperadminjobcomponentdashboard)
     
     //  #endregion
-
+    
     //  #region ALL USERS
     .get("/getjobcomponentindividualrequest", protectalluser, getjobcomponentindividualrequest)
     .get("/listteamjobcomponent", protectalluser, listteamjobcomponent)
+    .get("/listjobcomponent", protectalluser, listjobcomponent)
+    .post("/editstatushours", protectalluser, editstatushours)
+    .post("/editjobcomponentdetails", protectalluser, editjobcomponentdetails)
+    .post("/editjobmanagercomponents", protectalluser, editjobmanagercomponents)
     
     // #endregion
     module.exports = router;
