@@ -850,7 +850,6 @@ exports.listcomponenttotalinvoice = async (req, res) => {
                     const monthlyInvoices = generateMonthlyLabels();
                     item.invoicesByMonth.forEach(invoice => {
                         const { year, month } = invoice._id; 
-                        console.log("Searching for Year:", year, "Month:", month);
                         
                         const target = monthlyInvoices.find(
                             m => m.year === year && m.month === month

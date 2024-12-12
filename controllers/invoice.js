@@ -1,6 +1,7 @@
 const { default: mongoose } = require("mongoose")
 const Invoice = require("../models/invoice")
 const Jobcomponent = require("../models/Jobcomponents")
+const Jobcomponents = require("../models/Jobcomponents")
 
 //  #region EMPLOYEE & MANAGER
 
@@ -251,3 +252,237 @@ exports.approvedenieinvoice = async (req, res) => {
 
 
 //  #endregion
+
+
+
+exports.listteamtotalinvoice = async (req, res) => {
+    const { id } = req.user;
+
+    try {
+
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+
+        const startOfNextMonth = new Date(startOfMonth);
+        startOfNextMonth.setMonth(startOfNextMonth.getMonth() + 1);
+
+        const result = await Jobcomponents.aggregate([
+            {
+                $lookup: {
+                    from: 'projects',
+                    localField: 'project',
+                    foreignField: '_id',
+                    as: 'projectDetails'
+                }
+            },
+            { $unwind: '$projectDetails' },
+            {
+                $lookup: {
+                    from: 'teams',
+                    localField: 'projectDetails.team',
+                    foreignField: '_id',
+                    as: 'teamDetails'
+                }
+            },
+            { $unwind: { path: '$teamDetails' } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'jobmanager',
+                    foreignField: '_id',
+                    as: 'jobManagerDetails'
+                }
+            },
+            { $unwind: '$jobManagerDetails' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'jobManagerDetails._id',
+                    foreignField: 'owner',
+                    as: 'jobManagerDeets'
+                }
+            },
+            { $unwind: '$jobManagerDeets' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'teamDetails.teamleader',
+                    foreignField: 'owner',
+                    as: 'teamLeaderDeets'
+                }
+            },
+            { $unwind: { path: '$teamLeaderDeets', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'teamDetails.manager',
+                    foreignField: 'owner',
+                    as: 'managerDeets'
+                }
+            },
+            { $unwind: { path: '$managerDeets', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'clients',
+                    localField: 'projectDetails.client',
+                    foreignField: '_id',
+                    as: 'clientDetails'
+                }
+            },
+            { $unwind: '$clientDetails' },
+            {
+                $lookup: {
+                    from: 'invoices',
+                    let: { jobComponentId: "$_id" },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
+                                        { $eq: ["$status", "Approved"] }
+                                    ]
+                                } 
+                            } 
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalAmount: { $sum: "$invoiceamount" }
+                            }
+                        }
+                    ],
+                    as: 'invoiceSummary'
+                }
+            },
+            {
+                $unwind: { path: '$invoiceSummary', preserveNullAndEmptyArrays: true }
+            },
+            {
+                $lookup: {
+                    from: 'projectedinvoices',
+                    localField: '_id',
+                    foreignField: 'jobcomponent',
+                    as: 'projectedValues'
+                }
+            },
+            {
+                $unwind: { path: "$projectedValues", preserveNullAndEmptyArrays: true }
+            },
+            {
+                $addFields: {
+                    currentMonthProjected: {
+                        $sum: {
+                            $map: {
+                                input: {
+                                    $filter: {
+                                        input: "$projectedValues.values",
+                                        as: "value",
+                                        cond: {
+                                            $and: [
+                                                { $gte: ["$$value.date", startOfMonth] },
+                                                { $lt: ["$$value.date", startOfNextMonth] }
+                                            ]
+                                        }
+                                    }
+                                },
+                                as: "filteredValue",
+                                in: "$$filteredValue.amount"
+                            }
+                        }
+                    }
+                }
+            },
+            
+            {
+                $addFields: {
+                    totalProjected: {
+                        $sum: {
+                            $map: {
+                                input: "$projectedValues.values",
+                                as: "value",
+                                in: "$$value.amount"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: "$teamDetails._id", // Group by team
+                    teamName: { $first: "$teamDetails.teamname" },
+                    clientName: { $first: "$clientDetails.clientname" },
+                    teamLeader: {
+                        $first: {
+                            id: "$teamDetails.teamleader",
+                            name: {
+                                $concat: ["$teamLeaderDeets.firstname", " ", "$teamLeaderDeets.lastname"]
+                            }
+                        }
+                    },
+                    manager: {
+                        $first: {
+                            id: "$teamDetails.manager",
+                            name: {
+                                $concat: ["$managerDeets.firstname", " ", "$managerDeets.lastname"]
+                            }
+                        }
+                    },
+                    totalInvoiced: { $sum: "$invoiceSummary.totalAmount" },
+                    totalEstimatedBudget: { $sum: "$estimatedbudget" },
+                    totalProjected: { $sum: "$totalProjected" }, // All projected values
+                    currentMonthProjected: { $sum: "$currentMonthProjected" }, // Only current month
+                    projects: { $addToSet: "$projectDetails._id" },
+                    components: { 
+                        $push: {
+                            componentId: "$_id",
+                            jobComponent: "$jobcomponent",
+                            estimatedBudget: "$estimatedbudget",
+                            invoicesByMonth: "$invoicesByMonth"
+                        }
+                    }
+                }
+            },    
+            {
+                $addFields: {
+                    remaining: { $subtract: ["$totalEstimatedBudget", "$totalInvoiced"] },
+                    projectCount: { $size: "$projects" },
+                }
+            },
+            {
+                $addFields: {
+                    forecastinvoicing: { $subtract: ["$remaining", "$totalProjected"]},
+                    totalinvoicerequested: { $sum: ["$totalInvoiced", "$currentMonthProjected"]}, 
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    teamId: "$_id",
+                    teamName: 1,
+                    clientName: 1,
+                    teamLeader: 1,
+                    manager: 1,
+                    wip: "$totalInvoiced",
+                    forecastinvoicing: 1,
+                    projectCount: 1,
+                    totalinvoicerequested: 1 
+                }
+            },
+            { $sort: { teamName: 1 } }
+        ]);
+        
+        
+        return res.json({
+            message: "success",
+            data: result
+        });
+        
+        
+        
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Error processing request", error: err.message });
+    }
+};
