@@ -1,6 +1,6 @@
 const router = require("express").Router()
-const { createjobcomponent, listjobcomponent, editstatushours, yourworkload, editjobcomponentdetails, editjobmanagercomponents, editalljobcomponentdetails, getjobcomponentdashboard, individualworkload, getmanagerjobcomponentdashboard, getsuperadminjobcomponentdashboard, completejobcomponent, viewduedatesgraph } = require("../controllers/jobcomponent")
-const { protectsuperadmin, protectemployee, protectmanager, protectusers } = require("../middleware/middleware")
+const { createjobcomponent, listjobcomponent, editstatushours, yourworkload, editjobcomponentdetails, editjobmanagercomponents, editalljobcomponentdetails, getjobcomponentdashboard, individualworkload, getmanagerjobcomponentdashboard, getsuperadminjobcomponentdashboard, completejobcomponent, viewduedatesgraph, getjobcomponentindividualrequest } = require("../controllers/jobcomponent")
+const { protectsuperadmin, protectemployee, protectmanager, protectusers, protectalluser } = require("../middleware/middleware")
 
 router
 
@@ -24,24 +24,29 @@ router
     .post("/editalljobcomponentdetails", protectmanager, editalljobcomponentdetails)
     .get("/getjobcomponentdashboardmanager", protectmanager, getjobcomponentdashboard)
     .get("/individualworkloadmanager", protectmanager, individualworkload)
-
+    
     //  #endregion
-
+    
     //  #region EMPLOYEE
-
+    
     .get("/listjobcomponentemployee", protectemployee, listjobcomponent)
     .post("/editstatushoursemployee", protectemployee, editstatushours)
     .post("/editjobmanagercomponentsjbmngr", protectemployee, editjobmanagercomponents)
-
+    
     //  #endregion
-
+    
     //  #region SUPERADMIN
-
+    
     .get("/listjobcomponentsa", protectsuperadmin, listjobcomponent)
     .get("/getjobcomponentdashboard", protectsuperadmin, getjobcomponentdashboard)
     .get("/individualworkloadsuperadmin", protectsuperadmin, individualworkload)
     .get("/getsuperadminjobcomponentdashboard", protectsuperadmin, getsuperadminjobcomponentdashboard)
-
+    
     //  #endregion
 
-module.exports = router;
+    //  #region ALL USERS
+    .get("/getjobcomponentindividualrequest", protectalluser, getjobcomponentindividualrequest)
+    
+    // #endregion
+    module.exports = router;
+    
