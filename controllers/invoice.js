@@ -607,6 +607,7 @@ exports.listClientTotalInvoice = async (req, res) => {
             {
                 $project: {
                     _id: 0,
+                    clientid: "$_id",
                     clientName: 1,
                     priority: 1,
                     wip: "$totalInvoiced",
