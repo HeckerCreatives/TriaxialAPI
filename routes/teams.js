@@ -28,7 +28,7 @@ router
     .get("/managerlistownteam", protectmanager, listownteam)
     .get("/listprojectduedates", protectmanager, listprojectduedates)
     .get("/managersearchteam", protectmanager, searchteam)
-    .get("/listteammembersmanager", protectmanager, listteammembers)
+    .get("/listteammembersmanager", protectalluser, listteammembers)
 
     //  #endregion 
 
