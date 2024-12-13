@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { getinvoicedata, createinvoice, getinvoicelist, approvedenieinvoice, listteamtotalinvoice } = require("../controllers/invoice")
+const { getinvoicedata, createinvoice, getinvoicelist, approvedenieinvoice, listteamtotalinvoice, listClientTotalInvoice } = require("../controllers/invoice")
 const { protectsuperadmin, protectusers, protectemployee, protectmanager, protectfinance, protectalluser } = require("../middleware/middleware")
 
 router
@@ -31,5 +31,6 @@ router
     //  #endregion
 
     .get("/listteamtotalinvoice", protectalluser, listteamtotalinvoice)
+    .get("/listclienttotalinvoice", protectalluser, listClientTotalInvoice)
 
 module.exports = router;
