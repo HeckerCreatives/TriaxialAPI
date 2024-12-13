@@ -249,7 +249,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
 
 exports.saveprojectinvoicevalue = async (req, res) => {
     const { id } = req.user;
-    const { jobcomponentid, date, amount, } = req.body;
+    const { jobcomponentid, date, amount } = req.body;
 
     try {
         const finalDate = new Date(date);
@@ -258,7 +258,7 @@ exports.saveprojectinvoicevalue = async (req, res) => {
         // Format the finalDate as "MM-YYYY"
         const formattedDate = finalDate.toISOString().slice(0, 7); // "YYYY-MM" format
 
-        console.log(finalDate)
+        console.log(finalDate);
 
         // Find and update the document in the projectedinvoices collection
         const result = await Projectedinvoice.findOneAndUpdate(
@@ -279,7 +279,23 @@ exports.saveprojectinvoicevalue = async (req, res) => {
             );
         }
 
-       
+        // Send email notification after saving project invoice value
+        const sender = new mongoose.Types.ObjectId(id);
+        const emailContent = `
+            Dear User, \n\nThe invoice for Job Component ID ${jobcomponentid} has been successfully updated with the amount: ${amount}.
+            Date: ${formattedDate}\n\n
+            Thank you for your attention.
+        `;
+        
+        await sendmail(sender, [], "Project Invoice Value Updated", emailContent, true)
+            .catch(err => {
+                console.log(`Failed to send email notification for job component: ${jobcomponentid}. Error: ${err}`);
+                return res.status(400).json({
+                    message: "bad-request",
+                    data: "Email notification failed! Please contact customer support for more details."
+                });
+            });
+
         return res.json({ message: "success" });
     } catch (error) {
         console.error(`There's a problem saving the project invoice value for ${jobcomponentid}. Error: ${error}`);

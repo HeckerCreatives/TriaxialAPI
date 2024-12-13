@@ -3,12 +3,12 @@ const Jobcomponents = require("../models/Jobcomponents")
 const Projects = require("../models/Projects")
 const moment = require('moment');
 const Users = require("../models/Users");
+const { sendmail } = require("../utils/email");
 
 //  #region MANAGER
 
 exports.createjobcomponent = async (req, res) => {
     const { id, email } = req.user;
-
     const { projectid, jobcomponentvalue } = req.body;
 
     // Validate request data
@@ -20,85 +20,135 @@ exports.createjobcomponent = async (req, res) => {
         return res.status(400).json({ message: "failed", data: "The form you are saving is not valid!" });
     }
 
-    // Find project data
-    const projectdata = await Projects.findOne({ _id: new mongoose.Types.ObjectId(projectid) })
-        .catch(err => {
-            console.log(`There's a problem getting project details for project: ${projectid}. Error: ${err}`);
-            return res.status(400).json({ message: "bad-request", data: "There's a problem with the server. Please contact customer support" });
-        });
-
-    if (!projectdata) {
-        return res.status(403).json({ message: "failed", data: "No existing project data. Please select a valid project" });
-    }
-
-    const componentBulkWrite = [];
-
-    // Loop through jobcomponentvalue array
-    for (let i = 0; i < jobcomponentvalue.length; i++) {
-        const { jobmanager, budgettype, estimatedbudget, jobcomponent, members } = jobcomponentvalue[i];
-
-        if (!Array.isArray(members)) {
-            return res.status(400).json({ message: "failed", data: "Invalid selected members" });
+    try {
+        // Find project data
+        const projectdata = await Projects.findOne({ _id: new mongoose.Types.ObjectId(projectid) });
+        if (!projectdata) {
+            return res.status(403).json({ message: "failed", data: "No existing project data. Please select a valid project" });
         }
 
-        const membersArray = members.map(tempdata => {
-            const { employeeid, role } = tempdata;
-            return {
-                employee: employeeid ? new mongoose.Types.ObjectId(employeeid) : null,
-                role: role,
-                notes: "",
-                dates: []
-            };
-        });
+        const componentBulkWrite = [];
+        const emailDetails = [];
 
-        componentBulkWrite.push({
-            project: new mongoose.Types.ObjectId(projectdata._id),
-            jobmanager: new mongoose.Types.ObjectId(jobmanager),
-            budgettype: budgettype,
-            estimatedbudget: estimatedbudget,
-            jobcomponent: jobcomponent,
-            members: membersArray
-        });
+        // Loop through jobcomponentvalue array
+        for (let i = 0; i < jobcomponentvalue.length; i++) {
+            const { jobmanager, budgettype, estimatedbudget, jobcomponent, members } = jobcomponentvalue[i];
+
+            if (!Array.isArray(members)) {
+                return res.status(400).json({ message: "failed", data: "Invalid selected members" });
+            }
+
+            const membersArray = members.map(tempdata => {
+                const { employeeid, role } = tempdata;
+                return {
+                    employee: employeeid ? new mongoose.Types.ObjectId(employeeid) : null,
+                    role: role,
+                    notes: "",
+                    dates: []
+                };
+            });
+
+            componentBulkWrite.push({
+                project: new mongoose.Types.ObjectId(projectdata._id),
+                jobmanager: new mongoose.Types.ObjectId(jobmanager),
+                budgettype: budgettype,
+                estimatedbudget: estimatedbudget,
+                jobcomponent: jobcomponent,
+                members: membersArray
+            });
+
+            emailDetails.push({
+                jobcomponent,
+                jobmanager,
+                budgettype,
+                estimatedbudget,
+                members: members.map(m => `Employee: ${m.employeeid}, Role: ${m.role}`).join(", ")
+            });
+        }
+
+        // Save job components
+        await Jobcomponents.insertMany(componentBulkWrite);
+
+        const emailContent = `Hello Team,\n\nThe following job components have been created for Project "${projectdata.name}":\n\n${emailDetails.map(detail => (
+            `Job Component: ${detail.jobcomponent}\nJob Manager: ${detail.jobmanager}\nBudget Type: ${detail.budgettype}\nEstimated Budget: ${detail.estimatedbudget}\nMembers: ${detail.members}\n\n`
+        )).join("")}If you have any questions or concerns, please reach out.\n\nThank you!\n\nBest Regards,\n${email}`;
+
+        // Send email notification
+        const sender = new mongoose.Types.ObjectId(id);
+        await sendmail(sender, [], "New Job Components Created", emailContent, true)
+            .catch(err => {
+                console.log(`Failed to send email notification for new job components. Error: ${err}`);
+            });
+
+        return res.json({ message: "success" });
+    } catch (err) {
+        console.log(`There's a problem saving job components for project: ${projectid}. Error: ${err}`);
+        return res.status(500).json({ message: "server-error", data: "There's a problem with the server. Please contact customer support." });
     }
-
-    await Jobcomponents.insertMany(componentBulkWrite)
-    .catch(err => {
-        console.log(`There's a problem getting saving job components: ${projectid}. Error: ${err}`)
-
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
-    })
-
-    return res.json({message: "success"})
-}
+};
 
 exports.editjobcomponentdetails = async (req, res) => {
-    const {id, email} = req.user
+    const { id, email } = req.user;
+    const { jobcomponentid, projectid, jobmanagerid } = req.body;
 
-    const {jobcomponentid, projectid, jobmanagerid} = req.body
-
-    if (!jobcomponentid){
-        return res.status(400).json({message: "failed", data: "Select a valid job component"})
-    }
-    else if(!projectid){
-        return res.status(400).json({message: "failed", data: "Select a valid project"})
-    }
-    else if (!jobmanagerid){
-        return res.status(400).json({message: "failed", data: "Select a valid job manager"})
+    if (!jobcomponentid) {
+        return res.status(400).json({ message: "failed", data: "Select a valid job component" });
+    } else if (!projectid) {
+        return res.status(400).json({ message: "failed", data: "Select a valid project" });
+    } else if (!jobmanagerid) {
+        return res.status(400).json({ message: "failed", data: "Select a valid job manager" });
     }
 
-    await Jobcomponents.findOneAndUpdate({_id: new mongoose.Types.ObjectId(jobcomponentid)}, {project: new mongoose.Types.ObjectId(projectid), jobmanager: new mongoose.Types.ObjectId(jobmanagerid)})
-    .catch(err => {
-        console.log(`There's a problem with editing the job component details ${jobcomponentid}. Error: ${err}`)
+    try {
+        // Fetch job component details
+        const jobcomponent = await Jobcomponents.findById(new mongoose.Types.ObjectId(jobcomponentid));
+        if (!jobcomponent) {
+            return res.status(404).json({ message: "Job component not found" });
+        }
 
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact cusotmer support"})
-    })
+        const jobName = jobcomponent.jobcomponent; // Assuming the field is named `jobcomponent`
 
-    return res.json({message: "success"})
-}
+        // Update job component details
+        await Jobcomponents.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(jobcomponentid) },
+            {
+                project: new mongoose.Types.ObjectId(projectid),
+                jobmanager: new mongoose.Types.ObjectId(jobmanagerid),
+            }
+        );
 
+        // Send email notification
+        const sender = new mongoose.Types.ObjectId(id);
+
+        await sendmail(
+            sender,
+            [],
+            "Job Component Details Updated",
+            `Hello Team,\n\nThe job component "${jobName}" has been updated with new details.\n\nProject ID: ${projectid}\nJob Manager ID: ${jobmanagerid}\n\nIf you have any questions or concerns, please reach out.\n\nThank you!\n\nBest Regards,\n${email}`,
+            true
+        ).catch((err) => {
+            console.log(`Failed to send email notification for updated job component: ${jobcomponentid}. Error: ${err}`);
+            return res.status(400).json({
+                message: "bad-request",
+                data: "Email notification failed! Please contact customer support for more details.",
+            });
+        });
+
+        return res.json({ message: "success" });
+    } catch (err) {
+        console.log(`There's a problem with editing the job component details ${jobcomponentid}. Error: ${err}`);
+        return res.status(500).json({
+            message: "server-error",
+            data: "There's a problem with the server. Please contact customer support.",
+        });
+    }
+};
 exports.editalljobcomponentdetails = async (req, res) => {
+    const { id, email } = req.user;
+
     const { jobcomponentid, projectid, jobmanagerid, members } = req.body;
 
+    // Validate input
     if (!jobcomponentid) {
         return res.status(400).json({ message: "failed", data: "Select a valid job component" });
     }
@@ -113,34 +163,34 @@ exports.editalljobcomponentdetails = async (req, res) => {
     }
 
     try {
-        // Update project and job manager details
-        await Jobcomponents.findOneAndUpdate(
-            { _id: new mongoose.Types.ObjectId(jobcomponentid) },
-            { project: new mongoose.Types.ObjectId(projectid), jobmanager: new mongoose.Types.ObjectId(jobmanagerid) }
-        );
-
-        const jobcomponent = await Jobcomponents.findById(new mongoose.Types.ObjectId(jobcomponentid));
-
+        const jobcomponent = await Jobcomponents.findById(jobcomponentid);
         if (!jobcomponent) {
             return res.status(404).json({ message: "Jobcomponent not found" });
         }
 
-        // Validate members
-        const employeeRoleMap = new Map();
+        const job = jobcomponent.jobcomponent
 
+        await Jobcomponents.findByIdAndUpdate(jobcomponentid, {
+            project: projectid,
+            jobmanager: jobmanagerid,
+        });
+
+        const employeeRoleMap = new Map();
         for (const memberData of members) {
             const { employee, role, notes } = memberData;
 
-            // Check for duplicate roles for the same employee
+            if (!employee || !role) {
+                return res.status(400).json({ message: "failed", data: "Each member must have an employee and a role." });
+            }
+
             if (employeeRoleMap.has(employee)) {
                 return res.status(400).json({
                     message: "failed",
-                    data: `Employee cannot have more than one role.`,
+                    data: `Employee ${employee} cannot have more than one role.`,
                 });
             }
             employeeRoleMap.set(employee, role);
 
-            // Check if the role is already assigned to another member
             if ([...employeeRoleMap.values()].filter((r) => r === role).length > 1) {
                 return res.status(400).json({
                     message: "failed",
@@ -148,20 +198,16 @@ exports.editalljobcomponentdetails = async (req, res) => {
                 });
             }
 
-            // Find or update the member in the job component
             const memberIndex = jobcomponent.members.findIndex(
                 (m) => m.employee?.toString() === employee.toString()
             );
 
             if (memberIndex !== -1) {
-                // Update existing member
-                jobcomponent.members[memberIndex].role = role || jobcomponent.members[memberIndex].role;
+                jobcomponent.members[memberIndex].role = role;
                 jobcomponent.members[memberIndex].notes = notes || jobcomponent.members[memberIndex].notes;
             } else {
-                // Replace or add a new member
                 if (jobcomponent.members.length >= 4) {
-                    // Replace the first member (FIFO)
-                    jobcomponent.members.shift();
+                    jobcomponent.members.shift(); // Maintain a maximum of 4 members
                 }
                 jobcomponent.members.push({
                     employee,
@@ -172,8 +218,35 @@ exports.editalljobcomponentdetails = async (req, res) => {
             }
         }
 
-        // Save the updated jobcomponent
         await jobcomponent.save();
+
+        
+        const sender = new mongoose.Types.ObjectId(id); 
+        const emailContent = `
+            Hello Team,
+            
+            The job component for Job "${job.jobcomponent}" has been updated with the following details:
+            
+            Project ID: ${projectid}
+            Job Manager ID: ${jobmanagerid}
+            Updated Members:
+            ${members.map(member => `Employee: ${member.employee}, Role: ${member.role}`).join("\n")}
+            
+            If you have any questions or concerns, please reach out.
+            
+            Thank you!
+            
+            Best Regards,
+            ${email}`;
+
+        await sendmail(sender, [], "Job Component Details Updated", emailContent, true)
+            .catch(err => {
+                console.error(`Failed to send email notification for updated job component: ${jobcomponentid}. Error: ${err}`);
+                return res.status(400).json({
+                    message: "bad-request",
+                    data: "Email notification failed! Please contact customer support for more details.",
+                });
+            });
 
         return res.json({ message: "success" });
     } catch (err) {
@@ -183,21 +256,43 @@ exports.editalljobcomponentdetails = async (req, res) => {
 };
 
 exports.completejobcomponent = async (req, res) => {
-    const { id } = req.query
+    const { id, email } = req.user;
+    const { id: jobcomponentId } = req.query;
 
-    if(!id){
-        return res.status(400).json({ message: "failed", data: "Please Select Job Component to Update."})
+    if (!jobcomponentId) {
+        return res.status(400).json({ message: "failed", data: "Please Select Job Component to Update." });
     }
 
-    await Jobcomponents.findOneAndUpdate({ _id: new mongoose.Types.ObjectId(id)}, { $set: { status: "completed"}})
-    .then(data => data)
-    .catch(err => {
-        console.log(`There's a problem encountered while updating job component status. Error: ${err}`)
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
-    })  
+    try {
+        const jobcomponent = await Jobcomponents.findById(new mongoose.Types.ObjectId(jobcomponentId));
+        if (!jobcomponent) {
+            return res.status(404).json({ message: "failed", data: "Job Component not found." });
+        }
 
-    return res.status(200).json({ message: "success" })
-}
+        await Jobcomponents.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(jobcomponentId) },
+            { $set: { status: "completed" } }
+        );
+
+        const emailContent = `Hello Team,\n\nThe job component "${jobcomponent.jobcomponent}" has been marked as completed.\n\nIf you have any questions or concerns, please reach out.\n\nThank you!\n\nBest Regards,\n${email}`;
+
+        const sender = new mongoose.Types.ObjectId(id);
+        await sendmail(sender, [], "Job Component Completed", emailContent, true)
+            .catch(err => {
+                console.log(`Failed to send email notification for job component: ${jobcomponentId}. Error: ${err}`);
+                return res.status(400).json({
+                    message: "bad-request",
+                    data: "Email notification failed! Please contact customer support for more details."
+                });
+            });
+
+        return res.status(200).json({ message: "success" });
+    } catch (err) {
+        console.error(`Error updating job component status: ${err}`);
+        return res.status(500).json({ message: "server-error", data: "An error occurred. Please contact support." });
+    }
+};
+
 
 
 
