@@ -244,38 +244,61 @@ exports.getevents = async (req, res) => {
 }
 
 exports.editevents = async (req, res) => {
-    const {id, email} = req.user
+    const { id, email } = req.user;
+    const { eventid, eventtitle, startdate, enddate, teams } = req.body;
 
-    const {eventid, eventtitle, startdate, enddate, teams} = req.body
-
-    if (!eventid){
-        return res.status(400).json({message: "failed", data: "Select a valid event id!"})
-    }
-    else if (!eventtitle){
-        return res.status(400).json({message: "failed", data: "Enter a event title!"})
-    }
-    else if (!startdate){
-        return res.status(400).json({message: "failed", data: "Select a start date!"})
-    }
-    else if (!enddate){
-        return res.status(400).json({message: "failed", data: "Select a end date!"})
-    }
-    else if (!teams){
-        return res.status(400).json({message: "failed", data: "Select one or more teams!"})
-    }
-    else if (!Array.isArray(teams)){
-        return res.status(400).json({message: "failed", data: "Selected teams are invalid!"})
+    if (!eventid) {
+        return res.status(400).json({ message: "failed", data: "Select a valid event id!" });
+    } else if (!eventtitle) {
+        return res.status(400).json({ message: "failed", data: "Enter an event title!" });
+    } else if (!startdate) {
+        return res.status(400).json({ message: "failed", data: "Select a start date!" });
+    } else if (!enddate) {
+        return res.status(400).json({ message: "failed", data: "Select an end date!" });
+    } else if (!teams) {
+        return res.status(400).json({ message: "failed", data: "Select one or more teams!" });
+    } else if (!Array.isArray(teams)) {
+        return res.status(400).json({ message: "failed", data: "Selected teams are invalid!" });
     }
 
-    await Events.findOneAndUpdate({_id: new mongoose.Types.ObjectId(eventid)}, {eventtitle: eventtitle, startdate: startdate, enddate: enddate, teams: teams})
+    const updatedEvent = await Events.findOneAndUpdate(
+        { _id: new mongoose.Types.ObjectId(eventid) },
+        { eventtitle: eventtitle, startdate: startdate, enddate: enddate, teams: teams },
+        { new: true }
+    )
+    .then(data => data)
     .catch(err => {
-        console.log(`There's a problem saving your events! Error: ${err}`)
+        console.log(`There's a problem updating event ${eventid} (${eventtitle}). Error: ${err}`);
+        return res.status(400).json({
+            message: "bad-request",
+            data: "There's a problem with the server! Please try again later"
+        });
+    });
 
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please try again later"})
-    })
+    if (!updatedEvent) {
+        return res.status(400).json({ message: "failed", data: "Event not found or failed to update" });
+    }
 
-    return res.json({message: "success"})
-}
+    const sender = new mongoose.Types.ObjectId(id);
+
+    await sendmail(
+        sender,
+        [],
+        "Event Update Notification",
+        `Hello Everyone,\n\nThe event has been successfully updated.\n\nEvent Title: ${updatedEvent.eventtitle}\nStart Date: ${updatedEvent.startdate}\nEnd Date: ${updatedEvent.enddate}\nTeams Involved: ${updatedEvent.teams.join(", ")}\n\nIf you have any questions or concerns regarding this update, please feel free to reach out.\n\nThank you!\n\nBest Regards,\n${email}`,
+        true
+    )
+    .catch(err => {
+        console.log(`Failed to send email notification for event ${eventid}. Error: ${err}`);
+        return res.status(400).json({
+            message: "bad-request",
+            data: "Email notification failed! Please contact customer support for more details"
+        });
+    });
+
+    return res.json({ message: "success" });
+};
+
 
 exports.geteventdata = async (req, res) => {
     const {id, email} = req.user
@@ -314,22 +337,46 @@ exports.geteventdata = async (req, res) => {
 }
 
 exports.deleteevent = async (req, res) => {
-    const {id, email} = req.user
+    const { id, email } = req.user;
+    const { eventid } = req.body;
 
-    const {eventid} = req.body
-
-    if (!eventid){
-        return res.status(400).json({message: "failed", data: "Select a valid event id!"})
+    if (!eventid) {
+        return res.status(400).json({ message: "failed", data: "Select a valid event id!" });
     }
 
-    await Events.findOneAndDelete({_id: new mongoose.Types.ObjectId(eventid)})
+    const deletedEvent = await Events.findOneAndDelete({ _id: new mongoose.Types.ObjectId(eventid) })
+        .then(data => data)
+        .catch(err => {
+            console.log(`There's a problem with deleting event data for eventid: ${eventid}. Error: ${err}`);
+            return res.status(400).json({
+                message: "bad-request",
+                data: "There's a problem with the server! Please contact customer support"
+            });
+        });
+
+    if (!deletedEvent) {
+        return res.status(404).json({ message: "failed", data: "Event not found or already deleted!" });
+    }
+
+    const sender = new mongoose.Types.ObjectId(id);
+
+    await sendmail(
+        sender,
+        [],
+        "Event Deletion Notification",
+        `Hello Team,\n\nThe event titled "${deletedEvent.eventtitle}" has been successfully deleted from our system.\n\nStart Date: ${deletedEvent.startdate}\nEnd Date: ${deletedEvent.enddate}\n\nIf you have any questions or concerns, please reach out.\n\nThank you!\n\nBest Regards,\n${email}`,
+        true
+    )
     .catch(err => {
-        console.log(`There's a problem with deleting event data for eventid: ${eventid}. Error: ${err}`)
+        console.log(`Failed to send email notification for deleted event with eventid: ${eventid}. Error: ${err}`);
+        return res.status(400).json({
+            message: "bad-request",
+            data: "Email notification failed! Please contact customer support for more details."
+        });
+    });
 
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support"})
-    })
+    return res.json({ message: "success", data: `Event "${deletedEvent.eventtitle}" has been deleted successfully.` });
+};
 
-    return res.json({message: "success"})
-}
 
 //  #endregion

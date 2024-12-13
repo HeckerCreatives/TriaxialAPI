@@ -62,6 +62,11 @@ exports.listemail = async (req, res) => {
         },
         {
             $limit: pageOptions.limit,
+        },
+        {
+            $sort: {
+                createdAt: -1
+            }
         }
     ])
 
