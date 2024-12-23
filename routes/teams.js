@@ -44,6 +44,7 @@ router
      // #endregion
 
      .get("/listallteams", protectalluser, listallteams)
+     .get("/listteamau", protectalluser, listteam)
 
 
 module.exports = router;

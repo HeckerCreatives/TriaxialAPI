@@ -301,6 +301,37 @@ exports.completejobcomponent = async (req, res) => {
 
 //  #region MANAGER & EMPLOYEE & SUPERADMIN
 
+exports.listJobComponentNamesByTeam = async (req, res) => {
+    const { teamid } = req.query;
+
+    try {
+        const result = await Jobcomponents.aggregate([
+            {
+                $lookup: {
+                    from: 'projects',
+                    localField: 'project',
+                    foreignField: '_id',
+                    as: 'projectDetails'
+                }
+            },
+            { $unwind: '$projectDetails' },
+            { $match: { 'projectDetails.team': new mongoose.Types.ObjectId(teamid) } },
+            {
+                $project: {
+                    _id: 1,
+                    jobcomponent: 1
+                }
+            }
+        ]);
+
+        return res.json({ message: "success", data: result });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Error processing request", error: err.message });
+    }
+};
+
+
 exports.listjobcomponent = async (req, res) => {
     const { id, email } = req.user;
     const { projectid } = req.query;

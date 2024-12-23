@@ -2,18 +2,18 @@ const { default: mongoose } = require("mongoose")
 const Jobcomponents = require("../models/Jobcomponents")
 const Projectedinvoice = require("../models/projectinvoice");
 const Subconts = require("../models/Subconts");
+const { sendmail } = require("../utils/email");
 
 //  #region MANAGER & EMPLOYEE
 
 exports.listcomponentprojectinvoice = async (req, res) => {
     const { id } = req.user;
-    const { projectid } = req.query;
+    const { teamid } = req.query;
 
     try {
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    project: new mongoose.Types.ObjectId(projectid),
                     jobmanager: new mongoose.Types.ObjectId(id)
                 }
             },
@@ -23,6 +23,11 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     localField: 'project',
                     foreignField: '_id',
                     as: 'projectDetails'
+                }
+            },
+            {
+                $match: {
+                    'projectDetails.team': new mongoose.Types.ObjectId(teamid),
                 }
             },
             { $unwind: '$projectDetails' },

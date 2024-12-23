@@ -48,118 +48,128 @@ exports.createteam = async (req, res) => {
 }
 
 exports.listteam = async (req, res) => {
-  const { id, email } = req.user;
-  const { teamnamefilter, page, limit } = req.query;
+    const { id, email } = req.user;
+    const { teamnamefilter, page, limit } = req.query;
 
-  // Set pagination options
-  const pageOptions = {
-      page: parseInt(page) || 0,
-      limit: parseInt(limit) || 10,
-  };
+    // Set pagination options
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10,
+    };
 
-  // Filter by team name if provided
-  const matchStage = {};
-  if (teamnamefilter) {
-      matchStage['teamname'] = { $regex: teamnamefilter, $options: 'i' };
-  }
+    // Filter by team name if provided
+    const matchStage = {};
+    if (teamnamefilter) {
+        matchStage['teamname'] = { $regex: teamnamefilter, $options: 'i' };
+    }
 
-  try {
-      // Perform aggregation to fetch team data with manager and team leader details
-      const teams = await Teams.aggregate([
-          {
-              $match: matchStage,
-          },
-          {
-            $lookup: {
-              from: 'users', // Collection name of the Users schema
-              localField: 'manager',
-              foreignField: '_id',
-              as: 'managerData',
+    try {
+        // Perform aggregation to fetch team data with manager, team leader details, and project count
+        const teams = await Teams.aggregate([
+            {
+                $match: matchStage,
             },
-          },
-          {
-            $unwind: '$managerData', // Unwind the managerData array to get a single object
-          },
-          {
-            $lookup: {
-              from: 'userdetails', // Collection name of the userDetails schema
-              localField: 'managerData._id',
-              foreignField: 'owner', // Assuming 'owner' in userDetails references the user
-              as: 'managerDetails',
+            {
+                $lookup: {
+                    from: 'users', // Collection name of the Users schema
+                    localField: 'manager',
+                    foreignField: '_id',
+                    as: 'managerData',
+                },
             },
-          },
-          {
-            $unwind: '$managerDetails', // Unwind the managerDetails array to get a single object
-          },
-          {
-            $lookup: {
-              from: 'users', // Collection name of the Users schema
-              localField: 'teamleader',
-              foreignField: '_id',
-              as: 'teamleaderData',
+            {
+                $unwind: '$managerData', // Unwind the managerData array to get a single object
             },
-          },
-          {
-            $unwind: '$teamleaderData', // Unwind the managerData array to get a single object
-          },
-          {
-            $lookup: {
-              from: 'userdetails', // Collection name of the userDetails schema
-              localField: 'teamleaderData._id',
-              foreignField: 'owner', // Assuming 'owner' in userDetails references the user
-              as: 'teamleaderDetails',
+            {
+                $lookup: {
+                    from: 'userdetails', // Collection name of the userDetails schema
+                    localField: 'managerData._id',
+                    foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+                    as: 'managerDetails',
+                },
             },
-          },
-          {
-            $unwind: '$teamleaderDetails', // Unwind the managerDetails array to get a single object
-          },
-          {
-              $project: {
-                  _id: 1, // Include the team ID
-                  teamname: 1, // Include the team name
-                  manager: {
-                      $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'],
-                  },
-                  teamleader: {
-                      $concat: ['$teamleaderDetails.firstname', ' ', '$teamleaderDetails.lastname'],
-                  },
-              },
-          },
-          {
-              $skip: pageOptions.page * pageOptions.limit,
-          },
-          {
-              $limit: pageOptions.limit,
-          },
-      ]);
+            {
+                $unwind: '$managerDetails', // Unwind the managerDetails array to get a single object
+            },
+            {
+                $lookup: {
+                    from: 'users', // Collection name of the Users schema
+                    localField: 'teamleader',
+                    foreignField: '_id',
+                    as: 'teamleaderData',
+                },
+            },
+            {
+                $unwind: '$teamleaderData', // Unwind the teamleaderData array to get a single object
+            },
+            {
+                $lookup: {
+                    from: 'userdetails', // Collection name of the userDetails schema
+                    localField: 'teamleaderData._id',
+                    foreignField: 'owner', // Assuming 'owner' in userDetails references the user
+                    as: 'teamleaderDetails',
+                },
+            },
+            {
+                $unwind: '$teamleaderDetails', // Unwind the teamleaderDetails array to get a single object
+            },
+            {
+                $lookup: {
+                    from: 'projects', // Collection name of the Projects schema
+                    localField: '_id', // Assuming team _id is referenced in projects
+                    foreignField: 'team', // Assuming 'team' in projects references the team
+                    as: 'projects',
+                },
+            },
+            {
+                $project: {
+                    _id: 1, // Include the team ID
+                    teamname: 1, // Include the team name
+                    manager: {
+                        $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'],
+                    },
+                    teamleader: {
+                        $concat: ['$teamleaderDetails.firstname', ' ', '$teamleaderDetails.lastname'],
+                    },
+                    projectCount: { $size: '$projects' }, // Calculate the number of projects
+                },
+            },
+            {
+                $skip: pageOptions.page * pageOptions.limit,
+            },
+            {
+                $limit: pageOptions.limit,
+            },
+        ]);
 
-      // Get total number of teams for pagination
-      const totalTeams = await Teams.countDocuments(matchStage);
+        // Get total number of teams for pagination
+        const totalTeams = await Teams.countDocuments(matchStage);
 
-      // Prepare the response data with teams and total pages
-      const data = {
-          teams: [],
-          totalpages: Math.ceil(totalTeams / pageOptions.limit),
-      };
+        // Prepare the response data with teams and total pages
+        const data = {
+            teams: [],
+            totalpages: Math.ceil(totalTeams / pageOptions.limit),
+        };
 
-      // Process each team to extract required details
-      teams.forEach(tempdata => {
-          const { _id, teamname, manager, teamleader } = tempdata;
+        // Process each team to extract required details
+        teams.forEach(tempdata => {
+            const { _id, teamname, manager, teamleader, projectCount } = tempdata;
 
-          data.teams.push({
-              teamid: _id,
-              teamname: teamname,
-              manager: manager,
-              teamleader: teamleader,
-          });
-      });
+            data.teams.push({
+                teamid: _id,
+                teamname: teamname,
+                manager: manager,
+                teamleader: teamleader,
+                projectCount: projectCount,
+            });
+        });
 
-      // Send the response
-      return res.json({ message: 'success', data: data });
-  } catch (error) {
-      console.error('Error fetching teams:', error);
-      return res.status(500).json({ message: 'Error fetching teams', error });
-  }
+        // Send the response
+        return res.json({ message: 'success', data: data });
+    } catch (error) {
+        console.error('Error fetching teams:', error);
+        return res.status(500).json({ message: 'Error fetching teams', error });
+    }
 };
 
 exports.teamsearchlist = async (req, res) => {
