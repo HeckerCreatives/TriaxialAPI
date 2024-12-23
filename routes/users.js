@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { employeeliststats, createemployee, employeelist, changepositionemployee, managerlist, employeesearchlist, banemployees, viewemployeedata, editemployees, changepassword, viewteamemployees } = require("../controllers/users")
+const { employeeliststats, createemployee, employeelist, changepositionemployee, managerlist, employeesearchlist, banemployees, viewemployeedata, editemployees, changepassword, viewteamemployees, getuserdetails } = require("../controllers/users")
 const { protectsuperadmin, protectusers, protectemployee, protectmanager, protectalluser } = require("../middleware/middleware")
 
 router
@@ -7,6 +7,7 @@ router
     //  #region USERS
 
     .post("/changepassword", protectusers, changepassword)
+    .get("/getuserdetails", protectusers, getuserdetails)
 
     //  #endregion
 

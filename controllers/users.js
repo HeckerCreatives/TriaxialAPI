@@ -725,3 +725,34 @@ exports.viewteamemployees = async (req, res) => {
 }
 
 //  #endregion
+
+exports.getuserdetails = async (req, res) => {
+    const {id, email} = req.user
+
+    const userdetails = await Userdetails.findOne({owner: new mongoose.Types.ObjectId(id)})
+    .populate('owner')
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem getting user details for ${email} ${id}. Error ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please try again later"})
+    })
+
+    if (!userdetails){
+        return res.status(400).json({message: "failed", data: "No existing user found"})
+    }
+
+    const data = {
+        id: userdetails.owner._id,
+        firstname: userdetails.firstname,
+        lastname: userdetails.lastname,
+        initial: userdetails.initial,
+        contactno: userdetails.contactno,
+        reportingto: userdetails.reportingto,
+        resource: userdetails.resource,
+        profilepicture: userdetails.profilepicture
+    }
+
+    return res.json({message: "success", data: data})
+
+}
