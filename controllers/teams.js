@@ -961,3 +961,22 @@ exports.listallteams = async (req, res) => {
 
 //  #endregion
 
+
+
+exports.listteamselect = async (req, res) => {
+
+    const teamdata = await Teams.find()
+
+    const data = []
+
+    teamdata.forEach(tempdata => {
+        const {_id, teamname} = tempdata
+
+        data.push({
+            teamid: _id,
+            teamname: teamname
+        })
+    })
+
+    return res.json({message: "success", data: data})
+}

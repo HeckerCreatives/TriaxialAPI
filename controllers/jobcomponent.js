@@ -1901,7 +1901,6 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
         const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
 
-        console.log(id, email)
         
         const result = await Jobcomponents.aggregate([
             {
@@ -2969,4 +2968,3 @@ exports.individualworkload = async (req, res) => {
 
 
 //  #endergion
-

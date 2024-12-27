@@ -37,7 +37,8 @@ router
     .get("/getjobcomponentdashboard", protectsuperadmin, getjobcomponentdashboard)
     .get("/individualworkloadsuperadmin", protectsuperadmin, individualworkload)
     .get("/getsuperadminjobcomponentdashboard", protectsuperadmin, getsuperadminjobcomponentdashboard)
-    
+    .get("/listemployeeindividualrequests", protectsuperadmin, getjobcomponentindividualrequest)
+
     //  #endregion
     
     //  #region ALL USERS
