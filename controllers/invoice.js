@@ -32,59 +32,73 @@ exports.getinvoicedata = async (req, res) => {
 }
 
 exports.createinvoice = async (req, res) => {
-    const {id, email} = req.user
+    const { id, email } = req.user;
+    const { jobcomponentid, currentinvoice, newinvoice, invoiceamount, comments } = req.body;
 
-    const {jobcomponentid, currentinvoice, newinvoice, invoiceamount, comments} = req.body
-
-    if (!jobcomponentid){
-        return res.status(400).json({message: "failed", data: "Please select a valid job component"})
-    }
-    else if (isNaN(currentinvoice)){
-        return res.status(400).json({message: "failed", data: "Please enter a current invoice"})
-    }
-    else if (isNaN(currentinvoice)){
-        return res.status(400).json({message: "failed", data: "Please enter a new invoice"})
-    }
-    else if (isNaN(currentinvoice)){
-        return res.status(400).json({message: "failed", data: "Please enter a invoice amount"})
-    }
-    const { status, budgettype } = await Jobcomponent.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid)})
-
-    const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Approved"}).sort({ createdAt: -1 });
-
-    const checkRemaining = 100 - (parseInt(findCurrinvoice?.newinvoice) || 0)
-
-    if(status !== 'completed'){
-        return res.status(400).json({message: "failed", data: "Request invoice is only available when job component status is completed"})   
+    if (!jobcomponentid) {
+        return res.status(400).json({ message: "failed", data: "Please select a valid job component" });
+    } else if (isNaN(currentinvoice)) {
+        return res.status(400).json({ message: "failed", data: "Please enter a current invoice" });
+    } else if (isNaN(newinvoice)) {
+        return res.status(400).json({ message: "failed", data: "Please enter a new invoice" });
+    } else if (isNaN(invoiceamount)) {
+        return res.status(400).json({ message: "failed", data: "Please enter an invoice amount" });
     }
 
-    if(newinvoice > checkRemaining && budgettype === 'lumpsum'){
-        return res.status(400).json({message: "failed", data: `The remaining invoice is ${checkRemaining}%`})   
+    try {
+        const { status, budgettype, jobmanager } = await Jobcomponent.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid) });
+
+        const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Approved" }).sort({ createdAt: -1 });
+
+        const checkRemaining = 100 - (parseInt(findCurrinvoice?.newinvoice) || 0);
+
+        if (status !== 'completed') {
+            return res.status(400).json({ message: "failed", data: "Invoice request is only available when job component status is completed" });
+        }
+
+        if (newinvoice > checkRemaining && budgettype === 'lumpsum') {
+            return res.status(400).json({ message: "failed", data: `The remaining invoice is ${checkRemaining}%` });
+        }
+
+        let finalnewinvoice = parseInt(newinvoice) + (parseInt(findCurrinvoice?.newinvoice) || 0);
+        const invoicedata = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Pending" });
+
+        if (invoicedata) {
+            return res.status(400).json({ message: "failed", data: "There's a pending invoice request for this job component" });
+        }
+
+        // Create the invoice
+        const newInvoiceData = await Invoice.create({
+            jobcomponent: new mongoose.Types.ObjectId(jobcomponentid),
+            currentinvoice,
+            newinvoice: finalnewinvoice,
+            invoiceamount,
+            comments,
+            reasonfordenie: "",
+            status: "Pending"
+        });
+
+        // Fetch job manager and finance users for email notifications
+        const jobManager = await Users.findOne({ _id: new mongoose.Types.ObjectId(jobmanager) });
+        const financeUsers = await Users.find({ auth: "finance" });
+
+        const allRecipientIds = [jobManager._id, ...financeUsers.map(user => user._id)];
+
+        const emailContent = `Hello Team,\n\nA new invoice request for job component "${newInvoiceData.jobcomponent}" has been created:\n\nCurrent Invoice: ${currentinvoice}\nNew Invoice: ${newInvoiceData.newinvoice}\nInvoice Amount: ${invoiceamount}\nComments: ${comments}\n\nIf you have any questions, feel free to reach out.\n\nBest Regards,\n${email}`;
+        
+        // Send email notification
+        const sender = new mongoose.Types.ObjectId(id);
+        await sendmail(sender, allRecipientIds, "New Invoice Request Created", emailContent, false)
+            .catch(err => {
+                console.log(`Failed to send email notification for new invoice creation. Error: ${err}`);
+            });
+
+        return res.json({ message: "success" });
+    } catch (err) {
+        console.log(`Error creating invoice for job component ${jobcomponentid}: ${err}`);
+        return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details" });
     }
-
-    let finalnewinvoice =  parseInt(newinvoice) + (parseInt(findCurrinvoice?.newinvoice) || 0) 
-    const invoicedata = await Invoice.findOne({jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Pending"})
-    .then(data => data)
-    .catch(err => {
-        console.log(`There's a problem with getting the invoice data for ${jobcomponentid}. Error: ${err}`)
-
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
-    })
-
-    if (invoicedata){
-        return res.status(400).json({message: "failed", data: "There's a pending invoice request for this job component"})
-    }
-    
-    await Invoice.create({jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), currentinvoice: currentinvoice, newinvoice: finalnewinvoice, invoiceamount: invoiceamount, comments: comments, reasonfordenie: "", status: "Pending"})
-    .catch(err => {
-        console.log(`There's a problem with creating the invoice data for ${jobcomponentid}. Error: ${err}`)
-
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
-    })
-
-    return res.json({message: "success"})
-}
-
+};
 //  #endregion
 
 //  #region FINANCE
@@ -130,6 +144,15 @@ exports.getinvoicelist = async (req, res) => {
                 as: 'projectDetails'
             }
         },
+        {
+            $lookup: {
+                from: "clients",
+                localField: "projectDetails.client",
+                foreignField: "_id",
+                as: "clientDetails"
+            }
+        },
+        { $unwind: '$clientDetails'},
         { $unwind: '$projectDetails' },
         {
             $match: matchStage
@@ -151,6 +174,10 @@ exports.getinvoicelist = async (req, res) => {
                 newinvoice: 1,
                 invoiceamount: 1,
                 status: 1,
+                client: {
+                    clientname: '$clientDetails.clientname',
+                    priority: '$clientDetails.priority'
+                },
                 jobcomponent: {
                     name: '$jobComponentDetails.jobcomponent',
                     jobmanager: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']},
