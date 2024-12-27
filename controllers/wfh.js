@@ -136,7 +136,7 @@ exports.requestwfhemployee = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Please enter a reason for work from home first!"})
     }
 
-    await Workfromhome.create({owner: new mongoose.Types.ObjectId(id), requestdate: requestdate, requestend: requestend, wellnessdaycycle: wellnessdaycycle, totalhourswfh: totalhourswfh, hoursofleave: hoursofleave, reason: reason, status: "Pending"})
+    await Workfromhome.create({owner: new mongoose.Types.ObjectId(id), requestdate: requestdate, requestend: requestend, wellnessdaycycle: wellnessdaycycle, totalhourswfh: totalhourswfh, hoursofleave: hoursofleave, reason: reason, status: "Approved"})
     .catch(err => {
         console.log(`There's a problem requesting wfh by ${id}. Error: ${err}`)
         
