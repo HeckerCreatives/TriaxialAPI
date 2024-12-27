@@ -263,9 +263,17 @@ exports.listteamtotalinvoice = async (req, res) => {
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
-
-        const startOfNextMonth = new Date(startOfMonth);
+        
+        const startOfNextMonth = new Date(startOfMonth); // Clone startOfMonth
         startOfNextMonth.setMonth(startOfNextMonth.getMonth() + 1);
+        
+        const startOfSecondMonth = new Date(startOfMonth); // Clone startOfMonth
+        startOfSecondMonth.setMonth(startOfSecondMonth.getMonth() + 2);
+        
+        const endOfSecondMonth = new Date(startOfSecondMonth); // Clone startOfSecondMonth
+        endOfSecondMonth.setMonth(endOfSecondMonth.getMonth() + 1);
+        
+
 
         const result = await Jobcomponents.aggregate([
             {
@@ -394,7 +402,54 @@ exports.listteamtotalinvoice = async (req, res) => {
                     }
                 }
             },
-            
+            {
+                $addFields: {
+                    nextMonthProjected: {
+                        $sum: {
+                            $map: {
+                                input: {
+                                    $filter: {
+                                        input: "$projectedValues.values",
+                                        as: "value",
+                                        cond: {
+                                            $and: [
+                                                { $gte: ["$$value.date", startOfNextMonth] },
+                                                { $lt: ["$$value.date", startOfSecondMonth] }
+                                            ]
+                                        }
+                                    }
+                                },
+                                as: "filteredValue",
+                                in: "$$filteredValue.amount"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $addFields: {
+                    secondMonthProjected: {
+                        $sum: {
+                            $map: {
+                                input: {
+                                    $filter: {
+                                        input: "$projectedValues.values",
+                                        as: "value",
+                                        cond: {
+                                            $and: [
+                                                { $gte: ["$$value.date", startOfSecondMonth] },
+                                                { $lt: ["$$value.date", endOfSecondMonth] }
+                                            ]
+                                        }
+                                    }
+                                },
+                                as: "filteredValue",
+                                in: "$$filteredValue.amount"
+                            }
+                        }
+                    }
+                }
+            },
             {
                 $addFields: {
                     totalProjected: {
@@ -433,6 +488,8 @@ exports.listteamtotalinvoice = async (req, res) => {
                     totalEstimatedBudget: { $sum: "$estimatedbudget" },
                     totalProjected: { $sum: "$totalProjected" }, // All projected values
                     currentMonthProjected: { $sum: "$currentMonthProjected" }, // Only current month
+                    nextMonthProjected: { $sum: "$nextMonthProjected" }, // Only current month
+                    secondMonthProjected: { $sum: "$secondMonthProjected" }, // Only current month
                     projects: { $addToSet: "$projectDetails._id" },
                     components: { 
                         $push: {
@@ -454,6 +511,7 @@ exports.listteamtotalinvoice = async (req, res) => {
                 $addFields: {
                     forecastinvoicing: { $subtract: ["$remaining", "$totalProjected"]},
                     totalinvoicerequested: { $sum: ["$totalInvoiced", "$currentMonthProjected"]}, 
+                    totalInvoiceRequestedUpToPreviousMonth: "$totalInvoiced"
                 }
             },
             {
@@ -466,8 +524,12 @@ exports.listteamtotalinvoice = async (req, res) => {
                     manager: 1,
                     wip: "$totalInvoiced",
                     forecastinvoicing: 1,
+                    currentMonthProjected: 1,
+                    nextMonthProjected: 1,
+                    secondMonthProjected: 1,                    
                     projectCount: 1,
-                    totalinvoicerequested: 1 
+                    totalinvoicerequested: 1,
+                    totalInvoiceRequestedUpToPreviousMonth: 1
                 }
             },
             { $sort: { teamName: 1 } }
