@@ -6,7 +6,6 @@ const Users = require("../models/Users");
 const { sendmail } = require("../utils/email");
 
 //  #region MANAGER
-
 exports.createjobcomponent = async (req, res) => {
     const { id, email } = req.user;
     const { projectid, jobcomponentvalue } = req.body;
@@ -29,6 +28,7 @@ exports.createjobcomponent = async (req, res) => {
 
         const componentBulkWrite = [];
         const emailDetails = [];
+        const jobManagerIds = new Set();
 
         // Loop through jobcomponentvalue array
         for (let i = 0; i < jobcomponentvalue.length; i++) {
@@ -57,9 +57,15 @@ exports.createjobcomponent = async (req, res) => {
                 members: membersArray
             });
 
+            // Add job manager's _id
+            const jobManager = await Users.findOne({ _id: new mongoose.Types.ObjectId(jobmanager) });
+            if (jobManager && jobManager._id) {
+                jobManagerIds.add(jobManager._id);
+            }
+
             emailDetails.push({
                 jobcomponent,
-                jobmanager,
+                jobmanager: jobManager ? jobManager.fullname : "Unknown Manager",
                 budgettype,
                 estimatedbudget,
                 members: members.map(m => `Employee: ${m.employeeid}, Role: ${m.role}`).join(", ")
@@ -69,13 +75,20 @@ exports.createjobcomponent = async (req, res) => {
         // Save job components
         await Jobcomponents.insertMany(componentBulkWrite);
 
-        const emailContent = `Hello Team,\n\nThe following job components have been created for Project "${projectdata.name}":\n\n${emailDetails.map(detail => (
-            `Job Component: ${detail.jobcomponent}\nJob Manager: ${detail.jobmanager}\nBudget Type: ${detail.budgettype}\nEstimated Budget: ${detail.estimatedbudget}\nMembers: ${detail.members}\n\n`
+        // Fetch finance users' _id
+        const financeUsers = await Users.find({ auth: "finance" });
+        const financeUserIds = financeUsers.map(user => user._id);
+
+        // Combine all recipient _id list (job manager and finance)
+        const allRecipientIds = Array.from(new Set([...financeUserIds, ...jobManagerIds]));
+
+        const emailContent = `Hello Team,\n\nThe following job components have been created for Project "${projectdata.name}" by ${email}:\n\n${emailDetails.map(detail => (
+            `Job Component: ${detail.jobcomponent}\n\n`
         )).join("")}If you have any questions or concerns, please reach out.\n\nThank you!\n\nBest Regards,\n${email}`;
 
-        // Send email notification
+        // Send email notification with recipient _id list
         const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, [], "New Job Components Created", emailContent, true)
+        await sendmail(sender, allRecipientIds, "New Job Components Created", emailContent, false)
             .catch(err => {
                 console.log(`Failed to send email notification for new job components. Error: ${err}`);
             });
@@ -264,20 +277,30 @@ exports.completejobcomponent = async (req, res) => {
     }
 
     try {
+        // Fetch the job component
         const jobcomponent = await Jobcomponents.findById(new mongoose.Types.ObjectId(jobcomponentId));
         if (!jobcomponent) {
             return res.status(404).json({ message: "failed", data: "Job Component not found." });
         }
 
+        // Update the job component status
         await Jobcomponents.findOneAndUpdate(
             { _id: new mongoose.Types.ObjectId(jobcomponentId) },
             { $set: { status: "completed" } }
         );
 
+        const jobManagerId = jobcomponent.jobmanager;
+        const jobManager = await Users.findOne({ _id: jobManagerId });
+
+        const financeUsers = await Users.find({ auth: "finance" });
+        const financeUserIds = financeUsers.map(user => user._id);
+
+        const allRecipientIds = Array.from(new Set([...financeUserIds, jobManagerId]));
+
         const emailContent = `Hello Team,\n\nThe job component "${jobcomponent.jobcomponent}" has been marked as completed.\n\nIf you have any questions or concerns, please reach out.\n\nThank you!\n\nBest Regards,\n${email}`;
 
         const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, [], "Job Component Completed", emailContent, true)
+        await sendmail(sender, allRecipientIds, "Job Component Completed", emailContent, true)
             .catch(err => {
                 console.log(`Failed to send email notification for job component: ${jobcomponentId}. Error: ${err}`);
                 return res.status(400).json({
