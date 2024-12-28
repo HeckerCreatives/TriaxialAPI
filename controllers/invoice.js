@@ -103,6 +103,58 @@ exports.createinvoice = async (req, res) => {
 
 //  #region FINANCE
 
+exports.updateinvoice = async (req, res) => {
+    const { id, email } = req.user;
+    const { invoiceid, invoiceamount, comments } = req.body;
+
+
+    if (!invoiceid) {
+        return res.status(400).json({ message: "failed", data: "Please provide a valid invoice ID" });
+    } else if (isNaN(invoiceamount)) {
+        return res.status(400).json({ message: "failed", data: "Please enter a valid invoice amount" });
+    }
+
+    try {
+
+        const invoice = await Invoice.findOne({ _id: new mongoose.Types.ObjectId(invoiceid) });
+
+        if (!invoice) {
+            return res.status(400).json({ message: "failed", data: "Invoice not found" });
+        }
+
+
+        if (invoice.status === 'Approved' || invoice.status === 'Completed') {
+            return res.status(400).json({ message: "failed", data: "You cannot update an approved or completed invoice" });
+        }
+
+
+        invoice.invoiceamount = invoiceamount;
+        invoice.comments = comments || invoice.comments; 
+        
+
+
+        await invoice.save();
+
+
+        const jobManager = await Users.findOne({ _id: new mongoose.Types.ObjectId(invoice.jobmanager) });
+
+        const allRecipientIds = [jobManager._id];
+
+        const emailContent = `Hello Team,\n\nThe invoice for job component "${invoice.jobcomponent}" has been updated:\n\nInvoice Amount: ${invoiceamount}\nComments: ${comments || 'No comments provided'}\n\nIf you have any questions, feel free to reach out.\n\nBest Regards,\n${email}`;
+        
+        const sender = new mongoose.Types.ObjectId(id);
+        await sendmail(sender, allRecipientIds, "Invoice Updated", emailContent, false)
+            .catch(err => {
+                console.log(`Failed to send email notification for invoice update. Error: ${err}`);
+            });
+
+        return res.json({ message: "success", data: "Invoice updated successfully" });
+    } catch (err) {
+        console.log(`Error updating invoice ${invoiceid}: ${err}`);
+        return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details" });
+    }
+};
+
 exports.getinvoicelist = async (req, res) => {
 
     const {page, limit, status, jobnofilter} = req.query
