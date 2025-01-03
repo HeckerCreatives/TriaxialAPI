@@ -374,7 +374,7 @@ exports.completejobcomponent = async (req, res) => {
 
 exports.archivejobcomponent = async (req, res) => {
     const { id, email } = req.user;
-    const { id: jobcomponentId, status } = req.query;
+    const { jobcomponentId, status } = req.body;
 
     // Validate input
     if (!jobcomponentId) {

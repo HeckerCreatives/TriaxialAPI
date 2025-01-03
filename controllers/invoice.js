@@ -170,7 +170,7 @@ exports.updateinvoice = async (req, res) => {
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
         })
         
-        const allRecipientIds = [jobcomponent.jobmanager, jobcomponent.teamDetails.manager, new mongoose.Types.ObjectId(id), superadmin._id];
+        const allRecipientIds = [jobcomponent.jobmanager, jobcomponent.teamDetails?.manager, new mongoose.Types.ObjectId(id), superadmin._id];
 
         const emailContent = `Hello Team,\n\nThe invoice for job component "${invoice.jobcomponent}" has been updated:\n\nInvoice Amount: ${invoiceamount}\nComments: ${comments || 'No comments provided'}\n\nIf you have any questions, feel free to reach out.\n\nBest Regards,\n${email}`;
         
