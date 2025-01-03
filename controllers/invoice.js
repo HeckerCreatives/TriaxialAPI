@@ -226,6 +226,8 @@ exports.getinvoicelist = async (req, res) => {
                 newinvoice: 1,
                 invoiceamount: 1,
                 status: 1,
+                createdAt: 1,
+                updatedAt: 1,
                 client: {
                     clientname: '$clientDetails.clientname',
                     priority: '$clientDetails.priority'
