@@ -344,6 +344,9 @@ exports.listteamtotalinvoice = async (req, res) => {
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
+
+        const startOfPrevMonth = new Date(startOfMonth); // Clone startOfMonth
+        startOfPrevMonth.setMonth(startOfPrevMonth.getMonth() - 1);
         
         const startOfNextMonth = new Date(startOfMonth); // Clone startOfMonth
         startOfNextMonth.setMonth(startOfNextMonth.getMonth() + 1);
@@ -430,7 +433,9 @@ exports.listteamtotalinvoice = async (req, res) => {
                                 $expr: { 
                                     $and: [
                                         { $eq: ["$jobcomponent", "$$jobComponentId"] },
-                                        { $eq: ["$status", "Approved"] }
+                                        { $eq: ["$status", "Approved"] },
+                                        { $gte: ["$createdAt", startOfMonth] }
+                                        
                                     ]
                                 } 
                             } 
@@ -460,6 +465,7 @@ exports.listteamtotalinvoice = async (req, res) => {
                                         { $eq: ["$jobcomponent", "$$jobComponentId"] },
                                         { $eq: ["$status", "Approved"] },
                                         { $lt: ["$updatedAt", startOfMonth] },
+                                        { $gte: ["$updatedAt", startOfPrevMonth] }
                                     ]
                                 } 
                             } 
