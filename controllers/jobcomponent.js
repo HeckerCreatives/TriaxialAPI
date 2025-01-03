@@ -2162,6 +2162,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
         const endOfRange = moment(startOfWeek).add(1, 'year').subtract(1, 'days').toDate();
 
+   
         
         const result = await Jobcomponents.aggregate([
             {
@@ -2324,6 +2325,8 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             alldates: [],
             teams: []
         };
+
+        console.log(result)
 
 
         let currentDate = new Date(startOfWeek);

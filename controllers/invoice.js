@@ -2,6 +2,9 @@ const { default: mongoose } = require("mongoose")
 const Invoice = require("../models/invoice")
 const Jobcomponent = require("../models/Jobcomponents")
 const Jobcomponents = require("../models/Jobcomponents")
+const Users = require("../models/Users")
+const { sendmail } = require("../utils/email");
+
 
 //  #region EMPLOYEE & MANAGER
 
@@ -117,6 +120,8 @@ exports.updateinvoice = async (req, res) => {
     try {
 
         const invoice = await Invoice.findOne({ _id: new mongoose.Types.ObjectId(invoiceid) });
+        const jobcomponents = await Jobcomponents.findOne({ _id: new mongoose.Types.ObjectId(invoice.jobcomponent) });
+
 
         if (!invoice) {
             return res.status(400).json({ message: "failed", data: "Invoice not found" });
@@ -136,7 +141,7 @@ exports.updateinvoice = async (req, res) => {
         await invoice.save();
 
 
-        const jobManager = await Users.findOne({ _id: new mongoose.Types.ObjectId(invoice.jobmanager) });
+        const jobManager = await Users.findOne({ _id: new mongoose.Types.ObjectId(jobcomponents.jobmanager) });
 
         const allRecipientIds = [jobManager._id];
 

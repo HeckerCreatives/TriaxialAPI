@@ -174,6 +174,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     jobnumber: '$projectDetails.jobno',
                     jobcomponent: '$jobcomponent',
                     clientname: "$clientDetails.clientname",
+                    priority: "$clientDetails.priority",
                     subconts: "$subconts.value" || 0,
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
@@ -219,6 +220,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                             jobcomponent: item.jobcomponent,
                             jobmanager: item.jobmanager,
                             clientname: item.clientname,
+                            priority: item.priority,
                             projectname: item.projectname,
                             budgettype: item.budgettype,
                             estimatedbudget: item.estimatedbudget,
