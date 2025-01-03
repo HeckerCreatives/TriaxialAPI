@@ -120,8 +120,30 @@ exports.updateinvoice = async (req, res) => {
     try {
 
         const invoice = await Invoice.findOne({ _id: new mongoose.Types.ObjectId(invoiceid) });
-        const jobcomponents = await Jobcomponents.findOne({ _id: new mongoose.Types.ObjectId(invoice.jobcomponent) });
-
+        const jobcomponent = await Jobcomponent.aggregate([
+        {
+            $match: { _id: new mongoose.Types.ObjectId(invoice.jobcomponent) }
+        },
+        {
+            $lookup: {
+                from: 'projects',
+                localField: 'project',
+                foreignField: '_id',
+                as: 'projectDetails'
+            }
+        },
+        {
+            $lookup: {
+                from: 'teams',
+                localField: 'projectDetails.team',
+                foreignField: '_id',
+                as: 'teamDetails'
+            }
+        },
+        {
+            $unwind: '$teamDetails'
+        }
+        ])
 
         if (!invoice) {
             return res.status(400).json({ message: "failed", data: "Invoice not found" });
@@ -132,7 +154,7 @@ exports.updateinvoice = async (req, res) => {
             return res.status(400).json({ message: "failed", data: "You cannot update an approved or completed invoice" });
         }
 
-
+ 
         invoice.invoiceamount = invoiceamount;
         invoice.comments = comments || invoice.comments; 
         
@@ -140,10 +162,15 @@ exports.updateinvoice = async (req, res) => {
 
         await invoice.save();
 
+        const superadmin = await Users.findOne({ auth: "superadmin" })
+        .then(data => data)
+        .catch(err => {
+            console.log(`There's a problem with getting the superadmin. Error: ${err}`)
 
-        const jobManager = await Users.findOne({ _id: new mongoose.Types.ObjectId(jobcomponents.jobmanager) });
-
-        const allRecipientIds = [jobManager._id];
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
+        
+        const allRecipientIds = [jobcomponent.jobmanager, jobcomponent.teamDetails.manager, new mongoose.Types.ObjectId(id), superadmin._id];
 
         const emailContent = `Hello Team,\n\nThe invoice for job component "${invoice.jobcomponent}" has been updated:\n\nInvoice Amount: ${invoiceamount}\nComments: ${comments || 'No comments provided'}\n\nIf you have any questions, feel free to reach out.\n\nBest Regards,\n${email}`;
         
