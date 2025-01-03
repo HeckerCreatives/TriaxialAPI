@@ -463,6 +463,34 @@ exports.listteamtotalinvoice = async (req, res) => {
                                 $expr: { 
                                     $and: [
                                         { $eq: ["$jobcomponent", "$$jobComponentId"] },
+                                        { $eq: ["$status", "Approved"] },                                        
+                                    ]
+                                } 
+                            } 
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalAmount: { $sum: "$invoiceamount" }
+                            }
+                        }
+                    ],
+                    as: 'wip'
+                }
+            },
+            {
+                $unwind: { path: '$wip', preserveNullAndEmptyArrays: true }
+            },
+            {
+                $lookup: {
+                    from: 'invoices',
+                    let: { jobComponentId: "$_id" },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
                                         { $eq: ["$status", "Approved"] },
                                         { $lt: ["$updatedAt", startOfMonth] },
                                         { $gte: ["$updatedAt", startOfPrevMonth] }
@@ -601,6 +629,7 @@ exports.listteamtotalinvoice = async (req, res) => {
                         }
                     },
                     totalInvoiced: { $sum: "$invoiceSummary.totalAmount" },
+                    wip: { $sum: "$wip.totalAmount" },
                     totalPrevMonthInvoiced: { $sum: "$PrevInvoiceSummary.totalAmount" },
                     totalEstimatedBudget: { $sum: "$estimatedbudget" },
                     totalProjected: { $sum: "$totalProjected" }, // All projected values
@@ -639,7 +668,7 @@ exports.listteamtotalinvoice = async (req, res) => {
                     clientName: 1,
                     teamLeader: 1,
                     manager: 1,
-                    wip: "$totalInvoiced",
+                    wip: 1,
                     forecastinvoicing: 1,
                     currentMonthProjected: 1,
                     nextMonthProjected: 1,
