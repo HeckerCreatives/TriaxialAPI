@@ -1103,6 +1103,11 @@ exports.listteamjobcomponent = async (req, res) => {
 
     try {
         const result = await Jobcomponents.aggregate([
+            { 
+                $match: { 
+                    status: { $in: ["completed", "", null] } 
+                }
+            },
             {
                 $lookup: {
                     from: 'projects',
