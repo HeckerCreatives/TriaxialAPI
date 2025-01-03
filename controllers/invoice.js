@@ -448,6 +448,35 @@ exports.listteamtotalinvoice = async (req, res) => {
             },
             {
                 $lookup: {
+                    from: 'invoices',
+                    let: { jobComponentId: "$_id" },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
+                                        { $eq: ["$status", "Approved"] },
+                                        { $lt: ["$updatedAt", startOfMonth] },
+                                    ]
+                                } 
+                            } 
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalAmount: { $sum: "$invoiceamount" }
+                            }
+                        }
+                    ],
+                    as: 'PrevInvoiceSummary'
+                }
+            },
+            {
+                $unwind: { path: '$PrevInvoiceSummary', preserveNullAndEmptyArrays: true }
+            },
+            {
+                $lookup: {
                     from: 'projectedinvoices',
                     localField: '_id',
                     foreignField: 'jobcomponent',
@@ -564,6 +593,7 @@ exports.listteamtotalinvoice = async (req, res) => {
                         }
                     },
                     totalInvoiced: { $sum: "$invoiceSummary.totalAmount" },
+                    totalPrevMonthInvoiced: { $sum: "$PrevInvoiceSummary.totalAmount" },
                     totalEstimatedBudget: { $sum: "$estimatedbudget" },
                     totalProjected: { $sum: "$totalProjected" }, // All projected values
                     currentMonthProjected: { $sum: "$currentMonthProjected" }, // Only current month
@@ -589,8 +619,8 @@ exports.listteamtotalinvoice = async (req, res) => {
             {
                 $addFields: {
                     forecastinvoicing: { $subtract: ["$remaining", "$totalProjected"]},
-                    totalinvoicerequested: { $sum: ["$totalInvoiced", "$currentMonthProjected"]}, 
-                    totalInvoiceRequestedUpToPreviousMonth: "$totalInvoiced"
+                    totalinvoicerequested: "$totalInvoiced", 
+                    totalInvoiceRequestedUpToPreviousMonth: "$totalPrevMonthInvoiced"
                 }
             },
             {
