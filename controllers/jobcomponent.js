@@ -385,7 +385,7 @@ exports.archivejobcomponent = async (req, res) => {
     }
         const jobComponent = await Jobcomponents.findOneAndUpdate(
             { _id: new mongoose.Types.ObjectId(jobcomponentId) },
-            { $set: { status: status || "" } },
+            { $set: { status: status || null } },
             { new: true }
         )
         .catch((err) => {
@@ -441,9 +441,6 @@ exports.archivejobcomponent = async (req, res) => {
 
 
 
-
-
-
 //  #endregion
 
 
@@ -460,6 +457,11 @@ exports.listJobComponentNamesByTeam = async (req, res) => {
                     localField: 'project',
                     foreignField: '_id',
                     as: 'projectDetails'
+                }
+            },
+            { 
+                $match: { 
+                    status: { $in: ["completed", "", null] } 
                 }
             },
             { $unwind: '$projectDetails' },
@@ -790,7 +792,12 @@ exports.listjobcomponent = async (req, res) => {
 
     try {
         const result = await Jobcomponents.aggregate([
-            { $match: { project: new mongoose.Types.ObjectId(projectid) } },
+            { 
+                $match: { 
+                    project: new mongoose.Types.ObjectId(projectid),
+                    status: { $in: ["completed", "", null] } 
+                }
+            },
             {
                 $lookup: {
                     from: 'projects',
@@ -1402,6 +1409,11 @@ exports.viewduedatesgraph = async (req, res) => {
 
     try {
         const result = await Jobcomponents.aggregate([
+            { 
+                $match: { 
+                    status: { $in: ["completed", "", null] } 
+                }
+            },
             {
                 $lookup: {
                     from: 'projects',
@@ -1785,6 +1797,11 @@ exports.yourworkload = async (req, res) => {
                             employee: new mongoose.Types.ObjectId(id),
                         }
                     }
+                }
+            },
+            { 
+                $match: { 
+                    status: { $in: ["completed", "", null] } 
                 }
             },
             {
@@ -2196,6 +2213,11 @@ exports.getjobcomponentdashboard = async (req, res) => {
         const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
         
         const result = await Jobcomponents.aggregate([
+            { 
+                $match: { 
+                    status: { $in: ["completed", "", null] } 
+                }
+            },
             {
                 $lookup: {
                     from: 'projects',
@@ -2437,6 +2459,11 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
 
         
         const result = await Jobcomponents.aggregate([
+            { 
+                $match: { 
+                    status: { $in: ["completed", "", null] } 
+                }
+            },
             {
                 $lookup: {
                     from: 'projects',
@@ -2676,6 +2703,11 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
    
         
         const result = await Jobcomponents.aggregate([
+            { 
+                $match: { 
+                    status: { $in: ["completed", "", null] } 
+                }
+            },
             {
                 $lookup: {
                     from: 'projects',
@@ -2946,6 +2978,11 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
         const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
         
         const result = await Jobcomponents.aggregate([
+            { 
+                $match: { 
+                    status: { $in: ["completed", "", null] } 
+                }
+            },
             {
                 $lookup: {
                     from: 'projects',
@@ -3221,6 +3258,11 @@ exports.individualworkload = async (req, res) => {
         const totalDays = Math.ceil((endOfRange - startOfWeek) / (1000 * 60 * 60 * 24));
 
         const result = await Jobcomponents.aggregate([
+            { 
+                $match: { 
+                    status: { $in: ["completed", "", null] } 
+                }
+            },
             {
                 $match: {
                     members: {
