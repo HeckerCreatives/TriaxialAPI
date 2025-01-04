@@ -461,7 +461,7 @@ exports.listJobComponentNamesByTeam = async (req, res) => {
             },
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null] } 
+                    status: { $in: ["completed", "", null, "unarchive"] } 
                 }
             },
             { $unwind: '$projectDetails' },
@@ -1105,7 +1105,7 @@ exports.listteamjobcomponent = async (req, res) => {
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null] } 
+                    status: { $in: ["completed", "", null, "unarchive"] } 
                 }
             },
             {
