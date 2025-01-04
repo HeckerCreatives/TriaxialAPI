@@ -184,6 +184,124 @@ exports.editjobcomponentdetails = async (req, res) => {
     }
 };
 
+// exports.editalljobcomponentdetails = async (req, res) => {
+//     const { id, email } = req.user;
+//     const { jobcomponentid, projectid, jobmanagerid, members } = req.body;
+
+//     // Validate input
+//     if (!jobcomponentid) {
+//         return res.status(400).json({ message: "failed", data: "Select a valid job component" });
+//     }
+//     if (!projectid) {
+//         return res.status(400).json({ message: "failed", data: "Select a valid project" });
+//     }
+//     if (!jobmanagerid) {
+//         return res.status(400).json({ message: "failed", data: "Select a valid job manager" });
+//     }
+//     if (!Array.isArray(members) || members.length < 1 || members.length > 4) {
+//         return res.status(400).json({ message: "failed", data: "Invalid members data. There should be 1 to 4 members." });
+//     }
+
+//     try {
+//         // Fetch the job component
+//         const jobcomponent = await Jobcomponents.findById(jobcomponentid);
+//         if (!jobcomponent) {
+//             return res.status(404).json({ message: "failed", data: "Job component not found" });
+//         }
+
+//         const jobName = jobcomponent.jobcomponent;
+
+//         // Update job component details
+//         await Jobcomponents.findByIdAndUpdate(jobcomponentid, {
+//             project: projectid,
+//             jobmanager: jobmanagerid,
+//         });
+
+//         // Ensure unique roles and update members
+//         const employeeRoleMap = new Map();
+
+//         for (const memberData of members) {
+            
+//             const { employee, role, notes } = memberData;
+
+//             if (employeeRoleMap.has(employee)) {
+//                 return res.status(400).json({
+//                     message: "failed",
+//                     data: `Employee ${employee} cannot have more than one role.`,
+//                 });
+//             }
+
+//             if ([...employeeRoleMap.values()].includes(role)) {
+//                 return res.status(400).json({
+//                     message: "failed",
+//                     data: `The role "${role}" has already been assigned to another member.`,
+//                 });
+//             }
+
+//             employeeRoleMap.set(employee, role);
+
+
+//             const memberIndex = jobcomponent.members.findIndex(
+//                 (m) => m.employee?.toString() === employee.toString()
+//             );
+
+//             if (memberIndex !== -1) {
+//                 // Update existing member's details
+//                 jobcomponent.members[memberIndex].role = role;
+//                 jobcomponent.members[memberIndex].notes = notes || jobcomponent.members[memberIndex].notes;
+//             } else {
+//                 // Add new member
+//                 if (jobcomponent.members.length >= 4) {
+//                     jobcomponent.members.shift(); // Maintain a maximum of 4 members
+//                 }
+//                 jobcomponent.members.push({
+//                     employee,
+//                     role,
+//                     notes,
+//                     dates: [], // Reset dates
+//                 });
+//             }
+//         }
+
+//         await jobcomponent.save();
+
+//         // Construct email content
+//         const emailContent = `
+//             Hello Team,
+            
+//             The job component "${jobName}" has been updated with the following details:
+            
+//             Project ID: ${projectid}
+//             Job Manager ID: ${jobmanagerid}
+//             Updated Members:
+//             ${members.map(member => `Employee: ${member.employee}, Role: ${member.role}`).join("\n")}
+            
+//             If you have any questions or concerns, please reach out.
+            
+//             Thank you!
+            
+//             Best Regards,
+//             ${email}`;
+
+//         // Send email notification
+//         const sender = new mongoose.Types.ObjectId(id);
+//         const recipientIds = []; // Add appropriate recipient logic here if needed
+//         await sendmail(sender, recipientIds, "Job Component Details Updated", emailContent, true)
+//             .catch(err => {
+//                 console.error(`Failed to send email notification for updated job component: ${jobcomponentid}. Error: ${err}`);
+//                 return res.status(400).json({
+//                     message: "bad-request",
+//                     data: "Email notification failed! Please contact customer support for more details.",
+//                 });
+//             });
+
+//         return res.json({ message: "success" });
+//     } catch (err) {
+//         console.error(`Error updating job component details: ${err}`);
+//         return res.status(500).json({ message: "server-error", data: "An error occurred. Please contact support." });
+//     }
+// };
+
 exports.editalljobcomponentdetails = async (req, res) => {
     const { id, email } = req.user;
     const { jobcomponentid, projectid, jobmanagerid, members } = req.body;
@@ -222,10 +340,18 @@ exports.editalljobcomponentdetails = async (req, res) => {
         for (const memberData of members) {
             const { employee, role, notes } = memberData;
 
-            if (employeeRoleMap.has(employee)) {
+            // Skip validation for null, undefined, or empty string employee
+            if (!employee || employee.trim() === '') {
+                continue;
+            }
+
+            // Convert employee to string for consistent comparison
+            const employeeKey = employee.toString();
+
+            if (employeeRoleMap.has(employeeKey)) {
                 return res.status(400).json({
                     message: "failed",
-                    data: `Employee ${employee} cannot have more than one role.`,
+                    data: `Employee ${employeeKey} cannot have more than one role.`,
                 });
             }
 
@@ -236,10 +362,10 @@ exports.editalljobcomponentdetails = async (req, res) => {
                 });
             }
 
-            employeeRoleMap.set(employee, role);
+            employeeRoleMap.set(employeeKey, role);
 
             const memberIndex = jobcomponent.members.findIndex(
-                (m) => m.employee?.toString() === employee.toString()
+                (m) => m.employee?.toString() === employeeKey
             );
 
             if (memberIndex !== -1) {
@@ -254,7 +380,7 @@ exports.editalljobcomponentdetails = async (req, res) => {
                 jobcomponent.members.push({
                     employee,
                     role,
-                    notes,
+                    notes: notes || "", // Allow null or empty notes
                     dates: [], // Reset dates
                 });
             }
@@ -271,7 +397,7 @@ exports.editalljobcomponentdetails = async (req, res) => {
             Project ID: ${projectid}
             Job Manager ID: ${jobmanagerid}
             Updated Members:
-            ${members.map(member => `Employee: ${member.employee}, Role: ${member.role}`).join("\n")}
+            ${members.map(member => `Employee: ${member.employee || 'N/A'}, Role: ${member.role}`).join("\n")}
             
             If you have any questions or concerns, please reach out.
             
