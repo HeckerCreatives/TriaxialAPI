@@ -222,10 +222,6 @@ exports.editalljobcomponentdetails = async (req, res) => {
         for (const memberData of members) {
             const { employee, role, notes } = memberData;
 
-            if (!employee || !role) {
-                return res.status(400).json({ message: "failed", data: "Each member must have an employee and a role." });
-            }
-
             if (employeeRoleMap.has(employee)) {
                 return res.status(400).json({
                     message: "failed",
