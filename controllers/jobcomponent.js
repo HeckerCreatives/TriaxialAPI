@@ -1242,6 +1242,15 @@ exports.listteamjobcomponent = async (req, res) => {
             { $unwind: '$projectDetails' },
             {
                 $lookup: {
+                    from: "clients",
+                    localField: "projectDetails.client",
+                    foreignField: "_id",
+                    as: "clientDetails"
+                }
+            },
+            { $unwind: '$clientDetails' },
+            {
+                $lookup: {
                     from: 'users',
                     localField: 'jobmanager',
                     foreignField: '_id',
@@ -1491,13 +1500,12 @@ exports.listteamjobcomponent = async (req, res) => {
                     teamname: { $first: '$teamDetails.teamname' },
                     projectend: { $first: '$projectDetails.deadlinedate'}, 
                     projectname: { $first: { projectid: '$projectDetails._id', name: '$projectDetails.projectname', status: '$projectDetails.status' } },
-                    clientname: { $first: { clientid: '', name: 'Client Name' } },
+                    clientname: { $first: { clientid: '$clientDetails._id', name: '$clientDetails.clientname', priority: '$clientDetails.priority' } },
                     jobno: { $first: '$projectDetails.jobno' },
                     budgettype: { $first: '$budgettype' },
                     estimatedbudget: { $first: '$estimatedbudget' },
                     status: { $first: '$status' }, 
                     invoice: { $first: '$invoiceDetails' }, // Use updated invoiceDetails field
-                   
                     jobmanager: {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
@@ -1551,6 +1559,15 @@ exports.viewduedatesgraph = async (req, res) => {
             },
             { $match: { 'projectDetails.team': new mongoose.Types.ObjectId(teamid) } },
             { $unwind: '$projectDetails' },
+            {
+                $lookup: {
+                    from: 'clients',
+                    localField: "projectDetails.client",
+                    foreignField: "_id",
+                    as: "$clientDetails"
+                }
+            },
+            { $unwind: '$clientDetails' },
             {
                 $lookup: {
                     from: 'users',
@@ -1769,7 +1786,7 @@ exports.viewduedatesgraph = async (req, res) => {
                     componentid: { $first: '$_id' },
                     teamname: { $first: '$teamDetails.teamname' },
                     projectname: { $first: { projectid: '$projectDetails._id', name: '$projectDetails.projectname' } },
-                    clientname: { $first: { clientid: '', name: 'Client Name' } },
+                    clientname: { $first: { clientid: '$clientDetails._id', name: '$clientDetails.clientname', priority: "$clientDetails.priority" } },
                     jobno: { $first: '$projectDetails.jobno' },
                     budgettype: { $first: '$budgettype' },
                     estimatedbudget: { $first: '$estimatedbudget' },
