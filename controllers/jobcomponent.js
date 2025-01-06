@@ -2605,7 +2605,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null] } 
+                    status: { $in: ["completed", "", null, "unarchive"] } 
                 }
             },
             {
@@ -2849,7 +2849,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null] } 
+                    status: { $in: ["completed", "", null, "unarchive"] } 
                 }
             },
             {
@@ -3124,7 +3124,7 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null] } 
+                    status: { $in: ["completed", "", null, 'unarchive'] } 
                 }
             },
             {

@@ -1,6 +1,6 @@
 const router = require("express").Router()
-const { listcomponentprojectinvoice, saveprojectinvoicevalue, listcomponentprojectinvoicesa, savesubconstvalue, listcomponenttotalinvoice, listcomponentclienttotalinvoice } = require("../controllers/projectinvoice")
-const { protectsuperadmin, protectemployee, protectmanager, protectusers, protectfinance } = require("../middleware/middleware")
+const { listcomponentprojectinvoice, saveprojectinvoicevalue, listcomponentprojectinvoicesa, savesubconstvalue, listcomponenttotalinvoice, listcomponentclienttotalinvoice, listcomponentprojectinvoicealluser } = require("../controllers/projectinvoice")
+const { protectsuperadmin, protectemployee, protectmanager, protectusers, protectfinance, protectalluser } = require("../middleware/middleware")
 
 router
 
@@ -10,7 +10,7 @@ router
 
     //  #region MANAGER
 
-    .get("/managerlistcomponentprojectinvoice", protectmanager, listcomponentprojectinvoice)
+    .get("/managerlistcomponentprojectinvoice", protectalluser, listcomponentprojectinvoice)
     .post("/managersaveprojectinvoicevalue", protectmanager, saveprojectinvoicevalue)
     .post("/managersavesubconstvalue", protectmanager, savesubconstvalue)
 
@@ -34,6 +34,9 @@ router
     .get("/listcomponenttotalinvoicefn", protectfinance, listcomponenttotalinvoice)
     .get("/listcomponentprojectinvoicefn", protectfinance, listcomponentprojectinvoicesa)
     .get("/listcomponentclienttotalinvoicefn", protectfinance, listcomponentclienttotalinvoice)
+
+    .get("/listcomponentprojectinvoicealluser", protectalluser, listcomponentprojectinvoicealluser)
+
 
     // #endregion
 module.exports = router;
