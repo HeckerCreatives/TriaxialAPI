@@ -129,6 +129,7 @@ exports.listprojects = async (req, res) => {
     const projectlist = await Projects.aggregate([
         { $match: matchStage },
         {
+
             $lookup: {
                 from: 'teams',
                 localField: 'team',
@@ -213,6 +214,7 @@ exports.listprojects = async (req, res) => {
                 jobComponents: {
                     $push: {
                         name: '$jobComponentData.jobcomponent',
+                        id: '$jobComponentData._id',
                         estimatedBudget: '$jobComponentData.estimatedbudget',
                         members: '$jobComponentData.memberInitials'
                     }

@@ -1238,6 +1238,7 @@ exports.listcomponentclienttotalinvoice = async (req, res) => {
                     budgettype: "$budgettype",
                     jobnumber: '$projectDetails.jobno',
                     jobcomponent: '$jobcomponent',
+                    teamid: '$projectDetails.team',
                     projectname: '$projectDetails.projectname',
                     clientname: '$clientDetails.clientname',
                     jobmanager: {
@@ -1295,6 +1296,7 @@ exports.listcomponentclienttotalinvoice = async (req, res) => {
                         jobcomponent: item.jobcomponent,
                         jobmanager: item.jobmanager,
                         client: item.clientname,
+                        teamid: item.teamid,
                         projectname: item.projectname,
                         budgettype: item.budgettype,
                         estimatedbudget: item.estimatedbudget,
