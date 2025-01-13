@@ -2030,7 +2030,6 @@ exports.editstatushours = async (req, res) => {
     }
 };
 
-
 exports.yourworkload = async (req, res) => {
     const { id, email } = req.user;
     const { filterDate } = req.query; // Assuming the filter date is passed as a query parameter
