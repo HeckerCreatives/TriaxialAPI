@@ -55,9 +55,9 @@ exports.createinvoice = async (req, res) => {
 
         const checkRemaining = 100 - (parseInt(findCurrinvoice?.newinvoice) || 0);
 
-        if (status !== 'completed') {
-            return res.status(400).json({ message: "failed", data: "Invoice request is only available when job component status is completed" });
-        }
+        // if (status !== 'completed') {
+        //     return res.status(400).json({ message: "failed", data: "Invoice request is only available when job component status is completed" });
+        // }
 
         if (newinvoice > checkRemaining && budgettype === 'lumpsum') {
             return res.status(400).json({ message: "failed", data: `The remaining invoice is ${checkRemaining}%` });
