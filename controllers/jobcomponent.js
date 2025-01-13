@@ -1603,6 +1603,7 @@ exports.listteamjobcomponent = async (req, res) => {
                     budgettype: { $first: '$budgettype' },
                     estimatedbudget: { $first: '$estimatedbudget' },
                     status: { $first: '$status' }, 
+                    isVariation: { $first: '$isVariation'},
                     invoice: { $first: '$invoiceDetails' }, // Use updated invoiceDetails field
                     jobmanager: {
                         $first: {
@@ -1889,6 +1890,7 @@ exports.viewduedatesgraph = async (req, res) => {
                     budgettype: { $first: '$budgettype' },
                     estimatedbudget: { $first: '$estimatedbudget' },
                     status: { $first: '$status' }, 
+                    isVariation: { $first: '$isVariation' },
                     jobmanager: {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
