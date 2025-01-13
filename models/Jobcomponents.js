@@ -25,6 +25,9 @@ const JobcomponentSchema = new mongoose.Schema(
         status: {
             type: String
         },
+        isVariation: {
+            type: Boolean
+        },
         members: [{
             employee: {
                 type: mongoose.Schema.Types.ObjectId,

@@ -48,6 +48,7 @@ exports.createjobcomponent = async (req, res) => {
                 project: new mongoose.Types.ObjectId(projectdata._id),
                 jobmanager: new mongoose.Types.ObjectId(jobmanager),
                 budgettype: budgettype,
+                isVariation: false,
                 estimatedbudget: estimatedbudget,
                 jobcomponent: jobcomponent,
                 members: membersArray
@@ -103,6 +104,103 @@ exports.createjobcomponent = async (req, res) => {
     }
 };
 
+exports.createvariationjobcomponent = async (req, res) => {
+    const { id, email } = req.user;
+    const { projectid, jobcomponentvalue } = req.body;
+
+    if (!projectid) {
+        return res.status(400).json({ message: "failed", data: "Please select a valid project" });
+    } else if (!jobcomponentvalue) {
+        return res.status(400).json({ message: "failed", data: "Please complete the job component form!" });
+    } else if (!Array.isArray(jobcomponentvalue)) {
+        return res.status(400).json({ message: "failed", data: "The form you are saving is not valid!" });
+    }
+
+    try {
+        const projectdata = await Projects.findOne({ _id: new mongoose.Types.ObjectId(projectid) }).populate('team');
+        if (!projectdata) {
+            return res.status(403).json({ message: "failed", data: "No existing project data. Please select a valid project" });
+        }
+
+        const componentBulkWrite = [];
+        const emailDetails = [];
+        const jobManagerIds = new Set();
+
+        for (let i = 0; i < jobcomponentvalue.length; i++) {
+            const { jobmanager, budgettype, estimatedbudget, jobcomponent, members } = jobcomponentvalue[i];
+            if (!Array.isArray(members)) {
+                return res.status(400).json({ message: "failed", data: "Invalid selected members" });
+            }
+
+            const membersArray = members.map(tempdata => {
+                const { employeeid, role } = tempdata;
+                return {
+                    employee: employeeid ? new mongoose.Types.ObjectId(employeeid) : null,
+                    role: role,
+                    notes: "",
+                    dates: []
+                };
+            });
+
+            componentBulkWrite.push({
+                project: new mongoose.Types.ObjectId(projectdata._id),
+                jobmanager: new mongoose.Types.ObjectId(jobmanager),
+                budgettype: budgettype,
+                isVariation: true,
+                estimatedbudget: estimatedbudget,
+                jobcomponent: jobcomponent,
+                members: membersArray
+            });
+
+            const jobManager = await Users.findOne({ _id: new mongoose.Types.ObjectId(jobmanager) });
+            if (jobManager && jobManager._id) {
+                jobManagerIds.add(jobManager._id);
+            }
+
+            emailDetails.push({
+                jobcomponent,
+                jobmanager: jobManager ? jobManager.fullname : "Unknown Manager",
+                budgettype,
+                estimatedbudget,
+                members: members.map(m => `Employee: ${m.employeeid}, Role: ${m.role}`).join(", ")
+            });
+        }
+
+        await Jobcomponents.insertMany(componentBulkWrite);
+
+        const financeUsers = await Users.find({ auth: "finance" });
+        const superadminUsers = await Users.find({ auth: "superadmin" });
+        const financeUserIds = financeUsers.map(user => user._id);
+        const superadminUserIds = superadminUsers.map(user => user._id);
+
+        const team = projectdata.team;
+        const teamMemberIds = [
+            team.manager,
+        ].filter(Boolean);
+
+        const allRecipientIds = Array.from(new Set([
+            ...financeUserIds,
+            ...superadminUserIds,
+            ...teamMemberIds,
+            ...jobManagerIds
+        ]));
+
+        const emailContent = `Hello Team,\n\nThe following job component variation have been created for Project "${projectdata.name}" by ${email}:\n\n${emailDetails.map(detail => (
+            `Job Component: ${detail.jobcomponent}\n`
+        )).join("")}If you have any questions or concerns, please reach out.\n\nThank you!\n\nBest Regards,\n${email}`;
+
+        const sender = new mongoose.Types.ObjectId(id);
+        await sendmail(sender, allRecipientIds, "New Job Components Created", emailContent, false)
+            .catch(err => {
+                console.error(`Failed to send email notification. Error: ${err}`);
+            });
+
+        return res.json({ message: "success" });
+    } catch (err) {
+        console.error(`There's a problem saving job components for project: ${projectid}. Error: ${err}`);
+        return res.status(500).json({ message: "server-error", data: "There's a problem with the server. Please contact customer support." });
+    }
+};
 exports.editjobcomponentdetails = async (req, res) => {
     const { id, email } = req.user;
     const { jobcomponentid, projectid, jobmanagerid } = req.body;
@@ -1836,11 +1934,16 @@ exports.editstatushours = async (req, res) => {
     if (!date || isNaN(Date.parse(date))) {
         return res.status(400).json({ message: "failed", data: "Invalid date provided." });
     }
-    if (!Array.isArray(status) || status.length === 0) {
-        return res.status(400).json({ message: "failed", data: "Invalid status types." });
+
+    // Optional fields: status and hours
+    const validHours = hours === null || typeof hours === "number" && hours >= 0;
+    const validStatus = status === null || Array.isArray(status);
+
+    if (!validHours) {
+        return res.status(400).json({ message: "failed", data: "Invalid hours provided." });
     }
-    if (!hours || typeof hours !== "number" || hours <= 0) {
-        return res.status(400).json({ message: "failed", data: "Please input valid hours." });
+    if (!validStatus) {
+        return res.status(400).json({ message: "failed", data: "Invalid status provided." });
     }
 
     try {
@@ -1866,15 +1969,19 @@ exports.editstatushours = async (req, res) => {
 
         if (dateIndex !== -1) {
             // Update existing date entry
-            member.dates[dateIndex].hours = hours;
-            member.dates[dateIndex].status = status;
+            if (status !== undefined) member.dates[dateIndex].status = status || [];
+            if (hours !== undefined) member.dates[dateIndex].hours = hours;
         } else {
-            // Add a new date entry
-            member.dates.push({
-                date: new Date(date),
-                hours,
-                status, // Store the status as provided
-            });
+            // Add a new date entry if valid data is provided
+            if (hours !== null || (Array.isArray(status) && status.length > 0)) {
+                member.dates.push({
+                    date: new Date(date),
+                    hours: hours || null,
+                    status: status || [],
+                });
+            } else {
+                return res.status(400).json({ message: "failed", data: "Cannot add empty status and hours." });
+            }
         }
 
         await jobComponent.save();
@@ -1891,8 +1998,8 @@ exports.editstatushours = async (req, res) => {
 
         Employee: ${employeeid}
         Date: ${new Date(date).toDateString()}
-        Status: ${status.join(", ")}
-        Hours: ${hours}
+        Status: ${(status || []).join(", ")}
+        Hours: ${hours !== null ? hours : "Cleared"}
 
         Please review the changes if necessary.
 
@@ -1920,6 +2027,7 @@ exports.editstatushours = async (req, res) => {
         });
     }
 };
+
 
 exports.yourworkload = async (req, res) => {
     const { id, email } = req.user;

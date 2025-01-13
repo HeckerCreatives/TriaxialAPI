@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { createjobcomponent, listjobcomponent, editstatushours, yourworkload, editjobcomponentdetails, editjobmanagercomponents, editalljobcomponentdetails, getjobcomponentdashboard, individualworkload, getmanagerjobcomponentdashboard, getsuperadminjobcomponentdashboard, completejobcomponent, viewduedatesgraph, getjobcomponentindividualrequest, listteamjobcomponent, listJobComponentNamesByTeam, archivejobcomponent, listarchivedteamjobcomponent } = require("../controllers/jobcomponent")
+const { createjobcomponent, listjobcomponent, editstatushours, yourworkload, editjobcomponentdetails, editjobmanagercomponents, editalljobcomponentdetails, getjobcomponentdashboard, individualworkload, getmanagerjobcomponentdashboard, getsuperadminjobcomponentdashboard, completejobcomponent, viewduedatesgraph, getjobcomponentindividualrequest, listteamjobcomponent, listJobComponentNamesByTeam, archivejobcomponent, listarchivedteamjobcomponent, createvariationjobcomponent } = require("../controllers/jobcomponent")
 const { protectsuperadmin, protectemployee, protectmanager, protectusers, protectalluser } = require("../middleware/middleware")
 
 router
@@ -16,6 +16,7 @@ router
     .get("/getindividualrequests", protectalluser, getmanagerjobcomponentdashboard)
     .get("/viewduedatesgraph", protectalluser, viewduedatesgraph)
     .post("/createjobcomponent", protectalluser, createjobcomponent)
+    .post("/createvariationjobcomponent", protectalluser, createvariationjobcomponent)
     .get("/completejobcomponent", protectalluser, completejobcomponent)
     .post("/editalljobcomponentdetails", protectalluser, editalljobcomponentdetails)
     .get("/getjobcomponentdashboardmanager", protectalluser, getjobcomponentdashboard)
