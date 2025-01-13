@@ -2030,6 +2030,137 @@ exports.editstatushours = async (req, res) => {
     }
 };
 
+exports.editMultipleStatusHours = async (req, res) => {
+    const { id, email } = req.user;
+    const { jobcomponentid, employeeid, updates } = req.body;
+
+    // Input validation
+    if (!jobcomponentid) {
+        return res.status(400).json({ message: "failed", data: "Please select a valid job component." });
+    }
+    if (!employeeid) {
+        return res.status(400).json({ message: "failed", data: "Please select a valid employee." });
+    }
+    if (!Array.isArray(updates) || updates.length === 0) {
+        return res.status(400).json({ message: "failed", data: "No updates provided." });
+    }
+
+    try {
+        // Fetch the job component
+        const jobComponent = await Jobcomponents.findById(jobcomponentid);
+        if (!jobComponent) {
+            return res.status(404).json({ message: "failed", data: "Job component does not exist." });
+        }
+
+        // Find the member corresponding to the employee
+        const member = jobComponent.members.find(
+            (m) => (m.employee ? m.employee.toString() : "") === employeeid
+        );
+
+        if (!member) {
+            return res.status(404).json({ message: "failed", data: "Employee not found in the job component." });
+        }
+
+        // Process each update
+        for (const update of updates) {
+            const { date, status, hours } = update;
+
+            // Validate each update object
+            if (!date || isNaN(Date.parse(date))) {
+                return res.status(400).json({ message: "failed", data: `Invalid date provided: ${date}` });
+            }
+
+            const validHours = hours === null || (typeof hours === "number" && hours >= 0);
+            const validStatus = status === null || Array.isArray(status);
+
+            if (!validHours || !validStatus) {
+                return res.status(400).json({
+                    message: "failed",
+                    data: `Invalid status or hours for date: ${date}`,
+                });
+            }
+
+            // Check if the date already exists in the member's dates array
+            const dateIndex = member.dates.findIndex(
+                (d) => new Date(d.date).toDateString() === new Date(date).toDateString()
+            );
+
+            if (dateIndex !== -1) {
+                // Update existing date entry
+                if (status !== undefined) member.dates[dateIndex].status = status || [];
+                if (hours !== undefined) member.dates[dateIndex].hours = hours;
+            } else {
+                // Add a new date entry if valid data is provided
+                if (hours !== null || (Array.isArray(status) && status.length > 0)) {
+                    member.dates.push({
+                        date: new Date(date),
+                        hours: hours || null,
+                        status: status || [],
+                    });
+                } else {
+                    return res.status(400).json({
+                        message: "failed",
+                        data: `Cannot add empty status and hours for date: ${date}`,
+                    });
+                }
+            }
+        }
+
+        await jobComponent.save();
+
+        const jobManagerId = jobComponent.jobmanager;
+        const financeUsers = await Users.find({ auth: "finance" });
+        const financeUserIds = financeUsers.map((user) => user._id);
+
+        const allRecipientIds = Array.from(new Set([...financeUserIds, jobManagerId]));
+
+        const emailContent = `Hello Team,
+
+        The job component "${jobComponent.jobcomponent}" has been updated.
+
+        Employee: ${employeeid}
+        Updates: ${updates
+            .map(
+                (u) =>
+                    `Date: ${new Date(u.date).toDateString()}, Status: ${(u.status || []).join(
+                        ", "
+                    )}, Hours: ${u.hours !== null ? u.hours : "Cleared"}`
+            )
+            .join("\n")}
+
+        Please review the changes if necessary.
+
+        Thank you!
+
+        Best Regards,
+        ${email}`;
+
+        const sender = new mongoose.Types.ObjectId(id);
+        await sendmail(sender, allRecipientIds, "Job Component Update Notification", emailContent, true)
+            .catch((err) => {
+                console.error(
+                    `Failed to send email notification for job component: ${jobcomponentid}. Error: ${err}`
+                );
+                return res.status(400).json({
+                    message: "bad-request",
+                    data: "Email notification failed! Please contact customer support for more details.",
+                });
+            });
+
+        return res.status(200).json({
+            message: "success",
+            data: "Job component updated and email sent successfully.",
+        });
+    } catch (err) {
+        console.error(`Error updating job component ${jobcomponentid}: ${err}`);
+        return res.status(500).json({
+            message: "server-error",
+            data: "An error occurred. Please contact customer support for more details.",
+        });
+    }
+};
+
+
 
 exports.yourworkload = async (req, res) => {
     const { id, email } = req.user;
@@ -2991,10 +3122,11 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                 }
             },
             { $unwind: "$members" },
-            { $unwind: "$members.dates" },
             {
-                $match: {
-                    "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
+                $addFields: {
+                    "members.dates": {
+                        $ifNull: ["$members.dates", []] // Ensure dates exist
+                    }
                 }
             },
             {
@@ -3013,10 +3145,8 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                     pipeline: [
                         { 
                             $match: { 
-                                $expr: { 
-                                    $eq: ['$owner', '$$employeeId'] 
-                                } 
-                            }
+                                $expr: { $eq: ['$owner', '$$employeeId'] } 
+                            } 
                         },
                         {
                             $project: {
@@ -3032,91 +3162,53 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                 }
             },
             {
-                $lookup: {
-                    from: 'wellnessdays',
-                    let: { employeeId: '$members.employee' },
-                    pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
-                        {
-                            $project: {
-                                _id: 0,
-                                wellnessdates: "$requestdate"
-                            }
-                        }
-                    ],
-                    as: 'wellnessData'
+                $unwind: {
+                    path: "$members.dates",
+                    preserveNullAndEmptyArrays: true // Keep members without matching dates
                 }
             },
             {
-                $lookup: {
-                    from: 'events',
-                    let: { teamId: '$projectDetails.team' },
-                    pipeline: [
-                        { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
-                        {
-                            $project: {
-                                _id: 0,
-                                eventdates: {
-                                    startdate: "$startdate",
-                                    enddate: "$enddate"
-                                }
-                            }
-                        }
-                    ],
-                    as: 'eventData'
+                $match: {
+                    $or: [
+                        { "members.dates.date": { $gte: startOfWeek, $lte: endOfRange } },
+                        { "members.dates": { $exists: false } } // Include members with no dates
+                    ]
                 }
             },
-            {
-                $lookup: {
-                    from: 'teams',
-                    localField: 'projectDetails.team',
-                    foreignField: '_id',
-                    as: 'teamData'
-                }
-            },
-            { $unwind: '$teamData' },
             {
                 $group: {
                     _id: {
-                        teamid: "$teamData._id",
-                        team: "$teamData.teamname",
-                        employeeId: "$userDetails._id", 
+                        employeeId: "$userDetails.owner",
                         employeeName: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] },
-                        date: "$members.dates.date"
+                        teamId: "$projectDetails.team"
                     },
-                    employee: {
-                        $first: {
-                            id: "$userDetails.owner",
-                            fullname: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] },
-                            initial: "$userDetails.initial",
-                            resource: "$userDetails.resource"
+                    dates: {
+                        $push: {
+                            date: "$members.dates.date",
+                            hours: "$members.dates.hours",
+                            status: "$members.dates.status"
                         }
                     },
-                    date: { $first: "$members.dates.date" },
-                    status: { $first: "$members.dates.status" },
-                    totalHours: { $sum: "$members.dates.hours" },
                     leaveData: { $first: "$leaveData" },
                     wellnessData: { $first: "$wellnessData" },
                     eventData: { $first: "$eventData" },
-                    project: { $first: "$projectDetails"}
+                    project: { $first: "$projectDetails" }
                 }
             },
             {
                 $project: {
-                    employee: 1,
-                    date: 1,
-                    status: 1,
-                    totalHours: 1,
+                    employeeId: "$_id.employeeId",
+                    employeeName: "$_id.employeeName",
+                    teamId: "$_id.teamId",
+                    dates: 1,
                     leaveData: 1,
                     wellnessData: 1,
                     eventData: 1,
-                    project: 1,
-                    teamid: "$_id.teamid",
-                    teamName: "$_id.team",
+                    project: 1
                 }
-            },
-            { $sort: { "teamName": 1, "employee": 1, "date": 1 } }
+            }
         ]);
+        
 
         const data = {
             alldates: [],

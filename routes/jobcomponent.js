@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { createjobcomponent, listjobcomponent, editstatushours, yourworkload, editjobcomponentdetails, editjobmanagercomponents, editalljobcomponentdetails, getjobcomponentdashboard, individualworkload, getmanagerjobcomponentdashboard, getsuperadminjobcomponentdashboard, completejobcomponent, viewduedatesgraph, getjobcomponentindividualrequest, listteamjobcomponent, listJobComponentNamesByTeam, archivejobcomponent, listarchivedteamjobcomponent, createvariationjobcomponent } = require("../controllers/jobcomponent")
+const { createjobcomponent, listjobcomponent, editstatushours, yourworkload, editjobcomponentdetails, editjobmanagercomponents, editalljobcomponentdetails, getjobcomponentdashboard, individualworkload, getmanagerjobcomponentdashboard, getsuperadminjobcomponentdashboard, completejobcomponent, viewduedatesgraph, getjobcomponentindividualrequest, listteamjobcomponent, listJobComponentNamesByTeam, archivejobcomponent, listarchivedteamjobcomponent, createvariationjobcomponent, editMultipleStatusHours } = require("../controllers/jobcomponent")
 const { protectsuperadmin, protectemployee, protectmanager, protectusers, protectalluser } = require("../middleware/middleware")
 
 router
@@ -9,9 +9,9 @@ router
     .get("/yourworkload", protectusers, yourworkload)
     .get("/listjobcomponentnamesbyteam", protectusers, listJobComponentNamesByTeam)
     //  #endregion
-
+    
     //  #region MANAGER
-
+    
     .get("/getmanagerjobcomponentdashboard", protectalluser, getmanagerjobcomponentdashboard)
     .get("/getindividualrequests", protectalluser, getmanagerjobcomponentdashboard)
     .get("/viewduedatesgraph", protectalluser, viewduedatesgraph)
@@ -39,10 +39,11 @@ router
     .get("/individualworkloadsuperadmin", protectsuperadmin, individualworkload)
     .get("/getsuperadminjobcomponentdashboard", protectsuperadmin, getsuperadminjobcomponentdashboard)
     .get("/listemployeeindividualrequests", protectsuperadmin, getjobcomponentindividualrequest)
-
+    
     //  #endregion
     
     //  #region ALL USERS
+    .post("/editmultiplestatushours", protectalluser, editMultipleStatusHours)
     .get("/getjobcomponentindividualrequest", protectalluser, getjobcomponentindividualrequest)
     .get("/listarchivedteamjobcomponent", protectalluser, listarchivedteamjobcomponent)
     .get("/listteamjobcomponent", protectalluser, listteamjobcomponent)
