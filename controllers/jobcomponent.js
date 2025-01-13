@@ -3016,9 +3016,22 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         }
 
         result.forEach(entry => {
-            const { teamName, teamid, employee, date, status, totalHours, leaveData, wellnessData, eventData} = entry;
-            const formattedDate = new Date(date).toISOString().split('T')[0];
-
+            const { 
+                teamName, 
+                teamid, 
+                employee, 
+                date, 
+                status, 
+                totalHours, 
+                leaveData = [], 
+                wellnessData = [], 
+                eventData = [] 
+            } = entry;
+        
+            // Format the date, or use a placeholder if the date is invalid
+            const formattedDate = date ? new Date(date).toISOString().split('T')[0] : "No Date";
+        
+            // Find or create the team data
             let teamData = data.teams.find(team => team.name === teamName);
             if (!teamData) {
                 teamData = {
@@ -3028,46 +3041,71 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                 };
                 data.teams.push(teamData);
             }
-
-            let employeeData = teamData.members.find(emp => emp.name === employee.fullname);
+        
+            // Find or create the employee data
+            let employeeData = teamData.members.find(emp => emp.name === employee?.fullname);
             if (!employeeData) {
                 employeeData = {
-                    id: employee.id,
-                    name: employee.fullname,
-                    initial: employee.initial,
-                    resource: employee.resource,
+                    id: employee?.id || "Unknown ID",
+                    name: employee?.fullname || "Unknown Employee",
+                    initial: employee?.initial || "",
+                    resource: employee?.resource || "",
                     leave: [],
-                    wellness: entry.wellnessData,
+                    wellness: wellnessData.length > 0 ? [...wellnessData] : [],
                     event: [],
-                    dates: [],
+                    dates: []
                 };
-                entry.leaveData.forEach(leave => {
-                    employeeData.leave.push({
-                        leavestart: leave.leavedates.leavestart,
-                        leaveend: leave.leavedates.leaveend
-                    })
-                })
-
-                entry.eventData.forEach(event => {
-                    employeeData.event.push({
-                        eventstart: event.eventdates.startdate,
-                        eventend: event.eventdates.enddate
-                    })
-                })
-
+        
+                // Add leave data
+                leaveData.forEach(leave => {
+                    if (
+                        !employeeData.leave.some(l => 
+                            l.leavestart === leave.leavedates.leavestart && 
+                            l.leaveend === leave.leavedates.leaveend
+                        )
+                    ) {
+                        employeeData.leave.push({
+                            leavestart: leave.leavedates.leavestart,
+                            leaveend: leave.leavedates.leaveend
+                        });
+                    }
+                });
+        
+                // Add event data
+                eventData.forEach(event => {
+                    if (
+                        !employeeData.event.some(e => 
+                            e.eventstart === event.eventdates.startdate && 
+                            e.eventend === event.eventdates.enddate
+                        )
+                    ) {
+                        employeeData.event.push({
+                            eventstart: event.eventdates.startdate,
+                            eventend: event.eventdates.enddate
+                        });
+                    }
+                });
+        
+                // Add the employee to the team
                 teamData.members.push(employeeData);
             }
-
+        
+            // Ensure the date entry exists, even if no hours are recorded
             let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
             if (!dateEntry) {
                 dateEntry = {
                     date: formattedDate,
-                    totalhoursofjobcomponents: totalHours,
+                    totalhoursofjobcomponents: totalHours || 0,
+                    status: status || "No Status"
                 };
-
+        
                 employeeData.dates.push(dateEntry);
+            } else {
+                // Aggregate total hours if the date entry already exists
+                dateEntry.totalhoursofjobcomponents += totalHours || 0;
             }
         });
+        
 
         return res.json({ message: 'success', data });
     } catch (err) {
