@@ -8,18 +8,41 @@ const { sendmail } = require("../utils/email");
 //  #region MANAGER
 exports.createjobcomponent = async (req, res) => {
     const { id, email } = req.user;
-    const { projectid, jobcomponentvalue } = req.body;
+    const { jobcomponentvalue, clientid, end, projectname, start, teamid, jobno } = req.body;
 
-    if (!projectid) {
-        return res.status(400).json({ message: "failed", data: "Please select a valid project" });
-    } else if (!jobcomponentvalue) {
+    if (!teamid){
+        return res.status(400).json({message: "failed", data: "Please select a team first!"})
+    }
+    else if (!jobno){
+        return res.status(400).json({message: "failed", data: "Enter a job number first!"})
+    }
+    else if (!projectname){
+        return res.status(400).json({message: "failed", data: "Enter a project name!"})
+    }
+    else if (!clientid){
+        return res.status(400).json({message: "failed", data: "Please select a client!"})
+    }
+    else if (!start){
+        return res.status(400).json({message: "failed", data: "Please select a start date"})
+    }
+    else if (!end){
+        return res.status(400).json({message: "failed", data: "Please select a deadline date"})
+    }
+
+
+     if (!jobcomponentvalue) {
         return res.status(400).json({ message: "failed", data: "Please complete the job component form!" });
     } else if (!Array.isArray(jobcomponentvalue)) {
         return res.status(400).json({ message: "failed", data: "The form you are saving is not valid!" });
     }
 
     try {
-        const projectdata = await Projects.findOne({ _id: new mongoose.Types.ObjectId(projectid) }).populate('team');
+       const projectdata = await Projects.create({team: new mongoose.Types.ObjectId(teamid), jobno: jobno, projectname: projectname, client: new mongoose.Types.ObjectId(clientid), invoiced: 0, status: "On-going", startdate: new Date(start), deadlinedate: new Date(end)})        
+        .then(data => data)
+        .catch(err => {
+            console.log(`There's a problem encountered while creating project in create job component. Error: ${err}`)
+            return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact support for more details."})
+        })    
         if (!projectdata) {
             return res.status(403).json({ message: "failed", data: "No existing project data. Please select a valid project" });
         }
@@ -87,7 +110,7 @@ exports.createjobcomponent = async (req, res) => {
             ...jobManagerIds
         ]));
 
-        const emailContent = `Hello Team,\n\nThe following job components have been created for Project "${projectdata.name}" by ${email}:\n\n${emailDetails.map(detail => (
+        const emailContent = `Hello Team,\n\nThe following job components and project have been created" by ${email}:\n\n${emailDetails.map(detail => (
             `Job Component: ${detail.jobcomponent}\n`
         )).join("")}If you have any questions or concerns, please reach out.\n\nThank you!\n\nBest Regards,\n${email}`;
 
