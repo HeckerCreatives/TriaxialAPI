@@ -105,13 +105,13 @@ exports.createjobcomponent = async (req, res) => {
             ...Array.from(allEmployeeIds),
         ]);
 
-        allRecipientIds.delete(id.toString()); // Remove sender ID
+        allRecipientIds.delete(id); // Remove sender ID
 
         const emailContent = `Hello Team,\n\nThe following job components and project have been created by ${email}:\n\n${emailDetails
             .map(detail => `Job Component: ${detail.jobcomponent}\n`)
             .join("")}If you have any questions, please reach out.\n\nBest Regards,\n${email}`;
 
-        await sendmail(new mongoose.Types.ObjectId(id), Array.from(allRecipientIds), "New Job Components Created", emailContent, false)
+        await sendmail(new mongoose.Types.ObjectId(id), Array.from(allRecipientIds), "New Job Components Created", emailContent)
             .catch(err => console.error("Failed to send email:", err));
 
         return res.json({ message: "success" });
@@ -3026,9 +3026,9 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         }
 
         result.forEach(entry => {
-            const { teamName, teamid, employee, date, status, totalHours, leaveData, wellnessData, eventData} = entry;
+            const { teamName, teamid, employee, date, totalHours, leaveData, wellnessData, eventData } = entry;
             const formattedDate = new Date(date).toISOString().split('T')[0];
-
+        
             let teamData = data.teams.find(team => team.name === teamName);
             if (!teamData) {
                 teamData = {
@@ -3038,7 +3038,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                 };
                 data.teams.push(teamData);
             }
-
+        
             let employeeData = teamData.members.find(emp => emp.name === employee.fullname);
             if (!employeeData) {
                 employeeData = {
@@ -3047,37 +3047,55 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     initial: employee.initial,
                     resource: employee.resource,
                     leave: [],
-                    wellness: entry.wellnessData,
+                    wellness: wellnessData,
                     event: [],
-                    dates: [],
+                    dates: []
                 };
-                entry.leaveData.forEach(leave => {
+        
+                leaveData.forEach(leave => {
                     employeeData.leave.push({
                         leavestart: leave.leavedates.leavestart,
                         leaveend: leave.leavedates.leaveend
-                    })
-                })
-
-                entry.eventData.forEach(event => {
+                    });
+                });
+        
+                eventData.forEach(event => {
                     employeeData.event.push({
                         eventstart: event.eventdates.startdate,
                         eventend: event.eventdates.enddate
-                    })
-                })
-
+                    });
+                });
+        
                 teamData.members.push(employeeData);
             }
-
+        
             let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
             if (!dateEntry) {
                 dateEntry = {
                     date: formattedDate,
                     totalhoursofjobcomponents: totalHours,
                 };
-
                 employeeData.dates.push(dateEntry);
             }
         });
+        
+        // Ensure every employee has all dates even if they have no data
+        data.teams.forEach(team => {
+            team.members.forEach(employee => {
+                data.alldates.forEach(date => {
+                    if (!employee.dates.some(d => d.date === date)) {
+                        employee.dates.push({
+                            date: date,
+                            totalhoursofjobcomponents: 0 // Default when no data
+                        });
+                    }
+                });
+        
+                // Sort dates to maintain order
+                employee.dates.sort((a, b) => new Date(a.date) - new Date(b.date));
+            });
+        });
+        
 
         return res.json({ message: 'success', data });
     } catch (err) {

@@ -45,22 +45,27 @@ exports.listemail = async (req, res) => {
                 isRead: {
                     $cond: {
                         if: {
-                            $gt: [
+                            $or: [
+                                { $eq: ['$sender', new mongoose.Types.ObjectId(id)] }, // Sender should always see it as read
                                 {
-                                    $size: {
-                                        $filter: {
-                                            input: "$receiver",
-                                            as: "receiver",
-                                            cond: {
-                                                $and: [
-                                                    { $eq: ["$$receiver.userid", new mongoose.Types.ObjectId(id)] }, 
-                                                    { $eq: ["$$receiver.isRead", true] } // Check if it's read
-                                                ]
+                                    $gt: [
+                                        {
+                                            $size: {
+                                                $filter: {
+                                                    input: "$receiver",
+                                                    as: "receiver",
+                                                    cond: {
+                                                        $and: [
+                                                            { $eq: ["$$receiver.userid", new mongoose.Types.ObjectId(id)] }, 
+                                                            { $eq: ["$$receiver.isRead", true] } // Check if it's read
+                                                        ]
+                                                    }
+                                                }
                                             }
-                                        }
-                                    }
-                                },
-                                0
+                                        },
+                                        0
+                                    ]
+                                }
                             ]
                         },
                         then: true,
@@ -68,7 +73,7 @@ exports.listemail = async (req, res) => {
                     }
                 }
             }
-        },        
+        },       
         {
             $project: {
                 senderfullname: {
