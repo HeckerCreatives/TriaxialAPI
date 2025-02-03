@@ -4,11 +4,12 @@ const Projects = require("../models/Projects")
 const moment = require('moment');
 const Users = require("../models/Users");
 const { sendmail } = require("../utils/email");
+const Clients = require("../models/Clients");
 
 //  #region MANAGER
 exports.createjobcomponent = async (req, res) => {
     const { id, email } = req.user;
-    const { jobcomponentvalue, clientid, end, projectname, start, teamid, jobno } = req.body;
+    const { jobcomponentvalue, clientid, end, projectname, start, teamid, jobno, priority } = req.body;
 
     if (!teamid){
         return res.status(400).json({message: "failed", data: "Please select a team first!"})
@@ -19,9 +20,6 @@ exports.createjobcomponent = async (req, res) => {
     else if (!projectname){
         return res.status(400).json({message: "failed", data: "Enter a project name!"})
     }
-    else if (!clientid){
-        return res.status(400).json({message: "failed", data: "Please select a client!"})
-    }
     else if (!start){
         return res.status(400).json({message: "failed", data: "Please select a start date"})
     }
@@ -30,14 +28,32 @@ exports.createjobcomponent = async (req, res) => {
     }
 
 
+
      if (!jobcomponentvalue) {
         return res.status(400).json({ message: "failed", data: "Please complete the job component form!" });
     } else if (!Array.isArray(jobcomponentvalue)) {
         return res.status(400).json({ message: "failed", data: "The form you are saving is not valid!" });
     }
 
+    let client
+
+    if (!mongoose.Types.ObjectId.isValid(clientid)) {
+         const { _id } = await Clients.create({ clientname: clientid, priority: priority})
+        .then(data => data)
+        .catch(err => {
+            console.log(`There's a problem encountered while creating client in create job component. Error: ${err}`)
+            return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact support for more details."})
+        })
+
+        client = _id
+    } else if (!clientid) {
+        return res.status(400).json({ message: "failed", data: "Please select a valid client" });
+    } else {
+        client = clientid
+    }
+
     try {
-       const projectdata = await Projects.create({team: new mongoose.Types.ObjectId(teamid), jobno: jobno, projectname: projectname, client: new mongoose.Types.ObjectId(clientid), invoiced: 0, status: "On-going", startdate: new Date(start), deadlinedate: new Date(end)})        
+       const projectdata = await Projects.create({team: new mongoose.Types.ObjectId(teamid), jobno: jobno, projectname: projectname, client: new mongoose.Types.ObjectId(client), invoiced: 0, status: "On-going", startdate: new Date(start), deadlinedate: new Date(end)})        
         .then(data => data)
         .catch(err => {
             console.log(`There's a problem encountered while creating project in create job component. Error: ${err}`)
