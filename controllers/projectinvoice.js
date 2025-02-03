@@ -3,6 +3,7 @@ const Jobcomponents = require("../models/Jobcomponents")
 const Projectedinvoice = require("../models/projectinvoice");
 const Subconts = require("../models/Subconts");
 const { sendmail } = require("../utils/email");
+const { getAllUserIdsExceptSender } = require("../utils/user");
 
 //  #region MANAGER & EMPLOYEE
 
@@ -535,8 +536,10 @@ exports.saveprojectinvoicevalue = async (req, res) => {
             Date: ${formattedDate}\n\n
             Thank you for your attention.
         `;
+
+        const receiver = await getAllUserIdsExceptSender(id)
         
-        await sendmail(sender, [], "Project Invoice Value Updated", emailContent, true)
+        await sendmail(sender, receiver, "Project Invoice Value Updated", emailContent)
             .catch(err => {
                 console.log(`Failed to send email notification for job component: ${jobcomponentid}. Error: ${err}`);
                 return res.status(400).json({

@@ -175,7 +175,7 @@ exports.updateinvoice = async (req, res) => {
         const emailContent = `Hello Team,\n\nThe invoice for job component "${invoice.jobcomponent}" has been updated:\n\nInvoice Amount: ${invoiceamount}\nComments: ${comments || 'No comments provided'}\n\nIf you have any questions, feel free to reach out.\n\nBest Regards,\n${email}`;
         
         const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, allRecipientIds, "Invoice Updated", emailContent, false)
+        await sendmail(sender, allRecipientIds, "Invoice Updated", emailContent)
             .catch(err => {
                 console.log(`Failed to send email notification for invoice update. Error: ${err}`);
             });

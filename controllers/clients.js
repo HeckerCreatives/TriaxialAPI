@@ -1,6 +1,7 @@
 const { default: mongoose } = require("mongoose")
 const Clients = require("../models/Clients")
 const { sendmail } = require("../utils/email")
+const { getAllUserIdsExceptSender } = require("../utils/user")
 
 //  #region SUPERADMIN
 
@@ -36,13 +37,14 @@ exports.createclients = async (req, res) => {
     })
 
     const sender = new mongoose.Types.ObjectId(id)
+
+    const receivers = await getAllUserIdsExceptSender(id)
     
     await sendmail(
         sender, 
-        [], 
+        receivers, 
         "New Client Creation Notification", 
         `Hello Team,\n\nA new client has been successfully added to our system.\n\nClient Name: ${clientname}\nPriority Level: ${priority}\n\nIf you have any questions or concerns regarding this client, please feel free to reach out.\n\nThank you!\n\nBest Regards,\n${email}`,
-        true
     );    
     return res.json({message: "success"})
 }
@@ -127,10 +129,12 @@ exports.deleteclients = async (req, res) => {
             return res.status(400).json({ message: "failed", data: "Failed to delete clients" });
         }
 
+        const receivers = await getAllUserIdsExceptSender(id)
+
         const sender = new mongoose.Types.ObjectId(id);
         await sendmail(
             sender,
-            [],
+            receivers,
             "Client Deletion Notification",
             `Hello Team,\n\nThe following clients have been successfully removed from our system:\n\n${clientNames
                 .map(name => `- ${name.clientname}`)
@@ -203,9 +207,11 @@ exports.editclient = async (req, res) => {
 
     const sender = new mongoose.Types.ObjectId(id);
 
+    const receivers = await getAllUserIdsExceptSender(id);
+
     await sendmail(
         sender,
-        [],
+        receivers,
         "Client Update Notification",
         `Hello Team,\n\nThe client has been successfully updated in our system.\n\nClient Name: ${updatedClient.clientname}\nPriority Level: ${updatedClient.priority}\n\nIf you have any questions or concerns regarding this update, please feel free to reach out.\n\nThank you!\n\nBest Regards,\n${email}`,
         true

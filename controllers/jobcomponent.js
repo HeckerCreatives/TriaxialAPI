@@ -5,6 +5,7 @@ const moment = require('moment');
 const Users = require("../models/Users");
 const { sendmail } = require("../utils/email");
 const Clients = require("../models/Clients");
+const { getAllUserIdsExceptSender } = require("../utils/user");
 
 //  #region MANAGER
 exports.createjobcomponent = async (req, res) => {
@@ -545,8 +546,10 @@ exports.editalljobcomponentdetails = async (req, res) => {
 
         // Send email notification
         const sender = new mongoose.Types.ObjectId(id);
-        const recipientIds = []; // Add appropriate recipient logic here if needed
-        await sendmail(sender, recipientIds, "Job Component Details Updated", emailContent, true)
+
+        const receiver = await getAllUserIdsExceptSender(id)
+
+        await sendmail(sender, receiver, "Job Component Details Updated", emailContent)
             .catch(err => {
                 console.error(`Failed to send email notification for updated job component: ${jobcomponentid}. Error: ${err}`);
                 return res.status(400).json({
@@ -614,7 +617,8 @@ exports.completejobcomponent = async (req, res) => {
 
         // Send email notification
         const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, allRecipientIds, "Job Component Completed", emailContent, true)
+        const receiver = await getAllUserIdsExceptSender(id)
+        await sendmail(sender, receiver, "Job Component Completed", emailContent)
             .catch(err => {
                 console.error(`Failed to send email notification for job component: ${jobcomponentId}. Error: ${err}`);
                 return res.status(400).json({
@@ -661,12 +665,6 @@ exports.archivejobcomponent = async (req, res) => {
             });
         }
 
-        const jobManagerId = jobComponent.jobmanager;
-        const jobManager = await Users.findOne({ _id: jobManagerId });
-        const financeUsers = await Users.find({ auth: "finance" });
-        const financeUserIds = financeUsers.map((user) => user._id);
-
-        const allRecipientIds = Array.from(new Set([...financeUserIds, jobManagerId]));
 
         const emailContent = `Hello Team,
 
@@ -682,7 +680,9 @@ exports.archivejobcomponent = async (req, res) => {
         ${email}`;
 
         const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, allRecipientIds, "Job Component Archived", emailContent, true)
+
+        const receiver = await getAllUserIdsExceptSender(id)
+        await sendmail(sender, receiver, "Job Component Archived", emailContent)
             .catch((err) => {
                 console.error(
                     `Failed to send email notification for job component: ${jobcomponentId}. Error: ${err}`
@@ -2026,13 +2026,6 @@ exports.editstatushours = async (req, res) => {
         }
 
         await jobComponent.save();
-
-        const jobManagerId = jobComponent.jobmanager;
-        const financeUsers = await Users.find({ auth: "finance" });
-        const financeUserIds = financeUsers.map((user) => user._id);
-
-        const allRecipientIds = Array.from(new Set([...financeUserIds, jobManagerId]));
-
         const emailContent = `Hello Team,
 
         The job component "${jobComponent.jobcomponent}" has been updated.
@@ -2050,7 +2043,9 @@ exports.editstatushours = async (req, res) => {
         ${email}`;
 
         const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, allRecipientIds, "Job Component Update Notification", emailContent, true)
+        const receiver = await getAllUserIdsExceptSender(id)
+
+        await sendmail(sender, receiver, "Job Component Update Notification", emailContent)
             .catch((err) => {
                 console.error(`Failed to send email notification for job component: ${jobcomponentid}. Error: ${err}`);
                 return res.status(400).json({
@@ -2147,12 +2142,6 @@ exports.editMultipleStatusHours = async (req, res) => {
 
         await jobComponent.save();
 
-        const jobManagerId = jobComponent.jobmanager;
-        const financeUsers = await Users.find({ auth: "finance" });
-        const financeUserIds = financeUsers.map((user) => user._id);
-
-        const allRecipientIds = Array.from(new Set([...financeUserIds, jobManagerId]));
-
         const emailContent = `Hello Team,
 
         The job component "${jobComponent.jobcomponent}" has been updated.
@@ -2174,8 +2163,10 @@ exports.editMultipleStatusHours = async (req, res) => {
         Best Regards,
         ${email}`;
 
+        const receiver = await getAllUserIdsExceptSender(id);
+
         const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, allRecipientIds, "Job Component Update Notification", emailContent, true)
+        await sendmail(sender, receiver, "Job Component Update Notification", emailContent)
             .catch((err) => {
                 console.error(
                     `Failed to send email notification for job component: ${jobcomponentid}. Error: ${err}`
@@ -2605,7 +2596,10 @@ exports.editjobmanagercomponents = async (req, res) => {
         ${email}`;
 
         const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, allRecipientIds, "Job Component Members Updated", emailContent, true)
+
+        const receiver = await getAllUserIdsExceptSender(id);
+
+        await sendmail(sender, receiver, "Job Component Members Updated", emailContent)
             .catch((err) => {
                 console.error(
                     `Failed to send email notification for job component: ${jobcomponentid}. Error: ${err}`

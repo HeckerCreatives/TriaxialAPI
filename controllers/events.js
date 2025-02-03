@@ -5,6 +5,7 @@ const Teams = require("../models/Teams")
 const {sendmail} = require("../utils/email")
 
 const moment = require('moment');
+const { getAllUserIdsExceptSender } = require("../utils/user");
 
 //  #region USERS
 
@@ -125,7 +126,9 @@ exports.createevents = async (req, res) => {
 
     const sender = new mongoose.Types.ObjectId(id)
 
-    await sendmail(sender, [], `${eventtitle} (Event)`, `Hello Everyone!\n\nThere would be an event on ${startdate} until ${enddate}.\n\nIf there's any question, please feel free to contact your respective immediate advisors\n\nThank you and have a great day!`, true)
+    const receiver = await getAllUserIdsExceptSender(id)
+
+    await sendmail(sender, receiver, `${eventtitle} (Event)`, `Hello Everyone!\n\nThere would be an event on ${startdate} until ${enddate}.\n\nIf there's any question, please feel free to contact your respective immediate advisors\n\nThank you and have a great day!`)
 
     return res.json({message: "success"})
 }
@@ -281,12 +284,13 @@ exports.editevents = async (req, res) => {
 
     const sender = new mongoose.Types.ObjectId(id);
 
+    const receiver = await getAllUserIdsExceptSender(id);
+
     await sendmail(
         sender,
-        [],
+        receiver,
         "Event Update Notification",
         `Hello Everyone,\n\nThe event has been successfully updated.\n\nEvent Title: ${updatedEvent.eventtitle}\nStart Date: ${updatedEvent.startdate}\nEnd Date: ${updatedEvent.enddate}\nTeams Involved: ${updatedEvent.teams.join(", ")}\n\nIf you have any questions or concerns regarding this update, please feel free to reach out.\n\nThank you!\n\nBest Regards,\n${email}`,
-        true
     )
     .catch(err => {
         console.log(`Failed to send email notification for event ${eventid}. Error: ${err}`);
@@ -360,12 +364,13 @@ exports.deleteevent = async (req, res) => {
 
     const sender = new mongoose.Types.ObjectId(id);
 
+    const receiver = await getAllUserIdsExceptSender(id);
+
     await sendmail(
         sender,
-        [],
+        receiver,
         "Event Deletion Notification",
         `Hello Team,\n\nThe event titled "${deletedEvent.eventtitle}" has been successfully deleted from our system.\n\nStart Date: ${deletedEvent.startdate}\nEnd Date: ${deletedEvent.enddate}\n\nIf you have any questions or concerns, please reach out.\n\nThank you!\n\nBest Regards,\n${email}`,
-        true
     )
     .catch(err => {
         console.log(`Failed to send email notification for deleted event with eventid: ${eventid}. Error: ${err}`);

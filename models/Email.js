@@ -8,10 +8,17 @@ const EmailSchema = new mongoose.Schema(
             index: true
         },
         receiver: [{
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Users',
-            index: true
-        }],
+            userid: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Users',
+                index: true
+            },
+            isRead: {
+                type: Boolean,
+                default: false,
+            }
+        }
+    ],
         title: {
             type: String
         },
