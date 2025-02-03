@@ -1338,10 +1338,11 @@ exports.listteamjobcomponent = async (req, res) => {
     const { teamid } = req.query;
 
     try {
+
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null, "unarchive"] } 
+                    status: { $in: ["completed", "", null, "unarchive", "On-going"] } 
                 }
             },
             {
@@ -1612,6 +1613,7 @@ exports.listteamjobcomponent = async (req, res) => {
                     _id: '$_id',
                     componentid: { $first: '$_id' },
                     teamname: { $first: '$teamDetails.teamname' },
+                    projectstart: { $first: '$projectDetails.startdate'}, 
                     projectend: { $first: '$projectDetails.deadlinedate'}, 
                     projectname: { $first: { projectid: '$projectDetails._id', name: '$projectDetails.projectname', status: '$projectDetails.status' } },
                     clientname: { $first: { clientid: '$clientDetails._id', name: '$clientDetails.clientname', priority: '$clientDetails.priority' } },
