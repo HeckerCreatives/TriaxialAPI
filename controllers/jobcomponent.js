@@ -2853,10 +2853,13 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
 
         
+
+        
+
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null, "unarchive"] } 
+                    status: { $in: ["completed", "", null, "unarchive", "On-going"] } 
                 }
             },
             {
@@ -2887,12 +2890,12 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                 }
             },
             { $unwind: "$members" },
-            { $unwind: "$members.dates" },
-            {
-                $match: {
-                    "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
-                }
-            },
+            // { $unwind: "$members.dates" },
+            // {
+            //     $match: {
+            //         "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
+            //     }
+            // },
             {
                 $lookup: {
                     from: 'userdetails',
@@ -3010,7 +3013,11 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                 }
             },
             { $sort: { "teamName": 1, "employee": 1, "date": 1 } }
-        ]);
+        ])
+        .catch((err) => {
+            console.error(err);
+            return res.status(500).json({ message: 'Error processing request', error: err.message });
+        });
 
         const data = {
             alldates: [],
@@ -3025,9 +3032,11 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
             currentDate.setDate(currentDate.getDate() + 1);
         }
 
+
         result.forEach(entry => {
             const { teamName, teamid, employee, date, totalHours, leaveData, wellnessData, eventData } = entry;
-            const formattedDate = new Date(date).toISOString().split('T')[0];
+            const formattedDate = new Date().toISOString().split('T')[0];
+            // const formattedDate = new Date(date).toISOString().split('T')[0];
         
             let teamData = data.teams.find(team => team.name === teamName);
             if (!teamData) {
