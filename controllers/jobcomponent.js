@@ -6,141 +6,118 @@ const Users = require("../models/Users");
 const { sendmail } = require("../utils/email");
 const Clients = require("../models/Clients");
 const { getAllUserIdsExceptSender } = require("../utils/user");
+const Teams = require("../models/Teams");
 
 //  #region MANAGER
 exports.createjobcomponent = async (req, res) => {
     const { id, email } = req.user;
     const { jobcomponentvalue, clientid, end, projectname, start, teamid, jobno, priority } = req.body;
 
-    if (!teamid){
-        return res.status(400).json({message: "failed", data: "Please select a team first!"})
-    }
-    else if (!jobno){
-        return res.status(400).json({message: "failed", data: "Enter a job number first!"})
-    }
-    else if (!projectname){
-        return res.status(400).json({message: "failed", data: "Enter a project name!"})
-    }
-    else if (!start){
-        return res.status(400).json({message: "failed", data: "Please select a start date"})
-    }
-    else if (!end){
-        return res.status(400).json({message: "failed", data: "Please select a deadline date"})
+    if (!teamid) return res.status(400).json({ message: "failed", data: "Please select a team first!" });
+    if (!jobno) return res.status(400).json({ message: "failed", data: "Enter a job number first!" });
+    if (!projectname) return res.status(400).json({ message: "failed", data: "Enter a project name!" });
+    if (!start) return res.status(400).json({ message: "failed", data: "Please select a start date" });
+    if (!end) return res.status(400).json({ message: "failed", data: "Please select a deadline date" });
+
+    if (!jobcomponentvalue || !Array.isArray(jobcomponentvalue)) {
+        return res.status(400).json({ message: "failed", data: "Invalid job component form!" });
     }
 
-
-
-     if (!jobcomponentvalue) {
-        return res.status(400).json({ message: "failed", data: "Please complete the job component form!" });
-    } else if (!Array.isArray(jobcomponentvalue)) {
-        return res.status(400).json({ message: "failed", data: "The form you are saving is not valid!" });
-    }
-
-    let client
-
+    let client;
     if (!mongoose.Types.ObjectId.isValid(clientid)) {
-         const { _id } = await Clients.create({ clientname: clientid, priority: priority})
-        .then(data => data)
-        .catch(err => {
-            console.log(`There's a problem encountered while creating client in create job component. Error: ${err}`)
-            return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact support for more details."})
-        })
+        const clientExists = await Clients.findOne({ clientname: clientid });
 
-        client = _id
-    } else if (!clientid) {
-        return res.status(400).json({ message: "failed", data: "Please select a valid client" });
+        if (clientExists) {
+            return res.status(400).json({ message: "failed", data: "Client already exists" });
+        }
+
+        try {
+            const newClient = await Clients.create({ clientname: clientid, priority });
+            client = newClient._id;
+        } catch (err) {
+            console.error("Error creating client:", err);
+            return res.status(400).json({ message: "bad-request", data: "Server error! Contact support." });
+        }
     } else {
-        client = clientid
+        client = clientid;
     }
 
     try {
-       const projectdata = await Projects.create({team: new mongoose.Types.ObjectId(teamid), jobno: jobno, projectname: projectname, client: new mongoose.Types.ObjectId(client), invoiced: 0, status: "On-going", startdate: new Date(start), deadlinedate: new Date(end)})        
-        .then(data => data)
-        .catch(err => {
-            console.log(`There's a problem encountered while creating project in create job component. Error: ${err}`)
-            return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact support for more details."})
-        })    
+        const projectdata = await Projects.create({
+            team: new mongoose.Types.ObjectId(teamid),
+            jobno,
+            projectname,
+            client: new mongoose.Types.ObjectId(client),
+            invoiced: 0,
+            status: "On-going",
+            startdate: new Date(start),
+            deadlinedate: new Date(end),
+        });
+
         if (!projectdata) {
-            return res.status(403).json({ message: "failed", data: "No existing project data. Please select a valid project" });
+            return res.status(403).json({ message: "failed", data: "Invalid project selection" });
         }
 
         const componentBulkWrite = [];
         const emailDetails = [];
         const jobManagerIds = new Set();
+        const allEmployeeIds = new Set();
 
-        for (let i = 0; i < jobcomponentvalue.length; i++) {
-            const { jobmanager, budgettype, estimatedbudget, jobcomponent, members } = jobcomponentvalue[i];
+        for (const job of jobcomponentvalue) {
+            const { jobmanager, budgettype, estimatedbudget, jobcomponent, members } = job;
+
             if (!Array.isArray(members)) {
                 return res.status(400).json({ message: "failed", data: "Invalid selected members" });
             }
 
-            const membersArray = members.map(tempdata => {
-                const { employeeid, role } = tempdata;
-                return {
-                    employee: employeeid ? new mongoose.Types.ObjectId(employeeid) : null,
-                    role: role,
-                    notes: "",
-                    dates: []
-                };
+            const membersArray = members.map(({ employeeid, role }) => {
+                if (employeeid) allEmployeeIds.add(employeeid);
+                return { employee: employeeid ? new mongoose.Types.ObjectId(employeeid) : null, role, notes: "", dates: [] };
             });
 
             componentBulkWrite.push({
                 project: new mongoose.Types.ObjectId(projectdata._id),
                 jobmanager: new mongoose.Types.ObjectId(jobmanager),
-                budgettype: budgettype,
-                isVariation: false,
-                estimatedbudget: estimatedbudget,
-                jobcomponent: jobcomponent,
-                members: membersArray
-            });
-
-            const jobManager = await Users.findOne({ _id: new mongoose.Types.ObjectId(jobmanager) });
-            if (jobManager && jobManager._id) {
-                jobManagerIds.add(jobManager._id);
-            }
-
-            emailDetails.push({
-                jobcomponent,
-                jobmanager: jobManager ? jobManager.fullname : "Unknown Manager",
                 budgettype,
+                isVariation: false,
                 estimatedbudget,
-                members: members.map(m => `Employee: ${m.employeeid}, Role: ${m.role}`).join(", ")
+                jobcomponent,
+                members: membersArray,
             });
+
+            jobManagerIds.add(jobmanager);
+            emailDetails.push({ jobcomponent, jobmanager, budgettype, estimatedbudget });
         }
 
         await Jobcomponents.insertMany(componentBulkWrite);
 
-        const financeUsers = await Users.find({ auth: "finance" });
-        const superadminUsers = await Users.find({ auth: "superadmin" });
-        const financeUserIds = financeUsers.map(user => user._id);
-        const superadminUserIds = superadminUsers.map(user => user._id);
+        const financeUsers = await Users.find({ auth: "finance" }).select("_id");
+        const superadminUsers = await Users.find({ auth: "superadmin" }).select("_id");
 
-        const team = projectdata.team;
-        const teamMemberIds = [
-            team.manager,
-        ].filter(Boolean);
+        const team = await Teams.findById(teamid).select("manager members").populate("members", "_id");
+        const teamMemberIds = team ? team.members.map(m => m._id.toString()) : [];
 
-        const allRecipientIds = Array.from(new Set([
-            ...financeUserIds,
-            ...superadminUserIds,
+        const allRecipientIds = new Set([
+            ...financeUsers.map(user => user._id.toString()),
+            ...superadminUsers.map(user => user._id.toString()),
+            ...Array.from(jobManagerIds),
             ...teamMemberIds,
-            ...jobManagerIds
-        ]));
+            ...Array.from(allEmployeeIds),
+        ]);
 
-        const emailContent = `Hello Team,\n\nThe following job components and project have been created" by ${email}:\n\n${emailDetails.map(detail => (
-            `Job Component: ${detail.jobcomponent}\n`
-        )).join("")}If you have any questions or concerns, please reach out.\n\nThank you!\n\nBest Regards,\n${email}`;
+        allRecipientIds.delete(id.toString()); // Remove sender ID
 
-        const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, allRecipientIds, "New Job Components Created", emailContent, false)
-            .catch(err => {
-                console.error(`Failed to send email notification. Error: ${err}`);
-            });
+        const emailContent = `Hello Team,\n\nThe following job components and project have been created by ${email}:\n\n${emailDetails
+            .map(detail => `Job Component: ${detail.jobcomponent}\n`)
+            .join("")}If you have any questions, please reach out.\n\nBest Regards,\n${email}`;
+
+        await sendmail(new mongoose.Types.ObjectId(id), Array.from(allRecipientIds), "New Job Components Created", emailContent, false)
+            .catch(err => console.error("Failed to send email:", err));
 
         return res.json({ message: "success" });
     } catch (err) {
-        console.error(`There's a problem saving job components for project: ${projectid}. Error: ${err}`);
-        return res.status(500).json({ message: "server-error", data: "There's a problem with the server. Please contact customer support." });
+        console.error("Error saving job components:", err);
+        return res.status(500).json({ message: "server-error", data: "Server error! Contact support." });
     }
 };
 

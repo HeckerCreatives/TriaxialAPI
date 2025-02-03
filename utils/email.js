@@ -12,8 +12,7 @@ exports.sendmail = async(sender, receiver, title, content, sendtoall) => {
     const notification = new Emails({
         sender: sender,
         receiver: receiver.map((receiverId) => ({
-            userId: receiverId,
-            userType: "Studentusers",
+            userid: receiverId,
         })),
         title,
         content,
