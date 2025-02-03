@@ -25,7 +25,7 @@ exports.listemail = async (req, res) => {
         },
         {
             $lookup: {
-                from: 'userdetails', // The collection name of `userDetailsSchema`
+                from: 'userdetails',
                 localField: 'sender',
                 foreignField: 'owner',
                 as: 'senderDetails'
@@ -34,12 +34,41 @@ exports.listemail = async (req, res) => {
         { $unwind: { path: '$senderDetails', preserveNullAndEmptyArrays: true } },
         {
             $lookup: {
-                from: 'userdetails', // The collection name of `userDetailsSchema`
+                from: 'userdetails',
                 localField: 'receiver.userid',
                 foreignField: 'owner',
                 as: 'receiverDetails'
             }
         },
+        {
+            $addFields: {
+                isRead: {
+                    $cond: {
+                        if: {
+                            $gt: [
+                                {
+                                    $size: {
+                                        $filter: {
+                                            input: "$receiver",
+                                            as: "receiver",
+                                            cond: {
+                                                $and: [
+                                                    { $eq: ["$$receiver.userid", new mongoose.Types.ObjectId(id)] }, 
+                                                    { $eq: ["$$receiver.isRead", true] } // Check if it's read
+                                                ]
+                                            }
+                                        }
+                                    }
+                                },
+                                0
+                            ]
+                        },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },        
         {
             $project: {
                 senderfullname: {
@@ -55,31 +84,12 @@ exports.listemail = async (req, res) => {
                 title: 1,
                 content: 1,
                 createdAt: 1,
-                isUnread: {
-                    $cond: {
-                        if: {
-                            $gt: [
-                                {
-                                    $size: {
-                                        $filter: {
-                                            input: '$receiver',
-                                            as: 'receiver',
-                                            cond: {
-                                                $and: [
-                                                    { $eq: ['$$receiver.userid', new mongoose.Types.ObjectId(id)] },
-                                                    { $eq: ['$$receiver.isRead', false] }
-                                                ]
-                                            }
-                                        }
-                                    }
-                                },
-                                0
-                            ]
-                        },
-                        then: true,
-                        else: false
-                    }
-                }
+                isRead: 1
+            }
+        },
+        {
+            $sort: {
+                createdAt: -1
             }
         },
         {
@@ -87,11 +97,6 @@ exports.listemail = async (req, res) => {
         },
         {
             $limit: pageOptions.limit,
-        },
-        {
-            $sort: {
-                createdAt: -1
-            }
         }
     ]);
 
@@ -102,7 +107,6 @@ exports.listemail = async (req, res) => {
             { sendtoall: true }
         ]
     });
-
 
     const data = {
         totalpage: Math.ceil(totallist / pageOptions.limit),
@@ -118,24 +122,61 @@ exports.unreadEmails = async (req, res) => {
     const unreadCount = await Emails.aggregate([
         {
             $match: {
-                'receiver.userid': new mongoose.Types.ObjectId(id),
-                'receiver.isRead': false
+                'receiver.userid': new mongoose.Types.ObjectId(id)
             }
         },
         {
-            $count: 'unreadEmails'
+            $project: {
+                unreadMessages: {
+                    $filter: {
+                        input: "$receiver",
+                        as: "receiver",
+                        cond: {
+                            $and: [
+                                { $eq: ["$$receiver.userid", new mongoose.Types.ObjectId(id)] },
+                                { $eq: ["$$receiver.isRead", false] }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                unreadCount: { $size: "$unreadMessages" }
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                totalUnread: { $sum: "$unreadCount" }
+            }
         }
     ]);
-    if(unreadCount.length === 0) {
-        return res.json({ message: "success", data: 0 });
-    }
 
-    return res.json({ message: "success", data: unreadCount });
-}
+    console.log(unreadCount);
+
+    return res.json({ message: "success", unreademails: unreadCount.length > 0 ? unreadCount[0].totalUnread : 0 });
+};
+
 exports.reademail = async (req, res) => {
     const { id } = req.user;
     const { emailId } = req.query;
 
+    const checkemail = await Emails.findOne({ 
+        _id: new mongoose.Types.ObjectId(emailId),
+    });
+
+    const mappeddcheck = checkemail.receiver.map((receiver) => {
+        if(id == receiver.userid.toString()) {
+            console.log(receiver, id);
+        }
+        console.log(receiver.userid.toString(), id);
+
+
+        return receiver;
+    });
+    
     await Emails.findOneAndUpdate(
         { 
             _id: new mongoose.Types.ObjectId(emailId), // Add emailId to the query
@@ -146,7 +187,7 @@ exports.reademail = async (req, res) => {
     )
     .then(data => {
         if (!data) {
-            return res.status(400).json({ message: "failed", data: "No notifications found." });
+            return res.status(400).json({ message: "failed", data: "Email not found." });
         }
         return res.status(200).json({ message: "success" });
     })
@@ -160,16 +201,16 @@ exports.deletereceiverfromemail = async (req, res) => {
     const { id } = req.user
     const { emailId } = req.query
     
-    await Notification.findOneAndUpdate(
+    await Emails.findOneAndUpdate(
         { 
             _id: new mongoose.Types.ObjectId(emailId), // Add emailId to the query
             "receiver.userid": new mongoose.Types.ObjectId(id) 
         },        
-        { $pull: { receiver: { userId: new mongoose.Types.ObjectId(id) } } } 
+        { $pull: { receiver: { userid: new mongoose.Types.ObjectId(id) } } } 
     )
     .then(data => {
         if(!data){
-            return res.status(400).json({ message: "failed", data: "No notifications found."})
+            return res.status(400).json({ message: "failed", data: "No email found."})
         }
         return res.status(200).json({ message: "success" })
     })
