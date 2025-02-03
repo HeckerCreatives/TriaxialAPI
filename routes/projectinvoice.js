@@ -31,10 +31,10 @@ router
     
     //  #endregion
     // #region FINANCE
-    .get("/listcomponenttotalinvoicefn", protectfinance, listcomponenttotalinvoice)
     .get("/listcomponentprojectinvoicefn", protectfinance, listcomponentprojectinvoicesa)
-    .get("/listcomponentclienttotalinvoicefn", protectfinance, listcomponentclienttotalinvoice)
-
+    
+    .get("/listcomponentclienttotalinvoicefn", protectalluser, listcomponentclienttotalinvoice)
+    .get("/listcomponenttotalinvoicefn", protectalluser, listcomponenttotalinvoice)
     .get("/listcomponentprojectinvoicealluser", protectalluser, listcomponentprojectinvoicealluser)
 
 
