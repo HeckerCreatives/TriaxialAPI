@@ -6,7 +6,7 @@ exports.getAllUserIdsExceptSender = async (senderId) => {
     try {
         const users = await Users.find(); // Assume this function fetches all users from the database
         return users
-            .filter(user => user._id !== senderId)
+            .filter(user => user._id.toString() !== senderId)
             .map(user => user._id);
     } catch (error) {
         console.error('Error fetching user IDs:', error);
