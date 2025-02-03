@@ -3028,7 +3028,9 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
 
         let currentDate = new Date(startOfWeek);
         while (currentDate <= endOfRange) {
-            if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+            const dayOfWeek = currentDate.getDay();
+
+            if (dayOfWeek !== 0 && dayOfWeek !== 1) { // Exclude Sundays (0) and Saturdays (6)
                 data.alldates.push(currentDate.toISOString().split('T')[0]);
             }
             currentDate.setDate(currentDate.getDate() + 1);
