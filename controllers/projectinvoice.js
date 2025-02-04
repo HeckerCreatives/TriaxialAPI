@@ -57,7 +57,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                                                     { 
                                                         $add: [
                                                             { $dateDiff: { startDate: "$$today", endDate: "$$endDate", unit: "month" } },
-                                                            1
+                                                            12
                                                         ]
                                                     }
                                                 ]
@@ -80,7 +80,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                                                     { 
                                                         $add: [
                                                             { $dateDiff: { startDate: "$$startDate", endDate: "$$endDate", unit: "month" } },
-                                                            1
+                                                            12
                                                         ]
                                                     }
                                                 ]
@@ -801,7 +801,7 @@ exports.listcomponentprojectinvoicesa = async (req, res) => {
                                                     { 
                                                         $add: [
                                                             { $dateDiff: { startDate: "$$today", endDate: "$$endDate", unit: "month" } },
-                                                            1
+                                                            12
                                                         ]
                                                     }
                                                 ]
@@ -824,7 +824,7 @@ exports.listcomponentprojectinvoicesa = async (req, res) => {
                                                     { 
                                                         $add: [
                                                             { $dateDiff: { startDate: "$$startDate", endDate: "$$endDate", unit: "month" } },
-                                                            1
+                                                            12
                                                         ]
                                                     }
                                                 ]
