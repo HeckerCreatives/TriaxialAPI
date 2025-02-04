@@ -544,7 +544,7 @@ exports.editalljobcomponentdetails = async (req, res) => {
 
 exports.completejobcomponent = async (req, res) => {
     const { id, email } = req.user;
-    const { id: jobcomponentId } = req.query;
+    const { id: jobcomponentId, comments, adminnotes } = req.query;
 
     // Validate input
     if (!jobcomponentId) {
@@ -561,7 +561,10 @@ exports.completejobcomponent = async (req, res) => {
         }
 
         // Update the job component status to "completed"
-        jobcomponent.status = "completed";
+        jobcomponent.status = "archived";
+        jobcomponent.comments = comments;
+        jobcomponent.adminnotes = adminnotes;
+
         await jobcomponent.save();
 
         // Fetch job manager details
@@ -614,7 +617,7 @@ exports.completejobcomponent = async (req, res) => {
 
 exports.archivejobcomponent = async (req, res) => {
     const { id, email } = req.user;
-    const { jobcomponentId, status, comments } = req.body;
+    const { jobcomponentId, status, comments, adminnotes } = req.body;
 
     // Validate input
     if (!jobcomponentId) {
@@ -625,7 +628,7 @@ exports.archivejobcomponent = async (req, res) => {
     }
         const jobComponent = await Jobcomponents.findOneAndUpdate(
             { _id: new mongoose.Types.ObjectId(jobcomponentId) },
-            { $set: { status: status || null, comments: comments } },
+            { $set: { status: status || null, comments: comments, adminnotes: adminnotes } },
             { new: true }
         )
         .catch((err) => {
@@ -697,7 +700,7 @@ exports.listJobComponentNamesByTeam = async (req, res) => {
             },
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null, "unarchive"] } 
+                    status: { $in: ["completed", "", null, "unarchive", "archived"] } 
                 }
             },
             { $unwind: '$projectDetails' },
@@ -1340,11 +1343,6 @@ exports.listteamjobcomponent = async (req, res) => {
     try {
 
         const result = await Jobcomponents.aggregate([
-            { 
-                $match: { 
-                    status: { $in: ["completed", "", null, "unarchive", "On-going"] } 
-                }
-            },
             {
                 $lookup: {
                     from: 'projects',
@@ -1621,6 +1619,8 @@ exports.listteamjobcomponent = async (req, res) => {
                     budgettype: { $first: '$budgettype' },
                     estimatedbudget: { $first: '$estimatedbudget' },
                     status: { $first: '$status' }, 
+                    comments: { $first: '$comments' },
+                    adminnotes: { $first: '$adminnotes' },
                     isVariation: { $first: '$isVariation'},
                     invoice: { $first: '$invoiceDetails' }, // Use updated invoiceDetails field
                     jobmanager: {

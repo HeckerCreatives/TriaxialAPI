@@ -28,6 +28,9 @@ const JobcomponentSchema = new mongoose.Schema(
         comments: {
             type: String
         },
+        adminnotes: {
+            type: String
+        },
         isVariation: {
             type: Boolean
         },
