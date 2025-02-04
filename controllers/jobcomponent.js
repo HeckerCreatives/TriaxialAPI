@@ -11,18 +11,19 @@ const Teams = require("../models/Teams");
 //  #region MANAGER
 exports.createjobcomponent = async (req, res) => {
     const { id, email } = req.user;
-    const { jobcomponentvalue, clientid, end, projectname, start, teamid, jobno, priority } = req.body;
+    const { jobcomponentvalue, clientid, projectname, start, teamid, jobno, priority } = req.body;
 
     if (!teamid) return res.status(400).json({ message: "failed", data: "Please select a team first!" });
     if (!jobno) return res.status(400).json({ message: "failed", data: "Enter a job number first!" });
     if (!projectname) return res.status(400).json({ message: "failed", data: "Enter a project name!" });
     if (!start) return res.status(400).json({ message: "failed", data: "Please select a start date" });
-    if (!end) return res.status(400).json({ message: "failed", data: "Please select a deadline date" });
 
     if (!jobcomponentvalue || !Array.isArray(jobcomponentvalue)) {
         return res.status(400).json({ message: "failed", data: "Invalid job component form!" });
     }
 
+    const startdate = new Date(start);
+    const end = moment(start).add(1, 'years').toDate();
     let client;
     if (!mongoose.Types.ObjectId.isValid(clientid)) {
         const clientExists = await Clients.findOne({ clientname: clientid });
@@ -50,8 +51,8 @@ exports.createjobcomponent = async (req, res) => {
             client: new mongoose.Types.ObjectId(client),
             invoiced: 0,
             status: "On-going",
-            startdate: new Date(start),
-            deadlinedate: new Date(end),
+            startdate: startdate,
+            deadlinedate: end,
         });
 
         if (!projectdata) {
