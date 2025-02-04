@@ -57,7 +57,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                                                     { 
                                                         $add: [
                                                             { $dateDiff: { startDate: "$$today", endDate: "$$endDate", unit: "month" } },
-                                                            12
+                                                            1
                                                         ]
                                                     }
                                                 ]
@@ -80,7 +80,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                                                     { 
                                                         $add: [
                                                             { $dateDiff: { startDate: "$$startDate", endDate: "$$endDate", unit: "month" } },
-                                                            12
+                                                            1
                                                         ]
                                                     }
                                                 ]
@@ -786,57 +786,25 @@ exports.listcomponentprojectinvoicesa = async (req, res) => {
                                 today: new Date()
                             },
                             in: {
-                                $cond: {
-                                    if: {
-                                        $and: [
-                                            { $gte: ["$$today", "$$startDate"] },
-                                            { $lte: ["$$today", "$$endDate"] }
-                                        ]
-                                    },
-                                    then: {
-                                        $map: {
-                                            input: {
-                                                $range: [
-                                                    0,
-                                                    { 
-                                                        $add: [
-                                                            { $dateDiff: { startDate: "$$today", endDate: "$$endDate", unit: "month" } },
-                                                            12
+                                $map: {
+                                    input: { $range: [0, 12] }, // Ensuring exactly 12 months
+                                    as: "months",
+                                    in: {
+                                        $dateAdd: {
+                                            startDate: {
+                                                $cond: {
+                                                    if: {
+                                                        $and: [
+                                                            { $gte: ["$$today", "$$startDate"] },
+                                                            { $lte: ["$$today", "$$endDate"] }
                                                         ]
-                                                    }
-                                                ]
-                                            },
-                                            as: "monthsFromToday",
-                                            in: {
-                                                $dateAdd: {
-                                                    startDate: "$$today",
-                                                    unit: "month",
-                                                    amount: "$$monthsFromToday"
+                                                    },
+                                                    then: "$$today", // Use today if within the project range
+                                                    else: "$$startDate" // Otherwise, use project start date
                                                 }
-                                            }
-                                        }
-                                    },
-                                    else: {
-                                        $map: {
-                                            input: {
-                                                $range: [
-                                                    0,
-                                                    { 
-                                                        $add: [
-                                                            { $dateDiff: { startDate: "$$startDate", endDate: "$$endDate", unit: "month" } },
-                                                            12
-                                                        ]
-                                                    }
-                                                ]
                                             },
-                                            as: "monthsFromStart",
-                                            in: {
-                                                $dateAdd: {
-                                                    startDate: "$$startDate",
-                                                    unit: "month",
-                                                    amount: "$$monthsFromStart"
-                                                }
-                                            }
+                                            unit: "month",
+                                            amount: "$$months"
                                         }
                                     }
                                 }
@@ -844,7 +812,7 @@ exports.listcomponentprojectinvoicesa = async (req, res) => {
                         }
                     }
                 }
-            },
+            },            
             {
                 $addFields: {
                     allDates: { $filter: { input: "$allDates", as: "date", cond: { $ne: ["$$date", null] } } }
