@@ -771,3 +771,25 @@ exports.edithrwellnessevent = async (req, res) => {
 }
 
 //  #endregion
+
+
+exports.getwellnessdaylastfriday = async (req, res) => {
+    const { id, email } = req.user;
+
+    try {
+        const latestEvent = await Wellnessdayevent.findOne().sort({ cycleend: -1 });
+
+        if (!latestEvent) {
+            return res.status(404).json({ message: "No wellness day event found" });
+        }
+
+        const endDate = latestEvent.cycleend || latestEvent.enddate;
+        const endOfWeek = new Date(endDate);
+        endOfWeek.setDate(endOfWeek.getDate() - (endOfWeek.getDay() + 2) % 7); // Get the last Friday
+
+        return res.json({ message: "success", data: endOfWeek });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Error processing request", error: err.message });
+    }
+};
