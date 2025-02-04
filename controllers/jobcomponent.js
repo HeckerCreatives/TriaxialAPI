@@ -614,7 +614,7 @@ exports.completejobcomponent = async (req, res) => {
 
 exports.archivejobcomponent = async (req, res) => {
     const { id, email } = req.user;
-    const { jobcomponentId, status } = req.body;
+    const { jobcomponentId, status, comments } = req.body;
 
     // Validate input
     if (!jobcomponentId) {
@@ -625,7 +625,7 @@ exports.archivejobcomponent = async (req, res) => {
     }
         const jobComponent = await Jobcomponents.findOneAndUpdate(
             { _id: new mongoose.Types.ObjectId(jobcomponentId) },
-            { $set: { status: status || null } },
+            { $set: { status: status || null, comments: comments } },
             { new: true }
         )
         .catch((err) => {
@@ -990,7 +990,7 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                     estimatedbudget: { $first: '$estimatedbudget' },
                     status: { $first: '$status' }, 
                     invoice: { $first: '$invoiceDetails' }, // Use updated invoiceDetails field
-                   
+                    comments: { $first: '$comments' },
                     jobmanager: {
                         $first: {
                             employeeid: '$jobManagerDetails._id',

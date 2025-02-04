@@ -25,6 +25,9 @@ const JobcomponentSchema = new mongoose.Schema(
         status: {
             type: String
         },
+        comments: {
+            type: String
+        },
         isVariation: {
             type: Boolean
         },
