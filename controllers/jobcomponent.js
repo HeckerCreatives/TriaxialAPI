@@ -2934,6 +2934,33 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
             },
             {
                 $lookup: {
+                    from: 'workfromhomes',
+                    let: { employeeId: '$members.employee' },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ['$owner', '$$employeeId'] },
+                                        // { $gte: ['$requestdate', startOfWeek] },
+                                        // { $lte: ['$requestdate', endOfRange] }
+                                    ]
+                                } 
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                requestdate: 1,
+                                requestend: 1
+                            }
+                        }
+                    ],
+                    as: 'wfhData'
+                }
+            },
+            {
+                $lookup: {
                     from: 'wellnessdays',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
@@ -2998,6 +3025,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     totalHours: { $sum: "$members.dates.hours" },
                     leaveData: { $first: "$leaveData" },
                     wellnessData: { $first: "$wellnessData" },
+                    wfhData: { $first: "$wfhData" },
                     eventData: { $first: "$eventData" }
                 }
             },
@@ -3010,6 +3038,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     leaveData: 1,
                     wellnessData: 1,
                     eventData: 1,
+                    wfhData: 1,
                     teamid: "$_id.teamid",
                     teamName: "$_id.team",
                 }
@@ -3038,7 +3067,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
 
 
         result.forEach(entry => {
-            const { teamName, teamid, employee, date, totalHours, leaveData, wellnessData, eventData } = entry;
+            const { teamName, teamid, employee, date, totalHours, wfhData, leaveData, wellnessData, eventData } = entry;
             const formattedDate = new Date().toISOString().split('T')[0];
             // const formattedDate = new Date(date).toISOString().split('T')[0];
         
@@ -3061,6 +3090,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     resource: employee.resource,
                     leave: [],
                     wellness: wellnessData,
+                    wfh: entry.wfhData,
                     event: [],
                     dates: []
                 };
