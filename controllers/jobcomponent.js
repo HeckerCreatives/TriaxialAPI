@@ -1341,6 +1341,9 @@ exports.listteamjobcomponent = async (req, res) => {
     const { id, email } = req.user;
     const { teamid } = req.query;
 
+    if(!mongoose.Types.ObjectId.isValid(teamid)) {
+        return res.status(400).json({ message: "failed", data: "Invalid team ID" });
+    }
     try {
 
         const result = await Jobcomponents.aggregate([
