@@ -2862,11 +2862,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
         const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
-
         
-
-        
-
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
@@ -2901,6 +2897,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                 }
             },
             { $unwind: "$members" },
+            { $unwind: { preserveNullAndEmptyArrays: true, path: "$members.dates" } },
             // { $unwind: "$members.dates" },
             // {
             //     $match: {
@@ -3059,6 +3056,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
             return res.status(500).json({ message: 'Error processing request', error: err.message });
         });
 
+        console.log(result)
         const data = {
             alldates: [],
             teams: []
@@ -3165,8 +3163,6 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
         const endOfRange = moment(startOfWeek).add(1, 'year').subtract(1, 'days').toDate();
 
-   
-        
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
@@ -3202,12 +3198,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                 }
             },
             { $unwind: "$members" },
-            { $unwind: "$members.dates" },
-            // {
-            //     $match: {
-            //         "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
-            //     }
-            // },
+            { $unwind: { preserveNullAndEmptyArrays: true, path: "$members.dates" } },
             {
                 $lookup: {
                     from: 'userdetails',
@@ -3309,7 +3300,8 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                     leaveData: { $first: "$leaveData" },
                     wellnessData: { $first: "$wellnessData" },
                     eventData: { $first: "$eventData" },
-                    project: { $first: "$projectDetails"}
+                    project: { $first: "$projectDetails" },
+                    members: { $push: "$members" }
                 }
             },
             {
@@ -3321,7 +3313,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                     leaveData: 1,
                     wellnessData: 1,
                     eventData: 1,
-                    project: 1,
+                    members: 1,
                     teamid: "$_id.teamid",
                     teamName: "$_id.team",
                 }
@@ -3334,8 +3326,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             teams: []
         };
 
-        console.log(result)
-
+        console.log(result);
 
         let currentDate = new Date(startOfWeek);
         while (currentDate <= endOfRange) {
@@ -3345,37 +3336,10 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        for (const temp of result) {
-
-            const { project } = temp;
-        
-            const dateNow = new Date();
-        
-            if (dateNow > new Date(project.deadlinedate) && project.status === 'On-going' ) {
-                const nextYearDate = new Date();
-                nextYearDate.setFullYear(nextYearDate.getFullYear() + 1);
-                const formattedDate = nextYearDate.toISOString().split('T')[0];
-
-                try {
-                  await Projects.findOneAndUpdate(
-                        { _id: new mongoose.Types.ObjectId(project._id) },
-                        { $set: { deadlinedate: formattedDate } }
-                    );
-                    
-                } catch (err) {
-                    console.error(`Error updating ${projectname.name} project deadline. Error: ${err}`);
-                    return res.status(400).json({
-                        message: "bad-request",
-                        data: "There's a problem with the server! Please contact customer support for more details.",
-                    });
-                }
-            }
-        }
-
         result.forEach(entry => {
-            const { teamName, teamid, employee, date, status, totalHours, leaveData, wellnessData, eventData} = entry;
+            const { teamName, teamid, employee, role, notes, date, status, totalHours, leaveData, wellnessData, eventData, members } = entry;
             const formattedDate = new Date(date).toISOString().split('T')[0];
-
+        
             let teamData = data.teams.find(team => team.name === teamName);
             if (!teamData) {
                 teamData = {
@@ -3385,7 +3349,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                 };
                 data.teams.push(teamData);
             }
-
+        
             let employeeData = teamData.members.find(emp => emp.name === employee.fullname);
             if (!employeeData) {
                 employeeData = {
@@ -3393,39 +3357,42 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                     name: employee.fullname,
                     initial: employee.initial,
                     resource: employee.resource,
+                    role: role,  // Include role
+                    notes: notes, // Include notes
                     leave: [],
-                    wellness: entry.wellnessData,
+                    wellness: wellnessData,
                     event: [],
-                    dates: [],
+                    dates: []
                 };
-                entry.leaveData.forEach(leave => {
+        
+                leaveData.forEach(leave => {
                     employeeData.leave.push({
-                        leavestart: leave.leavedates.leavestart,
-                        leaveend: leave.leavedates.leaveend
-                    })
-                })
-
-                entry.eventData.forEach(event => {
+                        leavestart: leave.leavestart,
+                        leaveend: leave.leaveend
+                    });
+                });
+        
+                eventData.forEach(event => {
                     employeeData.event.push({
-                        eventstart: event.eventdates.startdate,
-                        eventend: event.eventdates.enddate
-                    })
-                })
-
+                        eventstart: event.startdate,
+                        eventend: event.enddate
+                    });
+                });
+        
                 teamData.members.push(employeeData);
             }
-
+        
             let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
             if (!dateEntry) {
                 dateEntry = {
                     date: formattedDate,
-                    totalhoursofjobcomponents: totalHours,
+                    totalhoursofjobcomponents: totalHours
                 };
-
+        
                 employeeData.dates.push(dateEntry);
             }
         });
-
+        
         return res.json({ message: 'success', data });
     } catch (err) {
         console.error(err);
