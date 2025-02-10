@@ -24,7 +24,7 @@ router
     //  #endregion
 
     //  #region SUPERADMIN
-
+    .get("/listprojectsa", protectsuperadmin, listprojects)
     .get("/saprojectlist", protectalluser, saprojectlist)
     .get("/teamprojectlist", protectsuperadmin, teamprojectlist)
 

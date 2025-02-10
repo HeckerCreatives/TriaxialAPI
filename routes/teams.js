@@ -14,6 +14,8 @@ router
     .post("/deleteteams", protectsuperadmin, deleteteams)
     .post("/editteam", protectsuperadmin, editteam)
     .get("/listallteamssa", protectsuperadmin, listallteams)
+    .get("/listprojectduedatesa", protectsuperadmin, listprojectduedates)
+    
 
     //  #endregion
 
