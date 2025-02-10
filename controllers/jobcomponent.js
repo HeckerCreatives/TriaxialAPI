@@ -679,6 +679,235 @@ exports.archivejobcomponent = async (req, res) => {
         });
 };
 
+exports.editstatushours = async (req, res) => {
+    const { id, email } = req.user;
+    const { jobcomponentid, employeeid, date, status, hours } = req.body;
+
+    // Input validation
+    if (!jobcomponentid) {
+        return res.status(400).json({ message: "failed", data: "Please select a valid job component." });
+    }
+    if (!employeeid) {
+        return res.status(400).json({ message: "failed", data: "Please select a valid employee." });
+    }
+    if (!date || isNaN(Date.parse(date))) {
+        return res.status(400).json({ message: "failed", data: "Invalid date provided." });
+    }
+
+    // Optional fields: status and hours
+    const validHours = hours === null || typeof hours === "number" && hours >= 0;
+    const validStatus = status === null || Array.isArray(status);
+
+    if (!validHours) {
+        return res.status(400).json({ message: "failed", data: "Invalid hours provided." });
+    }
+    if (!validStatus) {
+        return res.status(400).json({ message: "failed", data: "Invalid status provided." });
+    }
+
+    try {
+        // Fetch the job component
+        const jobComponent = await Jobcomponents.findById(jobcomponentid);
+        if (!jobComponent) {
+            return res.status(404).json({ message: "failed", data: "Job component does not exist." });
+        }
+
+        // Find the member corresponding to the employee
+        const member = jobComponent.members.find(
+            (m) => (m.employee ? m.employee.toString() : "") === employeeid
+        );
+
+        if (!member) {
+            return res.status(404).json({ message: "failed", data: "Employee not found in the job component." });
+        }
+
+        // Check if the date already exists in the member's dates array
+        const dateIndex = member.dates.findIndex(
+            (d) => new Date(d.date).toDateString() === new Date(date).toDateString()
+        );
+
+        if (dateIndex !== -1) {
+            // Update existing date entry
+            if (status !== undefined) member.dates[dateIndex].status = status || [];
+            if (hours !== undefined) member.dates[dateIndex].hours = hours;
+        } else {
+            // Add a new date entry if valid data is provided
+            if (hours !== null || (Array.isArray(status) && status.length > 0)) {
+                member.dates.push({
+                    date: new Date(date),
+                    hours: hours || null,
+                    status: status || [],
+                });
+            } else {
+                return res.status(400).json({ message: "failed", data: "Cannot add empty status and hours." });
+            }
+        }
+
+        await jobComponent.save();
+        const emailContent = `Hello Team,
+
+        The job component "${jobComponent.jobcomponent}" has been updated.
+
+        Employee: ${employeeid}
+        Date: ${new Date(date).toDateString()}
+        Status: ${(status || []).join(", ")}
+        Hours: ${hours !== null ? hours : "Cleared"}
+
+        Please review the changes if necessary.
+
+        Thank you!
+
+        Best Regards,
+        ${email}`;
+
+        const sender = new mongoose.Types.ObjectId(id);
+        const receiver = await getAllUserIdsExceptSender(id)
+
+        await sendmail(sender, receiver, "Job Component Update Notification", emailContent)
+            .catch((err) => {
+                console.error(`Failed to send email notification for job component: ${jobcomponentid}. Error: ${err}`);
+                return res.status(400).json({
+                    message: "bad-request",
+                    data: "Email notification failed! Please contact customer support for more details.",
+                });
+            });
+
+        return res.status(200).json({ message: "success", data: "Job component updated and email sent successfully." });
+    } catch (err) {
+        console.error(`Error updating job component ${jobcomponentid}: ${err}`);
+        return res.status(500).json({
+            message: "server-error",
+            data: "An error occurred. Please contact customer support for more details.",
+        });
+    }
+};
+
+exports.editMultipleStatusHours = async (req, res) => {
+    const { id, email } = req.user;
+    const { jobcomponentid, employeeid, updates } = req.body;
+
+    // Input validation
+    if (!jobcomponentid) {
+        return res.status(400).json({ message: "failed", data: "Please select a valid job component." });
+    }
+    if (!employeeid) {
+        return res.status(400).json({ message: "failed", data: "Please select a valid employee." });
+    }
+    if (!Array.isArray(updates) || updates.length === 0) {
+        return res.status(400).json({ message: "failed", data: "No updates provided." });
+    }
+
+    try {
+        // Fetch the job component
+        const jobComponent = await Jobcomponents.findById(jobcomponentid);
+        if (!jobComponent) {
+            return res.status(404).json({ message: "failed", data: "Job component does not exist." });
+        }
+
+        // Find the member corresponding to the employee
+        const member = jobComponent.members.find(
+            (m) => (m.employee ? m.employee.toString() : "") === employeeid
+        );
+
+        if (!member) {
+            return res.status(404).json({ message: "failed", data: "Employee not found in the job component." });
+        }
+
+        // Process each update
+        for (const update of updates) {
+            const { date, status, hours } = update;
+
+            // Validate each update object
+            if (!date || isNaN(Date.parse(date))) {
+                return res.status(400).json({ message: "failed", data: `Invalid date provided: ${date}` });
+            }
+
+            const validHours = hours === null || (typeof hours === "number" && hours >= 0);
+            const validStatus = status === null || Array.isArray(status);
+
+            if (!validHours || !validStatus) {
+                return res.status(400).json({
+                    message: "failed",
+                    data: `Invalid status or hours for date: ${date}`,
+                });
+            }
+
+            // Check if the date already exists in the member's dates array
+            const dateIndex = member.dates.findIndex(
+                (d) => new Date(d.date).toDateString() === new Date(date).toDateString()
+            );
+
+            if (dateIndex !== -1) {
+                // Update existing date entry
+                if (status !== undefined) member.dates[dateIndex].status = status || [];
+                if (hours !== undefined) member.dates[dateIndex].hours = hours;
+            } else {
+                // Add a new date entry if valid data is provided
+                if (hours !== null || (Array.isArray(status) && status.length > 0)) {
+                    member.dates.push({
+                        date: new Date(date),
+                        hours: hours || null,
+                        status: status || [],
+                    });
+                } else {
+                    return res.status(400).json({
+                        message: "failed",
+                        data: `Cannot add empty status and hours for date: ${date}`,
+                    });
+                }
+            }
+        }
+
+        await jobComponent.save();
+
+        const emailContent = `Hello Team,
+
+        The job component "${jobComponent.jobcomponent}" has been updated.
+
+        Employee: ${employeeid}
+        Updates: ${updates
+            .map(
+                (u) =>
+                    `Date: ${new Date(u.date).toDateString()}, Status: ${(u.status || []).join(
+                        ", "
+                    )}, Hours: ${u.hours !== null ? u.hours : "Cleared"}`
+            )
+            .join("\n")}
+
+        Please review the changes if necessary.
+
+        Thank you!
+
+        Best Regards,
+        ${email}`;
+
+        const receiver = await getAllUserIdsExceptSender(id);
+
+        const sender = new mongoose.Types.ObjectId(id);
+        await sendmail(sender, receiver, "Job Component Update Notification", emailContent)
+            .catch((err) => {
+                console.error(
+                    `Failed to send email notification for job component: ${jobcomponentid}. Error: ${err}`
+                );
+                return res.status(400).json({
+                    message: "bad-request",
+                    data: "Email notification failed! Please contact customer support for more details.",
+                });
+            });
+
+        return res.status(200).json({
+            message: "success",
+            data: "Job component updated and email sent successfully.",
+        });
+    } catch (err) {
+        console.error(`Error updating job component ${jobcomponentid}: ${err}`);
+        return res.status(500).json({
+            message: "server-error",
+            data: "An error occurred. Please contact customer support for more details.",
+        });
+    }
+};
+
 
 
 //  #endregion
@@ -701,7 +930,7 @@ exports.listJobComponentNamesByTeam = async (req, res) => {
             },
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null, "unarchive", "archived"] } 
+                    status: { $in: ["completed", "", null, "unarchive", "archived", "On-going"] } 
                 }
             },
             { $unwind: '$projectDetails' },
@@ -1035,7 +1264,7 @@ exports.listjobcomponent = async (req, res) => {
             { 
                 $match: { 
                     project: new mongoose.Types.ObjectId(projectid),
-                    status: { $in: ["completed", "", null] } 
+                    status: { $in: ["completed", "", null, "On-going"] } 
                 }
             },
             {
@@ -1349,7 +1578,7 @@ exports.listteamjobcomponent = async (req, res) => {
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null, "unarchived", "archived"] } 
+                    status: { $in: ["completed", "", null, "unarchived", "archived", "On-going"] } 
                 }
             },
             {
@@ -1673,7 +1902,7 @@ exports.viewduedatesgraph = async (req, res) => {
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null] } 
+                    status: { $in: ["completed", "", null, "On-going"] } 
                 }
             },
             {
@@ -1950,236 +2179,6 @@ exports.viewduedatesgraph = async (req, res) => {
     }
 }
 
-exports.editstatushours = async (req, res) => {
-    const { id, email } = req.user;
-    const { jobcomponentid, employeeid, date, status, hours } = req.body;
-
-    // Input validation
-    if (!jobcomponentid) {
-        return res.status(400).json({ message: "failed", data: "Please select a valid job component." });
-    }
-    if (!employeeid) {
-        return res.status(400).json({ message: "failed", data: "Please select a valid employee." });
-    }
-    if (!date || isNaN(Date.parse(date))) {
-        return res.status(400).json({ message: "failed", data: "Invalid date provided." });
-    }
-
-    // Optional fields: status and hours
-    const validHours = hours === null || typeof hours === "number" && hours >= 0;
-    const validStatus = status === null || Array.isArray(status);
-
-    if (!validHours) {
-        return res.status(400).json({ message: "failed", data: "Invalid hours provided." });
-    }
-    if (!validStatus) {
-        return res.status(400).json({ message: "failed", data: "Invalid status provided." });
-    }
-
-    try {
-        // Fetch the job component
-        const jobComponent = await Jobcomponents.findById(jobcomponentid);
-        if (!jobComponent) {
-            return res.status(404).json({ message: "failed", data: "Job component does not exist." });
-        }
-
-        // Find the member corresponding to the employee
-        const member = jobComponent.members.find(
-            (m) => (m.employee ? m.employee.toString() : "") === employeeid
-        );
-
-        if (!member) {
-            return res.status(404).json({ message: "failed", data: "Employee not found in the job component." });
-        }
-
-        // Check if the date already exists in the member's dates array
-        const dateIndex = member.dates.findIndex(
-            (d) => new Date(d.date).toDateString() === new Date(date).toDateString()
-        );
-
-        if (dateIndex !== -1) {
-            // Update existing date entry
-            if (status !== undefined) member.dates[dateIndex].status = status || [];
-            if (hours !== undefined) member.dates[dateIndex].hours = hours;
-        } else {
-            // Add a new date entry if valid data is provided
-            if (hours !== null || (Array.isArray(status) && status.length > 0)) {
-                member.dates.push({
-                    date: new Date(date),
-                    hours: hours || null,
-                    status: status || [],
-                });
-            } else {
-                return res.status(400).json({ message: "failed", data: "Cannot add empty status and hours." });
-            }
-        }
-
-        await jobComponent.save();
-        const emailContent = `Hello Team,
-
-        The job component "${jobComponent.jobcomponent}" has been updated.
-
-        Employee: ${employeeid}
-        Date: ${new Date(date).toDateString()}
-        Status: ${(status || []).join(", ")}
-        Hours: ${hours !== null ? hours : "Cleared"}
-
-        Please review the changes if necessary.
-
-        Thank you!
-
-        Best Regards,
-        ${email}`;
-
-        const sender = new mongoose.Types.ObjectId(id);
-        const receiver = await getAllUserIdsExceptSender(id)
-
-        await sendmail(sender, receiver, "Job Component Update Notification", emailContent)
-            .catch((err) => {
-                console.error(`Failed to send email notification for job component: ${jobcomponentid}. Error: ${err}`);
-                return res.status(400).json({
-                    message: "bad-request",
-                    data: "Email notification failed! Please contact customer support for more details.",
-                });
-            });
-
-        return res.status(200).json({ message: "success", data: "Job component updated and email sent successfully." });
-    } catch (err) {
-        console.error(`Error updating job component ${jobcomponentid}: ${err}`);
-        return res.status(500).json({
-            message: "server-error",
-            data: "An error occurred. Please contact customer support for more details.",
-        });
-    }
-};
-
-exports.editMultipleStatusHours = async (req, res) => {
-    const { id, email } = req.user;
-    const { jobcomponentid, employeeid, updates } = req.body;
-
-    // Input validation
-    if (!jobcomponentid) {
-        return res.status(400).json({ message: "failed", data: "Please select a valid job component." });
-    }
-    if (!employeeid) {
-        return res.status(400).json({ message: "failed", data: "Please select a valid employee." });
-    }
-    if (!Array.isArray(updates) || updates.length === 0) {
-        return res.status(400).json({ message: "failed", data: "No updates provided." });
-    }
-
-    try {
-        // Fetch the job component
-        const jobComponent = await Jobcomponents.findById(jobcomponentid);
-        if (!jobComponent) {
-            return res.status(404).json({ message: "failed", data: "Job component does not exist." });
-        }
-
-        // Find the member corresponding to the employee
-        const member = jobComponent.members.find(
-            (m) => (m.employee ? m.employee.toString() : "") === employeeid
-        );
-
-        if (!member) {
-            return res.status(404).json({ message: "failed", data: "Employee not found in the job component." });
-        }
-
-        // Process each update
-        for (const update of updates) {
-            const { date, status, hours } = update;
-
-            // Validate each update object
-            if (!date || isNaN(Date.parse(date))) {
-                return res.status(400).json({ message: "failed", data: `Invalid date provided: ${date}` });
-            }
-
-            const validHours = hours === null || (typeof hours === "number" && hours >= 0);
-            const validStatus = status === null || Array.isArray(status);
-
-            if (!validHours || !validStatus) {
-                return res.status(400).json({
-                    message: "failed",
-                    data: `Invalid status or hours for date: ${date}`,
-                });
-            }
-
-            // Check if the date already exists in the member's dates array
-            const dateIndex = member.dates.findIndex(
-                (d) => new Date(d.date).toDateString() === new Date(date).toDateString()
-            );
-
-            if (dateIndex !== -1) {
-                // Update existing date entry
-                if (status !== undefined) member.dates[dateIndex].status = status || [];
-                if (hours !== undefined) member.dates[dateIndex].hours = hours;
-            } else {
-                // Add a new date entry if valid data is provided
-                if (hours !== null || (Array.isArray(status) && status.length > 0)) {
-                    member.dates.push({
-                        date: new Date(date),
-                        hours: hours || null,
-                        status: status || [],
-                    });
-                } else {
-                    return res.status(400).json({
-                        message: "failed",
-                        data: `Cannot add empty status and hours for date: ${date}`,
-                    });
-                }
-            }
-        }
-
-        await jobComponent.save();
-
-        const emailContent = `Hello Team,
-
-        The job component "${jobComponent.jobcomponent}" has been updated.
-
-        Employee: ${employeeid}
-        Updates: ${updates
-            .map(
-                (u) =>
-                    `Date: ${new Date(u.date).toDateString()}, Status: ${(u.status || []).join(
-                        ", "
-                    )}, Hours: ${u.hours !== null ? u.hours : "Cleared"}`
-            )
-            .join("\n")}
-
-        Please review the changes if necessary.
-
-        Thank you!
-
-        Best Regards,
-        ${email}`;
-
-        const receiver = await getAllUserIdsExceptSender(id);
-
-        const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, receiver, "Job Component Update Notification", emailContent)
-            .catch((err) => {
-                console.error(
-                    `Failed to send email notification for job component: ${jobcomponentid}. Error: ${err}`
-                );
-                return res.status(400).json({
-                    message: "bad-request",
-                    data: "Email notification failed! Please contact customer support for more details.",
-                });
-            });
-
-        return res.status(200).json({
-            message: "success",
-            data: "Job component updated and email sent successfully.",
-        });
-    } catch (err) {
-        console.error(`Error updating job component ${jobcomponentid}: ${err}`);
-        return res.status(500).json({
-            message: "server-error",
-            data: "An error occurred. Please contact customer support for more details.",
-        });
-    }
-};
-
-
 
 exports.yourworkload = async (req, res) => {
     const { id, email } = req.user;
@@ -2205,7 +2204,7 @@ exports.yourworkload = async (req, res) => {
             },
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null] } 
+                    status: { $in: ["completed", "", null, "On-going"] } 
                 }
             },
             {
@@ -2622,7 +2621,7 @@ exports.getjobcomponentdashboard = async (req, res) => {
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null] } 
+                    status: { $in: ["completed", "", null, "On-going"] } 
                 }
             },
             {
@@ -3171,7 +3170,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null, "unarchive"] } 
+                    status: { $in: ["completed", "", null, "unarchive", "On-going"] } 
                 }
             },
             {
@@ -3446,7 +3445,7 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null, 'unarchive'] } 
+                    status: { $in: ["completed", "", null, 'unarchive', "On-going"] } 
                 }
             },
             {
@@ -3726,7 +3725,7 @@ exports.individualworkload = async (req, res) => {
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null] } 
+                    status: { $in: ["completed", "", null, "On-going"] } 
                 }
             },
             {
