@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { createteam, listteam, teamsearchlist,listprojectduedates, deleteteams, teamdata, editteam, listownteam, searchteam, listteammembers, listallteams, listteamselect } = require("../controllers/teams")
+const { createteam, listteam, teamsearchlist,listprojectduedates, deleteteams, teamdata, editteam, listownteam, searchteam, listteammembers, listallteams, listteamselect, listprojectduedatessuperadmin } = require("../controllers/teams")
 const { protectsuperadmin, protecthr, protectmanager, protectemployee, protectfinance, protectalluser } = require("../middleware/middleware")
 
 router
@@ -14,7 +14,7 @@ router
     .post("/deleteteams", protectsuperadmin, deleteteams)
     .post("/editteam", protectsuperadmin, editteam)
     .get("/listallteamssa", protectsuperadmin, listallteams)
-    .get("/listprojectduedatesa", protectsuperadmin, listprojectduedates)
+    .get("/listprojectduedatesa", protectsuperadmin, listprojectduedatessuperadmin)
     
 
     //  #endregion

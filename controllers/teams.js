@@ -713,6 +713,107 @@ exports.listprojectduedates = async (req, res) => {
 
     return res.json({message: "success", data: data})
 };
+exports.listprojectduedatessuperadmin = async (req, res) => {
+    const { id, email } = req.user;
+    const { page, limit, searchteam } = req.query;
+
+    // Set pagination options
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10,
+    };
+
+    // Search filter
+    let matchStage = {};
+    if (searchteam) {
+        matchStage["teamname"] = {
+            $regex: searchteam, $options: 'i'
+        };
+    }
+
+    const teamProjects = await Teams.aggregate([
+        { $match: matchStage },
+        {
+            $lookup: {
+                from: "userdetails",
+                localField: "manager",
+                foreignField: "owner",
+                as: "managerDetails"
+            }
+        },
+        { $unwind: { path: "$managerDetails", preserveNullAndEmptyArrays: true } }, // Unwind manager details
+        {
+            $lookup: {
+                from: "userdetails",
+                localField: "teamleader",
+                foreignField: "owner",
+                as: "teamLeaderDetails"
+            }
+        },
+        { $unwind: { path: "$teamLeaderDetails", preserveNullAndEmptyArrays: true } }, // Unwind team leader details
+        {
+            $lookup: {
+                from: "projects",
+                localField: "_id",
+                foreignField: "team",
+                as: "ProjectCount"
+            }
+        },
+        {
+            $addFields: {
+                projectCount: { $size: "$ProjectCount" }, // Add project count
+                managerFullname: {
+                    $cond: {
+                        if: { $and: ["$managerDetails.firstname", "$managerDetails.lastname"] },
+                        then: { $concat: ["$managerDetails.firstname", " ", "$managerDetails.lastname"] },
+                        else: null
+                    }
+                },
+                teamLeaderFullname: {
+                    $cond: {
+                        if: { $and: ["$teamLeaderDetails.firstname", "$teamLeaderDetails.lastname"] },
+                        then: { $concat: ["$teamLeaderDetails.firstname", " ", "$teamLeaderDetails.lastname"] },
+                        else: null
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                teamname: 1, // Assuming your `Teams` collection has a `teamName` field
+                managerFullname: 1,
+                teamLeaderFullname: 1,
+                projectCount: 1
+            }
+        }
+    ]);
+    
+    
+
+    const total = await Teams.aggregate([
+        { $match: matchStage },
+        {
+            $match: {
+                $or: [
+                    { manager: new mongoose.Types.ObjectId(id) },
+                    { teamleader: new mongoose.Types.ObjectId(id) },
+                    { members: { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } },
+                ]
+            }
+        },
+        { $count: 'total' }
+    ]);
+
+    const totalPages = Math.ceil((total[0]?.total || 0) / pageOptions.limit);
+
+    const data = {
+        teamProjects,
+        totalpages: totalPages
+    };
+
+    return res.json({message: "success", data: data})
+};
 
 exports.listteammembers = async (req, res) => {
     const { id, email } = req.user;
