@@ -478,7 +478,7 @@ exports.employeesearchlist = async (req, res) => {
 exports.banemployees = async (req, res) => {
     const {id, email} = req.user
 
-    const {employeeid} = req.body
+    const {employeeid, status } = req.body
 
     if (!employeeid){
         return res.status(400).json({message: "failed", data: "Please select one or more employee first"})
@@ -487,19 +487,24 @@ exports.banemployees = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Invalid selected employee"})
     }
 
-    const userids = []
+
+    const employees = []
 
     employeeid.forEach(tempdata => {
-        userids.push(new mongoose.Types.ObjectId(tempdata))
+        employees.push({
+            updateOne: {
+                filter: {_id: new mongoose.Types.ObjectId(tempdata)},
+                update: { $set: {status: status, bandate: status == "banned" ? new Date() : ""} }
+            }
+        })
     })
 
-    await Users.updateMany(
-        { _id: { $in: userids } }, // Find events where any of the teams are referenced
-        { $set: { status: "banned", bandate: new Date(), token: "" } } // Remove all teams from the 'teams' array
-    );
+    await Users.bulkWrite(employees)
 
     return res.json({message: "success"})
 }
+
+
 
 exports.viewemployeedata = async (req, res) => {
     const {id, email} = req.user
@@ -757,27 +762,3 @@ exports.getuserdetails = async (req, res) => {
 
 }
 
-exports.multiplebanunbanuser  = async (req, res) => {
-    const {id, email} = req.user
-
-    const {userids, status} = req.body
-
-    if (!Array.isArray(userids)){
-        return res.status(400).json({message: "failed", data: "Invalid users"})
-    }
-
-    const employees = []
-
-    userids.forEach(tempdata => {
-        employees.push({
-            updateOne: {
-                filter: {_id: new mongoose.Types.ObjectId(tempdata)},
-                update: { $set: {status: status, bandate: status == "banned" ? new Date() : ""} }
-            }
-        })
-    })
-
-    await Users.bulkWrite(employees)
-
-    return res.json({message: "success"})
-}

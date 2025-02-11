@@ -23,7 +23,6 @@ router
     .post("/changepositionemployee", protectsuperadmin, changepositionemployee)
     .post("/banemployees", protectsuperadmin, banemployees)
     .post("/editemployees", protectsuperadmin, editemployees)
-    .post("/multiplebanunbanuser", protectsuperadmin, multiplebanunbanuser)
 
     //  #endregion
 
