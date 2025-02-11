@@ -1920,7 +1920,7 @@ exports.viewduedatesgraph = async (req, res) => {
                     from: 'clients',
                     localField: "projectDetails.client",
                     foreignField: "_id",
-                    as: "$clientDetails"
+                    as: "clientDetails"
                 }
             },
             { $unwind: '$clientDetails' },
