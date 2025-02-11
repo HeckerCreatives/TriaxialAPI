@@ -270,6 +270,156 @@ exports.listprojects = async (req, res) => {
     return res.json({message: "success", data: data})
 };
 
+exports.listprojectsuperadmin = async (req, res) => {
+    const { id, email } = req.user;
+    const { page, limit, searchproject } = req.query;
+
+    // Set pagination options
+    const pageOptions = {
+        page: parseInt(page) || 0,
+        limit: parseInt(limit) || 10,
+    };
+
+    // Search filter
+    let matchStage = {};
+    if (searchproject) {
+        matchStage["projectname"] = {
+            $regex: searchproject, $options: 'i'
+        };
+    }
+
+    const projectlist = await Projects.aggregate([
+        { $match: matchStage },
+        {
+
+            $lookup: {
+                from: 'teams',
+                localField: 'team',
+                foreignField: '_id',
+                as: 'teamData'
+            }
+        },
+        { $unwind: { path: '$teamData', preserveNullAndEmptyArrays: true } },
+        {
+            $lookup: {
+                from: 'clients',
+                localField: 'client',
+                foreignField: '_id',
+                as: 'clientData'
+            }
+        },
+        { $unwind: { path: '$clientData', preserveNullAndEmptyArrays: true } },
+        {
+            $lookup: {
+                from: 'jobcomponents',
+                localField: '_id',
+                foreignField: 'project',
+                as: 'jobComponentData'
+            }
+        },
+        { $unwind: { path: '$jobComponentData', preserveNullAndEmptyArrays: true } },
+        {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'jobComponentData.members.employee',
+                foreignField: 'owner',
+                as: 'jobComponentMemberDetails'
+            }
+        },
+        {
+            $addFields: {
+                'jobComponentData.memberInitials': {
+                    $map: {
+                        input: '$jobComponentMemberDetails',
+                        as: 'member',
+                        in: '$$member.initial'
+                    }
+                }
+            }
+        },
+        {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'teamData.manager',
+                foreignField: 'owner',
+                as: 'managerDetails'
+            }
+        },
+        { $unwind: { path: '$managerDetails', preserveNullAndEmptyArrays: true } },
+        {
+            $group: {
+                _id: '$_id',
+                projectname: { $first: '$projectname' },
+                jobno: { $first: '$jobno' },
+                invoiced: { $first: '$invoiced' },
+                status: { $first: '$status' },
+                startdate: { $first: '$startdate' },
+                deadlinedate: { $first: '$deadlinedate' },
+                teamname: { $first: '$teamData.teamname' },
+                teamid: { $first: '$teamData._id' },
+                client: { $first: '$clientData.clientname' },
+                priority: { $first: '$clientData.priority' },
+                managerName: { $first: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] } },
+                createdAt: { $first: '$createdAt' },
+                updatedAt: { $first: '$updatedAt' },
+                jobComponents: {
+                    $push: {
+                        name: '$jobComponentData.jobcomponent',
+                        id: '$jobComponentData._id',
+                        estimatedBudget: '$jobComponentData.estimatedbudget',
+                        members: '$jobComponentData.memberInitials'
+                    }
+                }
+            }
+        },
+        { $skip: pageOptions.page * pageOptions.limit },
+        { $limit: pageOptions.limit }
+    ]);
+    
+
+    const total = await Projects.aggregate([
+        { $match: matchStage },
+        {
+            $lookup: {
+                from: 'teams',
+                localField: 'team',
+                foreignField: '_id',
+                as: 'teamData'
+            }
+        },
+        { $unwind: { path: '$teamData', preserveNullAndEmptyArrays: true } },
+        {
+            $lookup: {
+                from: 'jobcomponents',
+                localField: '_id',
+                foreignField: 'project',
+                as: 'jobComponentData'
+            }
+        },
+        { $unwind: { path: '$jobComponentData', preserveNullAndEmptyArrays: true } },
+        {
+            $match: {
+                $or: [
+                    { 'teamData.manager': new mongoose.Types.ObjectId(id) },
+                    { 'teamData.teamleader': new mongoose.Types.ObjectId(id) },
+                    { 'teamData.members': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } },
+                    { 'jobComponentData.members': { $elemMatch: { employee: new mongoose.Types.ObjectId(id) } } },
+                    { 'jobComponentData.jobmanager': new mongoose.Types.ObjectId(id) }
+                ]
+            }
+        },
+        { $count: 'total' }
+    ]);
+
+    const totalPages = Math.ceil((total[0]?.total || 0) / pageOptions.limit);
+
+    const data = {
+        projectlist,
+        totalpages: totalPages
+    };
+
+    return res.json({message: "success", data: data})
+};
 
 
 exports.viewprojectdetails = async (req, res) => {
