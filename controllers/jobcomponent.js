@@ -3056,27 +3056,23 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
             return res.status(500).json({ message: 'Error processing request', error: err.message });
         });
 
-        console.log(result)
         const data = {
             alldates: [],
             teams: []
         };
 
+
         let currentDate = new Date(startOfWeek);
         while (currentDate <= endOfRange) {
-            const dayOfWeek = currentDate.getDay();
-
-            if (dayOfWeek !== 0 && dayOfWeek !== 1) { // Exclude Sundays (0) and Saturdays (6)
+            if (currentDate.getDay() !== 1 && currentDate.getDay() !== 0) {
                 data.alldates.push(currentDate.toISOString().split('T')[0]);
             }
             currentDate.setDate(currentDate.getDate() + 1);
         }
 
-
         result.forEach(entry => {
-            const { teamName, teamid, employee, date, totalHours, wfhData, leaveData, wellnessData, eventData } = entry;
-            const formattedDate = new Date().toISOString().split('T')[0];
-            // const formattedDate = new Date(date).toISOString().split('T')[0];
+            const { teamName, teamid, employee, role, notes, date, status, totalHours,wfhData, leaveData, wellnessData, eventData, members } = entry;
+            const formattedDate = new Date(date).toISOString().split('T')[0];
         
             let teamData = data.teams.find(team => team.name === teamName);
             if (!teamData) {
@@ -3095,24 +3091,26 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     name: employee.fullname,
                     initial: employee.initial,
                     resource: employee.resource,
+                    role: role,  // Include role
+                    notes: notes, // Include notes
                     leave: [],
-                    wellness: wellnessData,
                     wfh: entry.wfhData,
+                    wellness: wellnessData,
                     event: [],
                     dates: []
                 };
         
                 leaveData.forEach(leave => {
                     employeeData.leave.push({
-                        leavestart: leave.leavedates.leavestart,
-                        leaveend: leave.leavedates.leaveend
+                        leavestart: leave.leavestart,
+                        leaveend: leave.leaveend
                     });
                 });
         
                 eventData.forEach(event => {
                     employeeData.event.push({
-                        eventstart: event.eventdates.startdate,
-                        eventend: event.eventdates.enddate
+                        eventstart: event.startdate,
+                        eventend: event.enddate
                     });
                 });
         
@@ -3123,28 +3121,15 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
             if (!dateEntry) {
                 dateEntry = {
                     date: formattedDate,
-                    totalhoursofjobcomponents: totalHours,
+                    totalhoursofjobcomponents: totalHours
                 };
+        
                 employeeData.dates.push(dateEntry);
             }
         });
-        
-        // Ensure every employee has all dates even if they have no data
-        data.teams.forEach(team => {
-            team.members.forEach(employee => {
-                data.alldates.forEach(date => {
-                    if (!employee.dates.some(d => d.date === date)) {
-                        employee.dates.push({
-                            date: date,
-                            totalhoursofjobcomponents: 0 // Default when no data
-                        });
-                    }
-                });
-        
-                // Sort dates to maintain order
-                employee.dates.sort((a, b) => new Date(a.date) - new Date(b.date));
-            });
-        });
+
+       
+       
         
 
         return res.json({ message: 'success', data });
@@ -3153,6 +3138,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         return res.status(500).json({ message: 'Error processing request', error: err.message });
     }
 };
+
 
 exports.getjobcomponentindividualrequest = async (req, res) => {
     const { id, email } = req.user;

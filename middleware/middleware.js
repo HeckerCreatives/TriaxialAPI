@@ -38,6 +38,11 @@ exports.protectsuperadmin = async (req, res, next) => {
                 res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
             }
+
+            if (admin.status != "active"){
+                res.clearCookie('sessionToken', { path: '/' })
+                return res.status(401).json({ message: 'failed', data: `Your account had been ${admin.status}! Please contact support for more details.` });
+            }
     
             // if (decodedToken.token != admin.token){
             //     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
@@ -78,6 +83,11 @@ exports.protectusers = async (req, res, next) => {
             if (!user){
                 res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
+            }
+
+            if (user.status != "active"){
+                res.clearCookie('sessionToken', { path: '/' })
+                return res.status(401).json({ message: 'failed', data: `Your account had been ${user.status}! Please contact support for more details.` });
             }
     
             // if (decodedToken.token != user.token){
@@ -120,6 +130,13 @@ exports.protectemployee = async(req, res, next) => {
                 res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
             }
+
+            if (user.status != "active"){
+                res.clearCookie('sessionToken', { path: '/' })
+                return res.status(401).json({ message: 'failed', data: `Your account had been ${user.status}! Please contact support for more details.` });
+            }
+
+
     
             // if (decodedToken.token != user.token){
             //     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
@@ -161,6 +178,11 @@ exports.protectmanager = async(req, res, next) => {
                 res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
             }
+
+            if (user.status != "active"){
+                res.clearCookie('sessionToken', { path: '/' })
+                return res.status(401).json({ message: 'failed', data: `Your account had been ${user.status}! Please contact support for more details.` });
+            }
     
             // if (decodedToken.token != user.token){
             //     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
@@ -201,6 +223,11 @@ exports.protecthr = async(req, res, next) => {
             if (!user){
                 res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
+            }
+
+            if (user.status != "active"){
+                res.clearCookie('sessionToken', { path: '/' })
+                return res.status(401).json({ message: 'failed', data: `Your account had been ${user.status}! Please contact support for more details.` });
             }
     
             // if (decodedToken.token != user.token){
@@ -243,6 +270,11 @@ exports.protectfinance = async(req, res, next) => {
                 res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
             }
+
+            if (user.status != "active"){
+                res.clearCookie('sessionToken', { path: '/' })
+                return res.status(401).json({ message: 'failed', data: `Your account had been ${user.status}! Please contact support for more details.` });
+            }
     
             // if (decodedToken.token != user.token){
             //     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
@@ -285,6 +317,11 @@ exports.protecthr = async(req, res, next) => {
                 res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
             }
+
+            if (user.status != "active"){
+                res.clearCookie('sessionToken', { path: '/' })
+                return res.status(401).json({ message: 'failed', data: `Your account had been ${user.status}! Please contact support for more details.` });
+            }
     
             // if (decodedToken.token != user.token){
             //     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
@@ -325,6 +362,11 @@ exports.protectalluser = async(req, res, next) => {
             if (!user){
                 res.clearCookie('sessionToken', { sameSite: 'None', secure: true })
                 return res.status(401).json({ message: 'Unauthorized', data: "You are not authorized to view this page. Please login the right account to view the page." });
+            }
+
+            if (user.status != "active"){
+                res.clearCookie('sessionToken', { path: '/' })
+                return res.status(401).json({ message: 'failed', data: `Your account had been ${user.status}! Please contact support for more details.` });
             }
     
             // if (decodedToken.token != user.token){

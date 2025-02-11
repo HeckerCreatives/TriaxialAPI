@@ -756,3 +756,28 @@ exports.getuserdetails = async (req, res) => {
     return res.json({message: "success", data: data})
 
 }
+
+exports.multiplebanunbanuser  = async (req, res) => {
+    const {id, email} = req.user
+
+    const {userids, status} = req.body
+
+    if (!Array.isArray(userids)){
+        return res.status(400).json({message: "failed", data: "Invalid users"})
+    }
+
+    const employees = []
+
+    userids.forEach(tempdata => {
+        employees.push({
+            updateOne: {
+                filter: {_id: new mongoose.Types.ObjectId(tempdata)},
+                update: { $set: {status: status, bandate: status == "banned" ? new Date() : ""} }
+            }
+        })
+    })
+
+    await Users.bulkWrite(employees)
+
+    return res.json({message: "success"})
+}
