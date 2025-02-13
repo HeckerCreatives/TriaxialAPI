@@ -72,7 +72,7 @@ exports.createinvoice = async (req, res) => {
         }
 
         currentinvoice = parseInt(findCurrinvoice?.newinvoice) || 0;
-        let finalnewinvoice = parseInt(newinvoice);
+        
         const invoicedata = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Pending" });
 
         if (invoicedata) {
@@ -83,7 +83,7 @@ exports.createinvoice = async (req, res) => {
         const newInvoiceData = await Invoice.create({
             jobcomponent: new mongoose.Types.ObjectId(jobcomponentid),
             currentinvoice,
-            newinvoice: finalnewinvoice,
+            newinvoice: parseInt(newinvoice),
             invoiceamount,
             comments,
             reasonfordenie: "",
