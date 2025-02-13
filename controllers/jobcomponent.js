@@ -21,10 +21,19 @@ exports.createjobcomponent = async (req, res) => {
     if (!jobcomponentvalue || !Array.isArray(jobcomponentvalue)) {
         return res.status(400).json({ message: "failed", data: "Invalid job component form!" });
     }
-
+    
+    
     const startdate = new Date(start);
     const end = moment(start).add(1, 'years').toDate();
     let client;
+    let variation = false
+    
+    if (/^(true|false)$/i.test(isvariation)) {
+        variation = isvariation.toLowerCase() === 'true';
+      } else {
+        variation = false; // Default fallback
+      }
+      
     if (!mongoose.Types.ObjectId.isValid(clientid)) {
         const clientExists = await Clients.findOne({ clientname: clientid });
 
@@ -80,7 +89,7 @@ exports.createjobcomponent = async (req, res) => {
                 project: new mongoose.Types.ObjectId(projectdata._id),
                 jobmanager: new mongoose.Types.ObjectId(jobmanager),
                 budgettype,
-                isVariation: isvariation,
+                isVariation: variation,
                 estimatedbudget,
                 jobcomponent,
                 members: membersArray,
