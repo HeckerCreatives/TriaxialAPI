@@ -11,7 +11,7 @@ const Teams = require("../models/Teams");
 //  #region MANAGER
 exports.createjobcomponent = async (req, res) => {
     const { id, email } = req.user;
-    const { jobcomponentvalue, clientid, projectname, start, teamid, jobno, priority } = req.body;
+    const { jobcomponentvalue, clientid, projectname, start, teamid, jobno, priority, isvariation } = req.body;
 
     if (!teamid) return res.status(400).json({ message: "failed", data: "Please select a team first!" });
     if (!jobno) return res.status(400).json({ message: "failed", data: "Enter a job number first!" });
@@ -80,7 +80,7 @@ exports.createjobcomponent = async (req, res) => {
                 project: new mongoose.Types.ObjectId(projectdata._id),
                 jobmanager: new mongoose.Types.ObjectId(jobmanager),
                 budgettype,
-                isVariation: false,
+                isVariation: isvariation,
                 estimatedbudget,
                 jobcomponent,
                 members: membersArray,
