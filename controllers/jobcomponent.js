@@ -29,7 +29,7 @@ exports.createjobcomponent = async (req, res) => {
     let variation = false
     
     if (/^(true|false)$/i.test(isvariation)) {
-        variation = isvariation.toLowerCase() === 'true';
+        variation = isvariation.toLowerCase() === "true";
       } else {
         variation = false; // Default fallback
       }
