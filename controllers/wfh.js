@@ -143,7 +143,23 @@ exports.requestwfhemployee = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
     })
 
-    await sendmail(new mongoose.Types.ObjectId(id), [{_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID)}, {_id: new mongoose.Types.ObjectId(reportingto)}], `Work From Home Request by ${fullname}`, `Hello Manager!\n\nThere's a work from home day request from ${fullname}!\nOn ${requestdate} until ${requestend}.\n\nIf you have any question please contact ${fullname}.\n\nThank you and have a great day`, false)
+    const sendmailcontent = `
+        Good day!
+
+        A Work From Home application has been generated. Please see the details below:
+
+        Timestamp: ${new Date().toLocaleString()}
+        Request Date: ${requestdate}
+        Request End Date: ${requestend}
+        Wellness Day Cycle: ${wellnessdaycycle ? 'Yes' : 'No'}
+        Total Hours WFH: ${totalhourswfh}
+        Hours of Leave: ${hoursofleave}
+        Reason for WFH: ${reason}
+
+        Best Regards,
+        ${fullname}
+    `;
+    await sendmail(new mongoose.Types.ObjectId(id), [{_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID)}, {_id: new mongoose.Types.ObjectId(reportingto)}], `Work From Home Request by ${fullname}`, sendmailcontent, false)
 
     return res.json({message: "success"})
 }
