@@ -82,10 +82,10 @@ exports.createinvoice = async (req, res) => {
         // Create the invoice
         const newInvoiceData = await Invoice.create({
             jobcomponent: new mongoose.Types.ObjectId(jobcomponentid),
-            currentinvoice,
+            currentinvoice: currentinvoice,
             newinvoice: invoice,
-            invoiceamount,
-            comments,
+            invoiceamount: invoiceamount,
+            comments: comments,
             reasonfordenie: "",
             status: "Pending"
         })
