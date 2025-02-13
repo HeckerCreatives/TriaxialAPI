@@ -40,8 +40,6 @@ exports.createinvoice = async (req, res) => {
 
     if (!jobcomponentid) {
         return res.status(400).json({ message: "failed", data: "Please select a valid job component" });
-    } else if (isNaN(currentinvoice)) {
-        return res.status(400).json({ message: "failed", data: "Please enter a current invoice" });
     } else if (isNaN(newinvoice)) {
         return res.status(400).json({ message: "failed", data: "Please enter a new invoice" });
     } else if (isNaN(invoiceamount)) {
@@ -72,7 +70,7 @@ exports.createinvoice = async (req, res) => {
         if(newinvoice > 100){
             return res.status(400).json({ message: "failed", data: "The new invoice should not be greater than 100" });
         }
-        
+
         currentinvoice = parseInt(findCurrinvoice?.newinvoice) || 0;
         let finalnewinvoice = parseInt(newinvoice);
         const invoicedata = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Pending" });
