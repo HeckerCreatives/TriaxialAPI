@@ -48,6 +48,7 @@ exports.createinvoice = async (req, res) => {
     try {
         const { status, budgettype, jobmanager } = await Jobcomponent.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid) });
 
+        console.log(newinvoice)
        let currentinvoice = 0;
 
         const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Approved" }).sort({ createdAt: -1 });
