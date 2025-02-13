@@ -215,8 +215,43 @@ exports.requestleave = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
     })
 
-    await sendmail(new mongoose.Types.ObjectId(id), [{_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID)}, {_id: new mongoose.Types.ObjectId(reportingto)}], `Leave Request by ${fullname}`, `Hello Manager!\n\nThere's a leave request from ${fullname}!\nFrom ${leavestart} until ${leaveend}.\n\nIf you have any question please contact ${fullname}.\n\nThank you and have a great day`, false)
+    const sendmailcontent = `
+        Good day!
 
+        A leave request has been generated. 
+        Please see the details below:
+
+        Timestamp: ${moment().format('YYYY-MM-DD HH:mm:ss')}
+        Name: ${fullname}
+        Leave Type: ${leavetype}
+        Details: ${details}
+        Leave Start Date: ${leavestart}
+        Leave End Date: ${leaveend}
+        Total Working Days: ${totalworkingdays}
+        Total Public Holidays: ${totalpublicholidays}
+        Wellness Day Cycle: ${wellnessdaycycle ? 'Yes' : 'No'}
+        Working Hours on Leave: ${workinghoursonleave}
+        Working Hours During Leave: ${workinghoursduringleave}
+        Comments: ${comments}
+
+        Best Regards,
+        ${fullname}
+
+        Note: This is an auto-generated message, please do not reply.
+        Please forward on this email thread any necessary documents for the leave.
+        Please add your leave to LEAVE CALENDAR and WORKLOAD SPREADSHEET.    
+        `;
+
+    await sendmail(
+        new mongoose.Types.ObjectId(id),
+        [
+            { _id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID) },
+            { _id: new mongoose.Types.ObjectId(reportingto) }
+        ],
+        `Leave Request - ${fullname}`,
+        sendmailcontent,
+        false
+    );
     return res.json({message: "success"})
 }
 

@@ -78,8 +78,50 @@ exports.wellnessdayrequest = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details."})
     })
 
-    await sendmail(new mongoose.Types.ObjectId(id), [{_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID)}, {_id: new mongoose.Types.ObjectId(reportingto)}], `Wellness Day Request by ${fullname}`, `Hello Manager!\n\nThere's a wellness day request from ${fullname}!\nOn ${request}.\n\nIf you have any question please contact ${fullname}.\n\nThank you and have a great day`, false)
+    let count = 0;
+    let currentDate = new Date(event.cyclestart);
+    let enddate = new Date(requestdate);
 
+    while (currentDate <= enddate) {
+        const dayOfWeek = currentDate.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Exclude Sundays (0) and Saturdays (6)
+            count++;
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    totalhours = count * 8;
+
+    const sendmailcontent = `
+        Good day!
+
+        A wellness day request has been generated. 
+        Please see the details below:
+
+        Timestamp: ${moment().format('YYYY-MM-DD HH:mm:ss')}
+        Name: ${fullname}        
+        First Day of WD Cycle ${event.cyclestart}
+        Wellnessday: ${requestdate}
+        Total Number of Working Days: ${count}
+        Total Working Hours during WD: ${totalhours}
+        
+        Best Regards,
+        ${fullname}
+
+        Note: This is an auto-generated message, please do not reply.
+        Please add your Wellness Day to LEAVE CALENDAR and WORKLOAD SPREADSHEET.    
+        `;
+
+    await sendmail(
+        new mongoose.Types.ObjectId(id),
+        [
+            { _id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID) },
+            { _id: new mongoose.Types.ObjectId(reportingto) }
+        ],
+        `Wellness Day - ${fullname}`,
+        sendmailcontent,
+        false
+    );
     return res.json({message: "success"})
 }
 

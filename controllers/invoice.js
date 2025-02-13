@@ -4,6 +4,10 @@ const Jobcomponent = require("../models/Jobcomponents")
 const Jobcomponents = require("../models/Jobcomponents")
 const Users = require("../models/Users")
 const { sendmail } = require("../utils/email");
+const Projects = require("../models/Projects")
+const Clients = require("../models/Clients")
+const Teams = require("../models/Teams")
+const Userdetails = require("../models/Userdetails")
 
 
 //  #region EMPLOYEE & MANAGER
@@ -94,23 +98,60 @@ exports.createinvoice = async (req, res) => {
 
         await newInvoiceData.save();
 
-        console.log("Invoice Created:", newInvoiceData);
-
-        // Fetch job manager and finance users for email notifications
-        const jobManager = await Users.findOne({ _id: new mongoose.Types.ObjectId(jobmanager) });
+        const jobManager = await Userdetails.findOne({ _id: new mongoose.Types.ObjectId(jobmanager) });
         const financeUsers = await Users.find({ auth: "finance" });
 
         if (!jobManager) {
             return res.status(400).json({ message: "failed", data: "Job manager not found" });
         }
+        // get email content details
 
-        const allRecipientIds = [jobManager._id, ...financeUsers.map(user => user._id)];
+        const project = await Projects.findOne({ _id: new mongoose.Types.ObjectId(jobcomponent.project) })
+        .catch(err => {
+            console.log(`There's a problem with getting the project details for email content details in create invoice. Error: ${err}`)
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
+        const client = await Clients.findOne({ _id: new mongoose.Types.ObjectId(project.client) })
+        .catch(err => {
+            console.log(`There's a problem with getting the client details for email content details in create invoice. Error: ${err}`)
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
+        const team = await Teams.findOne({ _id: new mongoose.Types.ObjectId(project.team) })
+        .catch(err => {
+            console.log(`There's a problem with getting the team details for email content details in create invoice. Error: ${err}`)
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
 
-        const emailContent = `Hello Team,\n\nA new invoice request for job component "${newInvoiceData.jobcomponent}" has been created:\n\nCurrent Invoice: ${currentinvoice}\nNew Invoice: ${newInvoiceData.newinvoice}\nInvoice Amount: ${invoiceamount}\nComments: ${comments}\n\nIf you have any questions, feel free to reach out.\n\nBest Regards,\n${email}`;
-        
+        const allRecipientIds = [jobManager.owner, ...financeUsers.map(user => user._id)];
+
+        const claimamount = (invoiceamount * (invoice / 100))
+    const emailContent = `
+        A component of the project shown below is now being invoiced.
+
+        Team Name: ${team.teamname}
+        Job Manager: ${jobManager.firstname} ${jobManager.lastname}
+        Job Number: ${project.jobno}
+        Client Name: ${client.clientname}
+        Leave End Date: ${leaveend}
+        Project Name: ${project.projectname}
+        Component Budget: $${newInvoiceData.invoiceamount}
+        Job Component: ${jobcomponent.jobcomponent}
+        Previous %invoice: ${findCurrinvoice.currentinvoice}%
+        Present %invoice: ${findCurrinvoice.newinvoice}%
+        This Claim Percentage: ${invoice}%
+        This Claim Amount:  $${claimamount}
+       
+
+        Best Regards,
+        ${fullname}
+
+        Note: This is an auto generated message, please do not reply. For your inquiries, 
+        comments and/or concerns please use the button "Troubleshoot/Bug Fix" at 
+        the Workload spreadsheet.    
+        `;        
         // Send email notification
         const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, allRecipientIds, "New Invoice Request Created", emailContent, false)
+        await sendmail(sender, allRecipientIds, `${project.jobno} - ${project.projectname} - Request Invoice`, emailContent, false)
             .catch(err => {
                 console.log(`Failed to send email notification for new invoice creation. Error: ${err}`);
             });

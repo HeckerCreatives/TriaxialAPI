@@ -7,6 +7,7 @@ const { sendmail } = require("../utils/email");
 const Clients = require("../models/Clients");
 const { getAllUserIdsExceptSender } = require("../utils/user");
 const Teams = require("../models/Teams");
+const Invoice = require("../models/invoice");
 
 //  #region MANAGER
 exports.createjobcomponent = async (req, res) => {
@@ -574,27 +575,57 @@ exports.completejobcomponent = async (req, res) => {
             console.error(`Job Manager with ID ${jobcomponent.jobmanager} not found.`);
             return res.status(404).json({ message: "failed", data: "Job Manager not found." });
         }
-
-        // Fetch finance users
         const financeUsers = await Users.find({ auth: "finance" });
-        const financeUserIds = financeUsers.map(user => user._id);
 
-        // Combine recipients (job manager and finance users)
-        const allRecipientIds = [...new Set([...financeUserIds, jobManager._id])];
 
-        // Email content
-        const emailContent = `
-            Hello Team,
-            
-            The job component "${jobcomponent.jobcomponent}" has been marked as completed.
-            
-            If you have any questions or concerns, please reach out.
-            
-            Thank you!
-            
-            Best Regards,
-            ${email}
-        `;
+        // send email content details
+        const project = await Projects.findOne({ _id: new mongoose.Types.ObjectId(jobcomponent.project) })
+        .catch(err => {
+            console.log(`There's a problem with getting the project details for email content details in create invoice. Error: ${err}`)
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
+        const client = await Clients.findOne({ _id: new mongoose.Types.ObjectId(project.client) })
+        .catch(err => {
+            console.log(`There's a problem with getting the client details for email content details in create invoice. Error: ${err}`)
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
+        const team = await Teams.findOne({ _id: new mongoose.Types.ObjectId(project.team) })
+        .catch(err => {
+            console.log(`There's a problem with getting the team details for email content details in create invoice. Error: ${err}`)
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
+
+        const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentId), status: "Approved" }).sort({ createdAt: -1 })
+        .catch(err => {
+            console.log(`There's a problem with getting the current invoice details for email content details in create invoice. Error: ${err}`)
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
+
+        const claimamount = (findCurrinvoice.invoiceamount * (findCurrinvoice.newinvoice / 100))
+         const emailContent = `
+        A component of the project shown below is now being invoiced.
+
+        Team Name: ${team.teamname}
+        Job Manager: ${jobManager.firstname} ${jobManager.lastname}
+        Job Number: ${project.jobno}
+        Client Name: ${client.clientname}
+        Leave End Date: ${leaveend}
+        Project Name: ${project.projectname}
+        Component Budget: $${newInvoiceData.invoiceamount}
+        Job Component: ${jobcomponent.jobcomponent}
+        Previous %invoice: ${findCurrinvoice.currentinvoice}%
+        Current %invoice: ${findCurrinvoice.newinvoice}%
+        This Claim Percentage: ${findCurrinvoice.newinvoice}%
+        This Claim Amount:  $${claimamount}
+       
+
+        Best Regards,
+        ${fullname}
+
+        Note: This is an auto generated message, please do not reply. For your inquiries, 
+        comments and/or concerns please use the button "Troubleshoot/Bug Fix" at 
+        the Workload spreadsheet.    
+        `;   
 
         // Send email notification
         const sender = new mongoose.Types.ObjectId(id);

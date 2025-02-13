@@ -1,6 +1,7 @@
 const { default: mongoose } = require("mongoose");
 const Workfromhome = require("../models/wfh")
 const {sendmail} = require("../utils/email")
+const moment = require("moment")
 
 //  #region ALL USERS
 
@@ -149,7 +150,7 @@ exports.requestwfhemployee = async (req, res) => {
         A Work From Home application has been generated. 
         Please see the details below:
 
-        Timestamp: ${new Date().toLocaleString()}
+        Timestamp: ${moment().format('YYYY-MM-DD HH:mm:ss')}
         Request Date: ${requestdate}
         Request End Date: ${requestend}
         Wellness Day Cycle: ${wellnessdaycycle ? 'Yes' : 'No'}
@@ -164,7 +165,7 @@ exports.requestwfhemployee = async (req, res) => {
         Please forward on this email thread any necessary documents for the WFH.
         Please add your Work From Home Schedule to WORKLOAD SPREADSHEET.
     `;
-    await sendmail(new mongoose.Types.ObjectId(id), [{_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID)}, {_id: new mongoose.Types.ObjectId(reportingto)}], `Work From Home Request by ${fullname}`, sendmailcontent, false)
+    await sendmail(new mongoose.Types.ObjectId(id), [{_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID)}, {_id: new mongoose.Types.ObjectId(reportingto)}], `WFH Request - ${fullname}`, sendmailcontent, false)
 
     return res.json({message: "success"})
 }
