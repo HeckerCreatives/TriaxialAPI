@@ -146,7 +146,8 @@ exports.requestwfhemployee = async (req, res) => {
     const sendmailcontent = `
         Good day!
 
-        A Work From Home application has been generated. Please see the details below:
+        A Work From Home application has been generated. 
+        Please see the details below:
 
         Timestamp: ${new Date().toLocaleString()}
         Request Date: ${requestdate}
@@ -158,6 +159,10 @@ exports.requestwfhemployee = async (req, res) => {
 
         Best Regards,
         ${fullname}
+
+        Note: This is an auto-generated message, please do not reply.
+        Please forward on this email thread any necessary documents for the WFH.
+        Please add your Work From Home Schedule to WORKLOAD SPREADSHEET.
     `;
     await sendmail(new mongoose.Types.ObjectId(id), [{_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID)}, {_id: new mongoose.Types.ObjectId(reportingto)}], `Work From Home Request by ${fullname}`, sendmailcontent, false)
 
