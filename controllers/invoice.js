@@ -45,61 +45,64 @@ exports.createinvoice = async (req, res) => {
     } else if (invoiceamount == null || isNaN(invoiceamount)) {
         return res.status(400).json({ message: "failed", data: "Please enter a valid invoice amount" });
     }
-    try {
-        const { status, budgettype, jobmanager } = await Jobcomponent.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid) });
 
-        console.log(invoice)
-       let currentinvoice = 0;
+    try {
+        const jobcomponent = await Jobcomponent.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid) });
+
+        if (!jobcomponent) {
+            return res.status(400).json({ message: "failed", data: "Job component not found" });
+        }
+
+        const { status, budgettype, jobmanager } = jobcomponent;
+        let currentinvoice = 0;
 
         const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Approved" }).sort({ createdAt: -1 });
 
-        const checkRemaining = 100 - (parseInt(findCurrinvoice?.newinvoice) || 0);
-
-        // if (status !== 'completed') {
-        //     return res.status(400).json({ message: "failed", data: "Invoice request is only available when job component status is completed" });
-        // }
+        const previousInvoice = parseInt(findCurrinvoice?.newinvoice) || 0;
+        const checkRemaining = 100 - previousInvoice;
 
         if (invoice > checkRemaining && budgettype === 'lumpsum') {
             return res.status(400).json({ message: "failed", data: `The remaining invoice is ${checkRemaining}%` });
         }
 
-        if(findCurrinvoice.newinvoice > invoice){
+        if (previousInvoice > invoice) {
             return res.status(400).json({ message: "failed", data: "The new invoice should be greater than the current invoice" });
         }
 
-        if(newinvoice > 100){
+        if (invoice > 100) {
             return res.status(400).json({ message: "failed", data: "The new invoice should not be greater than 100" });
         }
 
-        currentinvoice = parseInt(findCurrinvoice?.newinvoice) || 0;
-        
-        const invoicedata = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Pending" });
+        currentinvoice = previousInvoice;
 
-        if (invoicedata) {
+        const existingInvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Pending" });
+
+        if (existingInvoice) {
             return res.status(400).json({ message: "failed", data: "There's a pending invoice request for this job component" });
         }
 
         // Create the invoice
-        const newInvoiceData = await Invoice.create({
+        const newInvoiceData = new Invoice({
             jobcomponent: new mongoose.Types.ObjectId(jobcomponentid),
             currentinvoice: currentinvoice,
-            newinvoice: invoice,
+            newinvoice: invoice, // Ensure 'invoice' is passed correctly
             invoiceamount: invoiceamount,
             comments: comments,
             reasonfordenie: "",
             status: "Pending"
-        })
-        .then(data => data)
-        .catch(err => {
-            console.log(`There's a problem with creating the invoice for ${jobcomponentid}. Error: ${err}`)
+        });
 
-            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
-        })
+        await newInvoiceData.save();
 
+        console.log("Invoice Created:", newInvoiceData);
 
         // Fetch job manager and finance users for email notifications
         const jobManager = await Users.findOne({ _id: new mongoose.Types.ObjectId(jobmanager) });
         const financeUsers = await Users.find({ auth: "finance" });
+
+        if (!jobManager) {
+            return res.status(400).json({ message: "failed", data: "Job manager not found" });
+        }
 
         const allRecipientIds = [jobManager._id, ...financeUsers.map(user => user._id)];
 
@@ -118,6 +121,7 @@ exports.createinvoice = async (req, res) => {
         return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details" });
     }
 };
+;
 //  #endregion
 
 //  #region FINANCE
