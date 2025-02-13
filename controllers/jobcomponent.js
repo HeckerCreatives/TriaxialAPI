@@ -630,7 +630,7 @@ exports.completejobcomponent = async (req, res) => {
         // Send email notification
         const sender = new mongoose.Types.ObjectId(id);
         const receiver = await getAllUserIdsExceptSender(id)
-        await sendmail(sender, receiver, "Job Component Completed", emailContent)
+        await sendmail(sender, receiver, `${project.jobno} - ${project.projectname} - Complete Job Component`, emailContent)
             .catch(err => {
                 console.error(`Failed to send email notification for job component: ${jobcomponentId}. Error: ${err}`);
                 return res.status(400).json({
