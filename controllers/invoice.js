@@ -83,7 +83,7 @@ exports.createinvoice = async (req, res) => {
         const newInvoiceData = await Invoice.create({
             jobcomponent: new mongoose.Types.ObjectId(jobcomponentid),
             currentinvoice,
-            newinvoice: parseInt(newinvoice),
+            newinvoice: newinvoice,
             invoiceamount,
             comments,
             reasonfordenie: "",
