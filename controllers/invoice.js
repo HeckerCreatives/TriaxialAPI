@@ -40,12 +40,11 @@ exports.createinvoice = async (req, res) => {
 
     if (!jobcomponentid) {
         return res.status(400).json({ message: "failed", data: "Please select a valid job component" });
-    } else if (isNaN(newinvoice)) {
-        return res.status(400).json({ message: "failed", data: "Please enter a new invoice" });
-    } else if (isNaN(invoiceamount)) {
-        return res.status(400).json({ message: "failed", data: "Please enter an invoice amount" });
+    } else if (newinvoice == null || isNaN(newinvoice)) {
+        return res.status(400).json({ message: "failed", data: "Please enter a valid new invoice" });
+    } else if (invoiceamount == null || isNaN(invoiceamount)) {
+        return res.status(400).json({ message: "failed", data: "Please enter a valid invoice amount" });
     }
-
     try {
         const { status, budgettype, jobmanager } = await Jobcomponent.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid) });
 
