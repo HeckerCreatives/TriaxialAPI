@@ -26,24 +26,23 @@ exports.createjobcomponent = async (req, res) => {
 
     const startdate = new Date(start);
     const end = moment(start).add(1, 'years').toDate();
-    let client;
+    let client = clientid;  // Initialize client before the if block
     if (!mongoose.Types.ObjectId.isValid(clientid)) {
         const clientExists = await Clients.findOne({ clientname: clientid });
-
+    
         if (clientExists) {
             return res.status(400).json({ message: "failed", data: "Client already exists" });
         }
-
+    
         try {
             const newClient = await Clients.create({ clientname: clientid, priority });
-            client = newClient._id;
+            client = newClient._id;  // Ensure `client` is assigned here
         } catch (err) {
             console.error("Error creating client:", err);
             return res.status(400).json({ message: "bad-request", data: "Server error! Contact support." });
         }
-    } else {
-        client = clientid;
     }
+    
 
     try {
         const projectdata = await Projects.create({
