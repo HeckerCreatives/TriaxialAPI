@@ -27,6 +27,7 @@ exports.createjobcomponent = async (req, res) => {
     const startdate = new Date(start);
     const end = moment(start).add(1, 'years').toDate();
     let client = clientid;  // Initialize client before the if block
+    let jobmanager
     if (!mongoose.Types.ObjectId.isValid(clientid)) {
         const clientExists = await Clients.findOne({ clientname: clientid });
     
@@ -68,6 +69,7 @@ exports.createjobcomponent = async (req, res) => {
         for (const job of jobcomponentvalue) {
             const { jobmanager, budgettype, estimatedbudget, jobcomponent, members } = job;
 
+            jobmanager = jobmanager || null;
             if (!Array.isArray(members)) {
                 return res.status(400).json({ message: "failed", data: "Invalid selected members" });
             }
@@ -119,7 +121,7 @@ exports.createjobcomponent = async (req, res) => {
             console.log(`There's a problem with getting the client details for email content details in create job component. Error: ${err}`)
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
         })
-        const jobManager = await Userdetails.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentvalue[0].jobmanager) })
+        const jobManager = await Userdetails.findOne({ _id: new mongoose.Types.ObjectId(jobmanager) })
         .catch(err => {
             console.log(`There's a problem with getting the job manager details for email content details in create job component. Error: ${err}`)
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
