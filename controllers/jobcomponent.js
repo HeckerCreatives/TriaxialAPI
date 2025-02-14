@@ -121,7 +121,7 @@ exports.createjobcomponent = async (req, res) => {
             console.log(`There's a problem with getting the client details for email content details in create job component. Error: ${err}`)
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
         })
-        const jobManager = await Userdetails.findOne({ _id: new mongoose.Types.ObjectId(jobmanagerz) })
+        const jobManager = await Userdetails.findOne({ owner: new mongoose.Types.ObjectId(jobmanagerz) })
         .catch(err => {
             console.log(`There's a problem with getting the job manager details for email content details in create job component. Error: ${err}`)
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
