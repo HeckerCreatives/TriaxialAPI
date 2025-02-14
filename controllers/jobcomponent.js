@@ -8,6 +8,7 @@ const Clients = require("../models/Clients");
 const { getAllUserIdsExceptSender } = require("../utils/user");
 const Teams = require("../models/Teams");
 const Invoice = require("../models/invoice");
+const Userdetails = require("../models/Userdetails");
 
 //  #region MANAGER
 exports.createjobcomponent = async (req, res) => {
@@ -96,7 +97,7 @@ exports.createjobcomponent = async (req, res) => {
         const financeUsers = await Users.find({ auth: "finance" }).select("_id");
         const superadminUsers = await Users.find({ auth: "superadmin" }).select("_id");
 
-        const team = await Teams.findById(teamid).select("manager members").populate("members", "_id");
+        const team = await Teams.findById(teamid).select("manager members teamname").populate("members", "_id");
         const teamMemberIds = team ? team.members.map(m => m._id.toString()) : [];
 
         const allRecipientIds = new Set([
@@ -107,13 +108,65 @@ exports.createjobcomponent = async (req, res) => {
             ...Array.from(allEmployeeIds),
         ]);
 
-        allRecipientIds.delete(id); // Remove sender ID
+        allRecipientIds.delete(id); 
+        
+        const project = await Projects.findOne({ _id: new mongoose.Types.ObjectId(projectdata._id) })
+        .catch(err => {
+            console.log(`There's a problem with getting the project details for email content details in create job component. Error: ${err}`)
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
+        const client = await Clients.findOne({ _id: new mongoose.Types.ObjectId(project.client) })
+        .catch(err => {
+            console.log(`There's a problem with getting the client details for email content details in create job component. Error: ${err}`)
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
+        const jobManager = await Userdetails.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentvalue[0].jobmanager) })
+        .catch(err => {
+            console.log(`There's a problem with getting the job manager details for email content details in create job component. Error: ${err}`)
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
 
-        const emailContent = `Hello Team,\n\nThe following job components and project have been created by ${email}:\n\n${emailDetails
-            .map(detail => `Job Component: ${detail.jobcomponent}\n`)
-            .join("")}If you have any questions, please reach out.\n\nBest Regards,\n${email}`;
+        let emailContent
+        let titlecontent
 
-        await sendmail(new mongoose.Types.ObjectId(id), Array.from(allRecipientIds), "New Job Components Created", emailContent)
+        if(isvariation === true){
+        emailContent = `
+        A component of the project shown below is a Variation Project.
+
+        Team Name: ${team.teamname}
+        Job Manager: ${jobManager.firstname} ${jobManager.lastname}
+        Job Number: ${project.jobno}
+        Client Name: ${client.clientname}
+        Project Name: ${project.projectname}
+        Variation Fee: $${jobcomponentvalue[0].estimatedbudget}
+        Variation # and Name: ${jobcomponentvalue[0].jobcomponent}
+
+        Note: This is an auto generated message, please do not reply. For your inquiries, 
+        comments and/or concerns please use the button "Troubleshoot/Bug Fix" 
+        at the Workload spreadsheet.
+        `;
+
+        titlecontent = `${project.jobno} - ${project.projectname} - Variation`
+        } else {
+            emailContent = `
+            A component of the project shown below has been created.
+    
+            Team Name: ${team.teamname}
+            Job Manager: ${jobManager.firstname} ${jobManager.lastname}
+            Job Number: ${project.jobno}
+            Client Name: ${client.clientname}
+            Project Name: ${project.projectname}
+            Budget Fee: $${jobcomponentvalue[0].estimatedbudget}
+            Job Component: ${jobcomponentvalue[0].jobcomponent}
+    
+            Note: This is an auto generated message, please do not reply. For your inquiries, 
+            comments and/or concerns please use the button "Troubleshoot/Bug Fix" 
+            at the Workload spreadsheet.
+            `;
+            titlecontent = `${project.jobno} - ${project.projectname} - New Job Component`
+        }
+
+        await sendmail(new mongoose.Types.ObjectId(id), Array.from(allRecipientIds), titlecontent, emailContent)
             .catch(err => console.error("Failed to send email:", err));
 
         return res.json({ message: "success" });
@@ -192,9 +245,9 @@ exports.createvariationjobcomponent = async (req, res) => {
         const financeUserIds = financeUsers.map(user => user._id);
         const superadminUserIds = superadminUsers.map(user => user._id);
 
-        const team = projectdata.team;
+        const teams = projectdata.team;
         const teamMemberIds = [
-            team.manager,
+            teams.manager,
         ].filter(Boolean);
 
         const allRecipientIds = Array.from(new Set([
@@ -204,9 +257,6 @@ exports.createvariationjobcomponent = async (req, res) => {
             ...jobManagerIds
         ]));
 
-        const emailContent = `Hello Team,\n\nThe following job component variation have been created for Project "${projectdata.name}" by ${email}:\n\n${emailDetails.map(detail => (
-            `Job Component: ${detail.jobcomponent}\n`
-        )).join("")}If you have any questions or concerns, please reach out.\n\nThank you!\n\nBest Regards,\n${email}`;
 
         const sender = new mongoose.Types.ObjectId(id);
         await sendmail(sender, allRecipientIds, "New Job Components Created", emailContent, false)
@@ -603,8 +653,10 @@ exports.completejobcomponent = async (req, res) => {
 
         const claimamount = (findCurrinvoice.invoiceamount * (findCurrinvoice.newinvoice / 100))
          const emailContent = `
-        A component of the project shown below is now being invoiced.
-
+        A component of the project shown below has now been removed 
+        from the Workload Spreadsheet and has now been recorded to 
+        Invoice Spreadsheet.
+        
         Team Name: ${team.teamname}
         Job Manager: ${jobManager.firstname} ${jobManager.lastname}
         Job Number: ${project.jobno}
@@ -630,7 +682,7 @@ exports.completejobcomponent = async (req, res) => {
         // Send email notification
         const sender = new mongoose.Types.ObjectId(id);
         const receiver = await getAllUserIdsExceptSender(id)
-        await sendmail(sender, receiver, `${project.jobno} - ${project.projectname} - Complete Job Component`, emailContent)
+        await sendmail(sender, receiver, `${project.jobno} - ${project.projectname} - Delete`, emailContent)
             .catch(err => {
                 console.error(`Failed to send email notification for job component: ${jobcomponentId}. Error: ${err}`);
                 return res.status(400).json({
