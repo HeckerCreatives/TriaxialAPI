@@ -114,7 +114,7 @@ exports.createjobcomponent = async (req, res) => {
             console.log(`There's a problem with getting the project details for email content details in create job component. Error: ${err}`)
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
         })
-        const client = await Clients.findOne({ _id: new mongoose.Types.ObjectId(client) })
+        const clientz = await Clients.findOne({ _id: new mongoose.Types.ObjectId(client) })
         .catch(err => {
             console.log(`There's a problem with getting the client details for email content details in create job component. Error: ${err}`)
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
@@ -135,7 +135,7 @@ exports.createjobcomponent = async (req, res) => {
         Team Name: ${team.teamname}
         Job Manager: ${jobManager.firstname} ${jobManager.lastname}
         Job Number: ${project.jobno}
-        Client Name: ${client.clientname}
+        Client Name: ${clientz.clientname}
         Project Name: ${project.projectname}
         Variation Fee: $${jobcomponentvalue[0].estimatedbudget}
         Variation # and Name: ${jobcomponentvalue[0].jobcomponent}
@@ -153,7 +153,7 @@ exports.createjobcomponent = async (req, res) => {
             Team Name: ${team.teamname}
             Job Manager: ${jobManager.firstname} ${jobManager.lastname}
             Job Number: ${project.jobno}
-            Client Name: ${client.clientname}
+            Client Name: ${clientz.clientname}
             Project Name: ${project.projectname}
             Budget Fee: $${jobcomponentvalue[0].estimatedbudget}
             Job Component: ${jobcomponentvalue[0].jobcomponent}
