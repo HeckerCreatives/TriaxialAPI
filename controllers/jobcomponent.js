@@ -1652,11 +1652,26 @@ exports.listjobcomponent = async (req, res) => {
 
 exports.listteamjobcomponent = async (req, res) => {
     const { id, email } = req.user;
-    const { teamid } = req.query;
+    const { teamid, search } = req.query;
 
     if(!mongoose.Types.ObjectId.isValid(teamid)) {
         return res.status(400).json({ message: "failed", data: "Invalid team ID" });
     }
+
+    let searchQuery = {};
+
+    if (search) {
+        searchQuery = {
+            $or: [
+            { 'projectDetails.projectname': { $regex: search, $options: 'i' } },
+            { 'projectDetails.jobno': { $regex: search, $options: 'i' } },
+            { 'clientDetails.clientname': { $regex: search, $options: 'i' } },
+            { 'jobManagerDeets.firstname': { $regex: search, $options: 'i' } },
+            { 'jobManagerDeets.lastname': { $regex: search, $options: 'i' } },
+            ]
+        };
+    }
+
     try {
 
         const result = await Jobcomponents.aggregate([
@@ -1702,6 +1717,7 @@ exports.listteamjobcomponent = async (req, res) => {
                 }
             },
             { $unwind: '$jobManagerDeets' },
+            ...(search ? [{ $match: searchQuery }] : []),
             {
                 $lookup: {
                     from: 'teams',
@@ -1824,10 +1840,35 @@ exports.listteamjobcomponent = async (req, res) => {
                 $unwind: { path: "$latestInvoice", preserveNullAndEmptyArrays: true }
             },
             {
+                $lookup: {
+                    from: 'invoices',
+                    let: { jobComponentId: "$_id" },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
+                                        { $eq: ["$status", "Pending"] }
+                                    ]
+                                } 
+                            } 
+                        },
+                        { $sort: { createdAt: -1 } },
+                        { $limit: 1 }
+                    ],
+                    as: 'pendinginvoice'
+                }
+            },   
+            {
+                $unwind: { path: "$pendinginvoice", preserveNullAndEmptyArrays: true }
+            },
+            {
                 $addFields: {
                     invoiceDetails: {
                         percentage: { $ifNull: ["$latestInvoice.newinvoice", 0] },
-                        amount: { $ifNull: ["$latestInvoice.invoiceamount", 0] }
+                        amount: { $ifNull: ["$latestInvoice.invoiceamount", 0] },
+                        pendinginvoice: { $ifNull: ["$pendinginvoice.newinvoice", 0] }
                     }
                 }
             },
@@ -2367,7 +2408,14 @@ exports.yourworkload = async (req, res) => {
                         }
                     ]
                 }
-            },            
+            },       
+            
+            { $unwind: { preserveNullAndEmptyArrays: true, path: "$members.dates" } },
+            {
+                $match: {
+                    "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
+                }
+            },
             {
                 $lookup: {
                     from: 'users',
@@ -2404,6 +2452,20 @@ exports.yourworkload = async (req, res) => {
                 }
             },
             { $unwind: { path: '$teamDetails', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                   from: "userdetails",
+                  localField: "teamDetails.members",
+                  foreignField: "owner",
+                  as: "memberDetails"
+                }
+              },
+              
+              {
+                $addFields: {
+                  userDetails: { "$ifNull": ["$userDetails", []] }
+                }
+              },
             {
                 $addFields: {
                     isManager: {
@@ -2562,7 +2624,33 @@ exports.yourworkload = async (req, res) => {
                     teamname: '$teamDetails.teamname',
                     projectname: '$projectDetails.projectname',
                     clientname: "$clientDetails.clientname",
+                    clientpriority: "$clientDetails.priority",
+                    clientid: "$clientDetails._id",
                     jobno: '$projectDetails.jobno',
+                    "teammembers": {
+                        "$map": {
+                          "input": "$memberDetails",
+                          "as": "member",
+                          "in": {
+                            "$concat": [
+                              { 
+                                "$ifNull": [
+                                  { "$substrCP": ["$$member.firstname", 0, 1] },
+                                  ""
+                                ]
+                              },
+                              { 
+                                "$ifNull": [
+                                  { "$substrCP": ["$$member.lastname", 0, 1] },
+                                  ""
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      },
+             
+                
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
                         fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
@@ -2572,6 +2660,8 @@ exports.yourworkload = async (req, res) => {
                 }
             }
         ]);
+
+        console.log(result)
 
         const dateList = [];
         let currentDate = new Date(startOfWeek);
@@ -2585,7 +2675,7 @@ exports.yourworkload = async (req, res) => {
             currentDate.setDate(currentDate.getDate() + 1); // Move to the next day
         }
 
-        // Assuming `response.data` is the current array of job data you received
+        // Assuming response.data is the current array of job data you received
         const data = {
             data: {
                 alldates: dateList ,
@@ -2613,8 +2703,11 @@ exports.yourworkload = async (req, res) => {
                 _id: job._id,
                 jobmanager: job.jobmanager,
                 componentid: job.componentid,
+                clientid: job.clientid,
                 clientname: job.clientname,
+                clientpriority: job.clientpriority,
                 teamname: job.teamname,
+                teammembers: job.teammembers,
                 projectname: job.projectname,
                 jobno: job.jobno,
                 jobcomponent: job.jobcomponent,
@@ -3802,17 +3895,12 @@ exports.individualworkload = async (req, res) => {
         // Use filterDate if provided; otherwise, default to today
         const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
-        const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate(); // End date for two weeks, Friday
+        const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate(); // End date for eight weeks, Friday
 
         // Calculate the total days between startOfWeek and endOfRange
         const totalDays = Math.ceil((endOfRange - startOfWeek) / (1000 * 60 * 60 * 24));
 
         const result = await Jobcomponents.aggregate([
-            { 
-                $match: { 
-                    status: { $in: ["completed", "", null, "On-going"] } 
-                }
-            },
             {
                 $match: {
                     members: {
@@ -3820,6 +3908,11 @@ exports.individualworkload = async (req, res) => {
                             employee: new mongoose.Types.ObjectId(employeeid),
                         }
                     }
+                }
+            },
+            { 
+                $match: { 
+                    status: { $in: ["completed", "", null, "On-going"] } 
                 }
             },
             {
@@ -3850,7 +3943,14 @@ exports.individualworkload = async (req, res) => {
                         }
                     ]
                 }
-            },            
+            },       
+            
+            { $unwind: { preserveNullAndEmptyArrays: true, path: "$members.dates" } },
+            {
+                $match: {
+                    "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
+                }
+            },
             {
                 $lookup: {
                     from: 'users',
@@ -3860,6 +3960,15 @@ exports.individualworkload = async (req, res) => {
                 }
             },
             { $unwind: '$jobManagerDetails' },
+            {
+                $lookup:{
+                    from: "clients",
+                    localField: "projectDetails.client",
+                    foreignField: "_id",
+                    as: "clientDetails"
+                }
+            },
+            { $unwind: '$clientDetails'},
             {
                 $lookup: {
                     from: 'userdetails',
@@ -3879,10 +3988,24 @@ exports.individualworkload = async (req, res) => {
             },
             { $unwind: { path: '$teamDetails', preserveNullAndEmptyArrays: true } },
             {
+                $lookup: {
+                   from: "userdetails",
+                  localField: "teamDetails.members",
+                  foreignField: "owner",
+                  as: "memberDetails"
+                }
+              },
+              
+              {
+                $addFields: {
+                  userDetails: { "$ifNull": ["$userDetails", []] }
+                }
+              },
+            {
                 $addFields: {
                     isManager: {
                         $cond: {
-                            if: { $eq: [new mongoose.Types.ObjectId(id), '$teamDetails.manager'] },
+                            if: { $eq: [new mongoose.Types.ObjectId(employeeid), '$teamDetails.manager'] },
                             then: true,
                             else: false
                         }
@@ -3984,7 +4107,13 @@ exports.individualworkload = async (req, res) => {
                         role: '$members.role',
                         employee: {
                             employeeid: '$members.employee',
-                            fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] }
+                            fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
+                            initials: { 
+                                $concat: [
+                                    { $substr: ['$userDetails.firstname', 0, 1] }, 
+                                    { $substr: ['$userDetails.lastname', 0, 1] }
+                                ]
+                            }
                         },
                     },
                     
@@ -4029,7 +4158,34 @@ exports.individualworkload = async (req, res) => {
                     componentid: '$_id',
                     teamname: '$teamDetails.teamname',
                     projectname: '$projectDetails.projectname',
+                    clientname: "$clientDetails.clientname",
+                    clientpriority: "$clientDetails.priority",
+                    clientid: "$clientDetails._id",
                     jobno: '$projectDetails.jobno',
+                    "teammembers": {
+                        "$map": {
+                          "input": "$memberDetails",
+                          "as": "member",
+                          "in": {
+                            "$concat": [
+                              { 
+                                "$ifNull": [
+                                  { "$substrCP": ["$$member.firstname", 0, 1] },
+                                  ""
+                                ]
+                              },
+                              { 
+                                "$ifNull": [
+                                  { "$substrCP": ["$$member.lastname", 0, 1] },
+                                  ""
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      },
+             
+                
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
                         fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
@@ -4039,6 +4195,8 @@ exports.individualworkload = async (req, res) => {
                 }
             }
         ]);
+
+        console.log(result)
 
         const dateList = [];
         let currentDate = new Date(startOfWeek);
@@ -4052,7 +4210,7 @@ exports.individualworkload = async (req, res) => {
             currentDate.setDate(currentDate.getDate() + 1); // Move to the next day
         }
 
-        // Assuming `response.data` is the current array of job data you received
+        // Assuming response.data is the current array of job data you received
         const data = {
             data: {
                 alldates: dateList ,
@@ -4080,7 +4238,11 @@ exports.individualworkload = async (req, res) => {
                 _id: job._id,
                 jobmanager: job.jobmanager,
                 componentid: job.componentid,
+                clientid: job.clientid,
+                clientname: job.clientname,
+                clientpriority: job.clientpriority,
                 teamname: job.teamname,
+                teammembers: job.teammembers,
                 projectname: job.projectname,
                 jobno: job.jobno,
                 jobcomponent: job.jobcomponent,
@@ -4093,7 +4255,6 @@ exports.individualworkload = async (req, res) => {
         console.error(err);
         return res.status(500).json({ message: 'Error processing request', error: err.message });
     }
-}
-
+} 
 
 //  #endergion

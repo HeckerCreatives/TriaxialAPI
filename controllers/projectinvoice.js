@@ -9,7 +9,15 @@ const { getAllUserIdsExceptSender } = require("../utils/user");
 
 exports.listcomponentprojectinvoice = async (req, res) => {
     const { id } = req.user;
-    const { teamid } = req.query;
+    const { teamid, search } = req.query;
+
+    let searchQuery = {};
+
+    if (search) {
+        searchQuery = {
+            'projectDetails.projectname': { $regex: search, $options: 'i' }
+        };
+    }
 
     try {
         const result = await Jobcomponents.aggregate([
@@ -31,6 +39,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     'projectDetails.team': new mongoose.Types.ObjectId(teamid),
                 }
             },
+            ...(search ? [{ $match: searchQuery }] : []),
             { $unwind: '$projectDetails' },
             {
                 $addFields: {

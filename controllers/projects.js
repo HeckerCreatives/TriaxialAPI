@@ -215,7 +215,7 @@ exports.listprojects = async (req, res) => {
                     $push: {
                         name: '$jobComponentData.jobcomponent',
                         id: '$jobComponentData._id',
-                        estimatedBudget: '$jobComponentData.estimatedbudget',
+                        estimatedBudget: { $concat: ['$jobComponentData.estimatedbudget', ' $'] },
                         members: '$jobComponentData.memberInitials'
                     }
                 }
@@ -366,7 +366,7 @@ exports.listprojectsuperadmin = async (req, res) => {
                     $push: {
                         name: '$jobComponentData.jobcomponent',
                         id: '$jobComponentData._id',
-                        estimatedBudget: '$jobComponentData.estimatedbudget',
+                        estimatedBudget: { $concat: ['$jobComponentData.estimatedbudget', ' $'] },
                         members: '$jobComponentData.memberInitials'
                     }
                 }
