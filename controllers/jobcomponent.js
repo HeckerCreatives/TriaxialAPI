@@ -653,24 +653,22 @@ exports.completejobcomponent = async (req, res) => {
         })
 
         const claimamount = (findCurrinvoice.invoiceamount * (findCurrinvoice.newinvoice / 100))
-         const emailContent = `
+        const emailContent = `
         A component of the project shown below has now been removed 
         from the Workload Spreadsheet and has now been recorded to 
         Invoice Spreadsheet.
         
-        Team Name: ${team.teamname}
-        Job Manager: ${jobManager.firstname} ${jobManager.lastname}
-        Job Number: ${project.jobno}
-        Client Name: ${client.clientname}
-        Leave End Date: ${leaveend}
-        Project Name: ${project.projectname}
-        Component Budget: $${newInvoiceData.invoiceamount}
-        Job Component: ${jobcomponent.jobcomponent}
-        Previous %invoice: ${findCurrinvoice.currentinvoice}%
-        Current %invoice: ${findCurrinvoice.newinvoice}%
-        This Claim Percentage: ${findCurrinvoice.newinvoice}%
-        This Claim Amount:  $${claimamount}
-       
+        Team Name:                    ${team?.teamname || 'N/A'}
+        Job Manager:                  ${jobManager?.firstname || ''} ${jobManager?.lastname || ''}
+        Job Number:                   ${project?.jobno || 'N/A'}
+        Client Name:                  ${client?.clientname || 'N/A'}
+        Project Name:                 ${project?.projectname || 'N/A'}
+        Component Budget:             $${findCurrinvoice.invoiceamount}
+        Job Component:                ${jobcomponent?.jobcomponent || 'N/A'}
+        Previous %invoice:            ${findCurrinvoice.currentinvoice}%
+        Current %invoice:             ${findCurrinvoice.newinvoice}%
+        This Claim Percentage:        ${findCurrinvoice.newinvoice}%
+        This Claim Amount:            $${claimamount.toFixed(2)}
 
         Best Regards,
         ${fullname}
