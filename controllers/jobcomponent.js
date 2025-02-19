@@ -2621,6 +2621,7 @@ exports.yourworkload = async (req, res) => {
             {
                 $project: {
                     componentid: '$_id',
+                    teamid: '$teamDetails._id',
                     teamname: '$teamDetails.teamname',
                     projectname: '$projectDetails.projectname',
                     clientname: "$clientDetails.clientname",
@@ -2706,6 +2707,7 @@ exports.yourworkload = async (req, res) => {
                 clientid: job.clientid,
                 clientname: job.clientname,
                 clientpriority: job.clientpriority,
+                teamid: job.teamid,
                 teamname: job.teamname,
                 teammembers: job.teammembers,
                 projectname: job.projectname,
@@ -4156,6 +4158,7 @@ exports.individualworkload = async (req, res) => {
             {
                 $project: {
                     componentid: '$_id',
+                    teamid: '$teamDetails._id',
                     teamname: '$teamDetails.teamname',
                     projectname: '$projectDetails.projectname',
                     clientname: "$clientDetails.clientname",
@@ -4241,6 +4244,7 @@ exports.individualworkload = async (req, res) => {
                 clientid: job.clientid,
                 clientname: job.clientname,
                 clientpriority: job.clientpriority,
+                teamid: job.teamid,
                 teamname: job.teamname,
                 teammembers: job.teammembers,
                 projectname: job.projectname,
