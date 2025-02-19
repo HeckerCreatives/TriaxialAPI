@@ -2733,7 +2733,7 @@ exports.yourworkload = async (req, res) => {
 
 exports.editjobmanagercomponents = async (req, res) => {
     const { id, email } = req.user;
-    const { jobcomponentid, members } = req.body;
+    const { jobcomponentid, members, adminnotes } = req.body;
 
     // Validate members input
     if (!Array.isArray(members) || members.length < 1 || members.length > 4) {

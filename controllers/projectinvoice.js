@@ -270,8 +270,19 @@ exports.listcomponentprojectinvoice = async (req, res) => {
 
 exports.listcomponentprojectinvoicealluser = async (req, res) => {
     const { id } = req.user;
-    const { teamid } = req.query;
+    const { teamid, search } = req.query;
+    let searchQuery = {};
 
+    if (search) {
+        searchQuery = {
+            $or: [
+                { 'projectDetails.projectname': { $regex: search, $options: 'i' } },
+                { 'clientDetails.clientname': { $regex: search, $options: 'i' } },
+                { 'projectDetails.jobno': { $regex: search, $options: 'i' } },
+                { jobcomponent: { $regex: search, $options: 'i' } },
+            ]
+        };
+    }
     try {
         const result = await Jobcomponents.aggregate([
             {
@@ -414,6 +425,7 @@ exports.listcomponentprojectinvoicealluser = async (req, res) => {
                     as: "clientDetails"
                 }
             },
+            ...(search ? [{ $match: searchQuery }] : []),
             { $unwind: '$clientDetails'},
             {
                 $lookup: {
