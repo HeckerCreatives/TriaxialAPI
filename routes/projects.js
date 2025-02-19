@@ -7,12 +7,12 @@ router
     //  #region USERS
 
     .get("/listallprojects", protectusers, listallprojects)
+    .get("/listprojects", protectusers, listprojects)
 
     //  #endregion
 
     //  #region MANAGER
 
-    .get("/listprojects", protectmanager, listprojects)
     .get("/viewprojectdetails", protectmanager, viewprojectdetails)
     .get("/teamprojectlistmanager", protectmanager, teamprojectlist)
     .post("/changeprojectstatus", protectmanager, changeprojectstatus)
