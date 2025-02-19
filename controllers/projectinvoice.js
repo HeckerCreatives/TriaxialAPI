@@ -124,15 +124,48 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     from: 'invoices',
                     let: { jobComponentId: "$_id" },
                     pipeline: [
-                        { $match: { $expr: { $eq: ["$jobcomponent", "$$jobComponentId"] } } },
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
+                                        { $eq: ["$status", "Approved"] }
+                                    ]
+                                } 
+                            } 
+                        },
                         { $sort: { createdAt: -1 } },
                         { $limit: 1 }
                     ],
                     as: 'latestInvoice'
                 }
-            },
+            },   
             {
                 $unwind: { path: "$latestInvoice", preserveNullAndEmptyArrays: true }
+            },
+            {
+                $lookup: {
+                    from: 'invoices',
+                    let: { jobComponentId: "$_id" },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
+                                        { $eq: ["$status", "Pending"] }
+                                    ]
+                                } 
+                            } 
+                        },
+                        { $sort: { createdAt: -1 } },
+                        { $limit: 1 }
+                    ],
+                    as: 'pendinginvoice'
+                }
+            },   
+            {
+                $unwind: { path: "$pendinginvoice", preserveNullAndEmptyArrays: true }
             },
             {
                 $lookup: {
@@ -201,7 +234,8 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     projectedValues: { $ifNull: ['$projectedValues.values', []] },
                     invoice: {
                         percentage: { $ifNull: ["$latestInvoice.newinvoice", 0] },
-                        amount:  { $ifNull: ['$latestInvoice.invoiceamount', 0] }
+                        amount:  { $ifNull: ['$latestInvoice.invoiceamount', 0] },
+                        pending: { $ifNull: ["$pendinginvoice.newinvoice", 0] }
                     },
                 }
             },

@@ -127,19 +127,19 @@ exports.createinvoice = async (req, res) => {
         const claimamount = (invoiceamount * (invoice / 100))
     const emailContent = `
         A component of the project shown below is now being invoiced.
-
-        Team Name: ${team.teamname}
-        Job Manager: ${jobManager.firstname} ${jobManager.lastname}
-        Job Number: ${project.jobno}
-        Client Name: ${client.clientname}
-        Leave End Date: ${leaveend}
-        Project Name: ${project.projectname}
-        Component Budget: $${newInvoiceData.invoiceamount}
-        Job Component: ${jobcomponent.jobcomponent}
-        Previous %invoice: ${findCurrinvoice.currentinvoice}%
-        Present %invoice: ${findCurrinvoice.newinvoice}%
-        This Claim Percentage: ${invoice}%
-        This Claim Amount:  $${claimamount}
+                                     a
+        Team Name:                   ${team.teamname}
+        Job Manager:                 ${jobManager.firstname} ${jobManager.lastname}
+        Job Number:                  ${project.jobno}
+        Client Name:                 ${client.clientname}
+        Leave End Date:              ${leaveend}
+        Project Name:                ${project.projectname}
+        Component Budget:            $${newInvoiceData.invoiceamount}
+        Job Component:               ${jobcomponent.jobcomponent}
+        Previous %invoice:           ${findCurrinvoice.currentinvoice}%
+        Present %invoice:            ${findCurrinvoice.newinvoice}%
+        This Claim Percentage:       ${invoice}%
+        This Claim Amount:           $${claimamount}
        
 
         Best Regards,
