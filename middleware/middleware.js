@@ -89,6 +89,7 @@ exports.protectusers = async (req, res, next) => {
                 res.clearCookie('sessionToken', { path: '/' })
                 return res.status(401).json({ message: 'failed', data: `Your account had been ${user.status}! Please contact support for more details.` });
             }
+            
     
             // if (decodedToken.token != user.token){
             //     res.clearCookie('sessionToken', { sameSite: 'None', secure: true })

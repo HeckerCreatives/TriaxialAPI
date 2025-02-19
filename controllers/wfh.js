@@ -1,7 +1,9 @@
 const { default: mongoose } = require("mongoose");
 const Workfromhome = require("../models/wfh")
 const {sendmail} = require("../utils/email")
-const moment = require("moment")
+const moment = require("moment");
+const Userdetails = require("../models/Userdetails");
+const Users = require("../models/Users");
 
 //  #region ALL USERS
 
@@ -144,19 +146,35 @@ exports.requestwfhemployee = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
     })
 
+    const userdetails = await Userdetails.findOne({owner: new mongoose.Types.ObjectId(id)})
+    .catch(err => {
+        console.log(`There's a problem with getting user details for ${id} ${email}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
+    })
+
+    const payrollemail = await Users.findOne({
+        email: "payroll@triaxial.au"
+    })    
+    .catch(err => {
+        console.log(`There's a problem with getting payroll email. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
+    })
+
     const sendmailcontent = `
         Good day!
 
         A Work From Home application has been generated. 
         Please see the details below:
-
-        Timestamp: ${moment().format('YYYY-MM-DD HH:mm:ss')}
-        Request Date: ${requestdate}
-        Request End Date: ${requestend}
-        Wellness Day Cycle: ${wellnessdaycycle ? 'Yes' : 'No'}
-        Total Hours WFH: ${totalhourswfh}
-        Hours of Leave: ${hoursofleave}
-        Reason for WFH: ${reason}
+                                     
+        Timestamp:                   ${moment().format('YYYY-MM-DD HH:mm:ss')}
+        Request Date:                ${requestdate}
+        Request End Date:            ${requestend}
+        Wellness Day Cycle:          ${wellnessdaycycle ? 'Yes' : 'No'}
+        Total Hours WFH:             ${totalhourswfh}
+        Hours of Leave:              ${hoursofleave}
+        Reason/s:                    ${reason}
 
         Best Regards,
         ${fullname}
@@ -165,7 +183,7 @@ exports.requestwfhemployee = async (req, res) => {
         Please forward on this email thread any necessary documents for the WFH.
         Please add your Work From Home Schedule to WORKLOAD SPREADSHEET.
     `;
-    await sendmail(new mongoose.Types.ObjectId(id), [{_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID)}, {_id: new mongoose.Types.ObjectId(reportingto)}], `WFH Request - ${fullname}`, sendmailcontent, false)
+    await sendmail(new mongoose.Types.ObjectId(id), [{_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID)}, {_id: new mongoose.Types.ObjectId(userdetails.reportingto)}, { _id: new mongoose.Types.ObjectId(payrollemail._id)} ], `WFH Request - ${fullname}`, sendmailcontent, false)
 
     return res.json({message: "success"})
 }

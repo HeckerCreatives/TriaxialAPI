@@ -4,6 +4,8 @@ const Wellnessday = require("../models/wellnessday")
 const moment = require("moment")
 const { default: mongoose } = require("mongoose")
 const {sendmail} = require("../utils/email")
+const Userdetails = require("../models/Userdetails")
+const Users = require("../models/Users")
 
 //  #region USERS
 
@@ -214,25 +216,42 @@ exports.requestleave = async (req, res) => {
 
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
     })
+    const userdetails = await Userdetails.findOne({owner: new mongoose.Types.ObjectId(id)})
+    .catch(err => {
+        console.log(`There's a problem with getting user details for ${id} ${email}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
+    })
+
+    const payrollemail = await Users.findOne({
+        email: "payroll@triaxial.au"
+    })    
+    .catch(err => {
+        console.log(`There's a problem with getting payroll email. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
+    })
+
+
 
     const sendmailcontent = `
         Good day!
 
         A leave request has been generated. 
         Please see the details below:
-
-        Timestamp: ${moment().format('YYYY-MM-DD HH:mm:ss')}
-        Name: ${fullname}
-        Leave Type: ${leavetype}
-        Details: ${details}
-        Leave Start Date: ${leavestart}
-        Leave End Date: ${leaveend}
-        Total Working Days: ${totalworkingdays}
-        Total Public Holidays: ${totalpublicholidays}
-        Wellness Day Cycle: ${wellnessdaycycle ? 'Yes' : 'No'}
-        Working Hours on Leave: ${workinghoursonleave}
+                                        
+        Timestamp:                  ${moment().format('YYYY-MM-DD HH:mm:ss')}
+        Name:                       ${fullname}
+        Leave Type:                 ${leavetype}
+        Details:                    ${details}
+        Leave Start Date:           ${leavestart}
+        Leave End Date:             ${leaveend}
+        Total Working Days:         ${totalworkingdays}
+        Total Public Holidays:      ${totalpublicholidays}
+        Wellness Day Cycle:         ${wellnessdaycycle ? 'Yes' : 'No'}
+        Working Hours on Leave:     ${workinghoursonleave}
         Working Hours During Leave: ${workinghoursduringleave}
-        Comments: ${comments}
+        Comments:                   ${comments}
 
         Best Regards,
         ${fullname}
@@ -246,7 +265,9 @@ exports.requestleave = async (req, res) => {
         new mongoose.Types.ObjectId(id),
         [
             { _id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID) },
-            { _id: new mongoose.Types.ObjectId(reportingto) }
+            { _id: new mongoose.Types.ObjectId(userdetails.reportingto) },
+            { _id: new mongoose.Types.ObjectId(payrollemail._id) }
+            
         ],
         `Leave Request - ${fullname}`,
         sendmailcontent,

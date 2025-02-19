@@ -13,7 +13,7 @@ const Userdetails = require("../models/Userdetails");
 //  #region MANAGER
 exports.createjobcomponent = async (req, res) => {
     const { id, email } = req.user;
-    const { jobcomponentvalue, clientid, projectname, start, teamid, jobno, priority, isvariation } = req.body;
+    const { jobcomponentvalue, clientid, projectname, start, teamid, jobno, priority, isvariation, description, adminnotes } = req.body;
 
     if (!teamid) return res.status(400).json({ message: "failed", data: "Please select a team first!" });
     if (!jobno) return res.status(400).json({ message: "failed", data: "Enter a job number first!" });
@@ -84,6 +84,8 @@ exports.createjobcomponent = async (req, res) => {
                 jobmanager: new mongoose.Types.ObjectId(jobmanager),
                 budgettype,
                 isVariation: isvariation,
+                adminnotes: adminnotes,
+                comments: description,
                 estimatedbudget,
                 jobcomponent,
                 members: membersArray,
@@ -100,13 +102,16 @@ exports.createjobcomponent = async (req, res) => {
 
         const team = await Teams.findById(teamid).select("manager members teamname").populate("members", "_id");
         const teamMemberIds = team ? team.members.map(m => m._id.toString()) : [];
+        const feesemail = await Users.findOne({ email: "fees@triaxial.au" })
+        .catch(err => {
+            console.log(`There's a problem with getting the fees email details for email content details in create job component. Error: ${err}`)
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
 
         const allRecipientIds = new Set([
             ...financeUsers.map(user => user._id.toString()),
-            ...superadminUsers.map(user => user._id.toString()),
-            ...Array.from(jobManagerIds),
-            ...teamMemberIds,
-            ...Array.from(allEmployeeIds),
+            ...jobmanagerz,
+            ...feesemail._id.toString(),
         ]);
 
         allRecipientIds.delete(id); 
@@ -127,20 +132,24 @@ exports.createjobcomponent = async (req, res) => {
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
         })
 
+
+
         let emailContent
         let titlecontent
 
         if(isvariation === true){
         emailContent = `
         A component of the project shown below is a Variation Project.
-
-        Team Name: ${team.teamname}
-        Job Manager: ${jobManager.firstname} ${jobManager.lastname}
-        Job Number: ${project.jobno}
-        Client Name: ${clientz.clientname}
-        Project Name: ${project.projectname}
-        Variation Fee: $${jobcomponentvalue[0].estimatedbudget}
-        Variation # and Name: ${jobcomponentvalue[0].jobcomponent}
+                                        
+        Team Name:                    ${team.teamname}
+        Job Manager:                  ${jobManager.firstname} ${jobManager.lastname}
+        Job Number:                   ${project.jobno}
+        Client Name:                  ${clientz.clientname}
+        Project Name:                 ${project.projectname}
+        Variation Fee:                $${jobcomponentvalue[0].estimatedbudget}
+        Variation Name:               ${jobcomponentvalue[0].jobcomponent}
+        Description:                  ${description}
+        Admin Notes:                  ${adminnotes}
 
         Note: This is an auto generated message, please do not reply. For your inquiries, 
         comments and/or concerns please use the button "Troubleshoot/Bug Fix" 
@@ -149,20 +158,20 @@ exports.createjobcomponent = async (req, res) => {
 
         titlecontent = `${project.jobno} - ${project.projectname} - Variation`
         } else {
-            emailContent = `
-            A component of the project shown below has been created.
+        emailContent = `
+        A component of the project shown below has been created.
     
-            Team Name: ${team.teamname}
-            Job Manager: ${jobManager.firstname} ${jobManager.lastname}
-            Job Number: ${project.jobno}
-            Client Name: ${clientz.clientname}
-            Project Name: ${project.projectname}
-            Budget Fee: $${jobcomponentvalue[0].estimatedbudget}
-            Job Component: ${jobcomponentvalue[0].jobcomponent}
+        Team Name:                   ${team.teamname}
+        Job Manager:                 ${jobManager.firstname} ${jobManager.lastname}
+        Job Number:                  ${project.jobno}
+        Client Name:                 ${clientz.clientname}
+        Project Name:                ${project.projectname}
+        Budget Fee:                  $${jobcomponentvalue[0].estimatedbudget}
+        Job Component:               ${jobcomponentvalue[0].jobcomponent}
     
-            Note: This is an auto generated message, please do not reply. For your inquiries, 
-            comments and/or concerns please use the button "Troubleshoot/Bug Fix" 
-            at the Workload spreadsheet.
+        Note: This is an auto generated message, please do not reply. For your inquiries, 
+        comments and/or concerns please use the button "Troubleshoot/Bug Fix" 
+        at the Workload spreadsheet.
             `;
             titlecontent = `${project.jobno} - ${project.projectname} - New Job Component`
         }
@@ -657,7 +666,7 @@ exports.completejobcomponent = async (req, res) => {
         A component of the project shown below has now been removed 
         from the Workload Spreadsheet and has now been recorded to 
         Invoice Spreadsheet.
-        
+                                                  
         Team Name:                    ${team?.teamname || 'N/A'}
         Job Manager:                  ${jobManager?.firstname || ''} ${jobManager?.lastname || ''}
         Job Number:                   ${project?.jobno || 'N/A'}

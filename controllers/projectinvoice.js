@@ -15,7 +15,12 @@ exports.listcomponentprojectinvoice = async (req, res) => {
 
     if (search) {
         searchQuery = {
-            'projectDetails.projectname': { $regex: search, $options: 'i' }
+            $or: [
+                { 'projectDetails.projectname': { $regex: search, $options: 'i' } },
+                { 'clientDetails.clientname': { $regex: search, $options: 'i' } },
+                { 'projectDetails.jobno': { $regex: search, $options: 'i' } },
+                { jobcomponent: { $regex: search, $options: 'i' } },
+            ]
         };
     }
 
@@ -39,7 +44,6 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     'projectDetails.team': new mongoose.Types.ObjectId(teamid),
                 }
             },
-            ...(search ? [{ $match: searchQuery }] : []),
             { $unwind: '$projectDetails' },
             {
                 $addFields: {
@@ -167,6 +171,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     as: "clientDetails"
                 }
             },
+            ...(search ? [{ $match: searchQuery }] : []),
             { $unwind: '$clientDetails'},
             {
                 $lookup: {
