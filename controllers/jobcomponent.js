@@ -670,12 +670,12 @@ exports.completejobcomponent = async (req, res) => {
         Job Number:                   ${project?.jobno || 'N/A'}
         Client Name:                  ${client?.clientname || 'N/A'}
         Project Name:                 ${project?.projectname || 'N/A'}
-        Component Budget:             $${findCurrinvoice.invoiceamount}
+        Component Budget:             $${findCurrinvoice.invoiceamount || 0}
         Job Component:                ${jobcomponent?.jobcomponent || 'N/A'}
-        Previous %invoice:            ${findCurrinvoice.currentinvoice}%
-        Current %invoice:             ${findCurrinvoice.newinvoice}%
-        This Claim Percentage:        ${findCurrinvoice.newinvoice}%
-        This Claim Amount:            $${claimamount.toFixed(2)}
+        Previous %invoice:            ${findCurrinvoice.currentinvoice || 0}%
+        Current %invoice:             ${findCurrinvoice.newinvoice || 0}%
+        This Claim Percentage:        ${findCurrinvoice.newinvoice || 0}%
+        This Claim Amount:            $${claimamount.toFixed(2) || 'N/A'}
 
         Best Regards,
         ${fullname}
