@@ -12,7 +12,7 @@ exports.sendmail = async(sender, receiver, title, content, sendtoall) => {
     const notification = new Emails({
         sender: sender,
         receiver: receiver.map((receiverId) => ({
-            userid: receiverId,
+            userid: new mongoose.Types.ObjectId(receiverId),
         })),
         title,
         content,

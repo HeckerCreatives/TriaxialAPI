@@ -97,7 +97,7 @@ exports.createjobcomponent = async (req, res) => {
 
         await Jobcomponents.insertMany(componentBulkWrite);
 
-        const financeUsers = await Users.find({ auth: "finance" }).select("_id");
+        const financeUsers = await Users.findOne({ auth: "finance" }).select("_id");
         const superadminUsers = await Users.find({ auth: "superadmin" }).select("_id");
 
         const team = await Teams.findById(teamid).select("manager members teamname").populate("members", "_id");
@@ -108,9 +108,9 @@ exports.createjobcomponent = async (req, res) => {
         })
 
         const allRecipientIds = new Set([
-            ...financeUsers.map(user => user._id.toString()),
+            ...financeUsers._id.toString(),
             ...jobmanagerz,
-            ...(feesemail?._id ? [feesemail._id.toString()] : []) // Conditionally add fees email if it exists
+            ...(feesemail?._id ? [feesemail._id.toString()] : null) // Conditionally add fees email if it exists
         ]);
 
         allRecipientIds.delete(id); 
