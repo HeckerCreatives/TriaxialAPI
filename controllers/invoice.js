@@ -98,7 +98,7 @@ exports.createinvoice = async (req, res) => {
 
         await newInvoiceData.save();
 
-        const jobManager = await Userdetails.findOne({ _id: new mongoose.Types.ObjectId(jobmanager) });
+        const jobManager = await Userdetails.findOne({ owner: new mongoose.Types.ObjectId(jobmanager) });
         const financeUsers = await Users.find({ auth: "finance" });
 
         if (!jobManager) {
