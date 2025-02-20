@@ -111,7 +111,7 @@ exports.createjobcomponent = async (req, res) => {
         const allRecipientIds = new Set([
             ...financeUsers.map(user => user._id.toString()),
             ...jobmanagerz,
-            ...feesemail._id.toString(),
+            ...feesemail?._id.toString(),
         ]);
 
         allRecipientIds.delete(id); 
@@ -131,7 +131,6 @@ exports.createjobcomponent = async (req, res) => {
             console.log(`There's a problem with getting the job manager details for email content details in create job component. Error: ${err}`)
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
         })
-
 
 
         let emailContent
