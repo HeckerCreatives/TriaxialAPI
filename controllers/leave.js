@@ -185,9 +185,6 @@ exports.requestleave = async (req, res) => {
     if (!leavetype){
         return res.status(400).json({message: "failed", data: "Select a leave type first!"})
     }
-    else if (!details){
-        return res.status(400).json({message: "failed", data: "Enter a details first"})
-    }
     else if (!leavestart){
         return res.status(400).json({message: "failed", data: "Select your start date!"})
     }

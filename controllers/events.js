@@ -91,6 +91,120 @@ exports.geteventsusers = async (req, res) => {
     return res.json({message: "success", data: data})
 }
 
+
+exports.gettotalholidays = async (req, res) => {
+    try {
+        const { id } = req.user;
+        const { startdate, enddate } = req.query;
+
+        if (!startdate || !enddate) {
+            return res.status(400).json({
+                message: "failed",
+                data: "Start date and end date are required!"
+            });
+        }
+
+        const startDate = moment(startdate, "YYYY-MM-DD", true);
+        const endDate = moment(enddate, "YYYY-MM-DD", true);
+
+        if (!startDate.isValid() || !endDate.isValid()) {
+            return res.status(400).json({
+                message: "failed",
+                data: "Invalid date format! Use YYYY-MM-DD."
+            });
+        }
+
+        // Ensure end date is not before start date
+        if (endDate.isBefore(startDate)) {
+            return res.status(400).json({
+                message: "failed",
+                data: "End date must be after start date!"
+            });
+        }
+
+        // Convert to JavaScript Date objects for MongoDB query
+        const startDateISO = startDate.toDate();
+        const endDateISO = endDate.toDate();
+
+        const events = await Events.aggregate([
+            {
+                $match: {
+                    $and: [
+                        { startdate: { $lte: endDateISO } },
+                        { enddate: { $gte: startDateISO } }
+                    ]
+                }
+            },
+            {
+                $lookup: {
+                    from: "teams",
+                    localField: "teams",
+                    foreignField: "_id",
+                    as: "teamData"
+                }
+            },
+            { $unwind: "$teamData" }, // Unwind to make teamData an object instead of an array
+            {
+                $match: {
+                    $or: [
+                        { "teamData.members": new mongoose.Types.ObjectId(id) },
+                        { "teamData.teamleader": new mongoose.Types.ObjectId(id) },
+                        { "teamData.manager": new mongoose.Types.ObjectId(id) }
+                    ]
+                }
+            }
+        ]);
+
+        // If no events found, return an empty array
+        if (!events.length) {
+            return res.json({
+                message: "success",
+                data: { grandTotal: 0, events: [] }
+            });
+        }
+
+        // Calculate holidays per event
+        const eventsWithHolidays = events.map(event => {
+            const eventStart = moment(event.startdate);
+            const eventEnd = moment(event.enddate);
+            let holidaysCount = 0;
+
+            let currentDate = eventStart.clone();
+            while (currentDate.isSameOrBefore(eventEnd)) {
+                if (currentDate.day() !== 0 && currentDate.day() !== 6) { // Exclude weekends
+                    holidaysCount++;
+                }
+                currentDate.add(1, "days");
+            }
+
+            return {
+                title: event.eventtitle,
+                startDate: event.startdate,
+                endDate: event.enddate,
+                totalDays: holidaysCount
+            };
+        });
+
+        // Calculate grand total of all holidays
+        const grandTotal = eventsWithHolidays.reduce((sum, event) => sum + event.totalDays, 0);
+
+        return res.json({
+            message: "success",
+            data: {
+                grandTotal: grandTotal,
+                events: eventsWithHolidays
+            }
+        });
+
+    } catch (err) {
+        console.error(`Error calculating total holidays: ${err}`);
+        return res.status(500).json({
+            message: "bad-request",
+            data: "There's a problem with the server! Please contact customer support."
+        });
+    }
+};
+
 //  #endregion
 
 

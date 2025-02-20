@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { createevents, listevents, getevents, geteventsusers, editevents, geteventdata, deleteevent } = require("../controllers/events")
+const { createevents, listevents, getevents, geteventsusers, editevents, geteventdata, deleteevent, gettotalholidays } = require("../controllers/events")
 const { protectsuperadmin, protectusers, protecthr } = require("../middleware/middleware")
 
 router
@@ -7,7 +7,7 @@ router
     //  #region USERS
 
     .get("/geteventsusers", protectusers, geteventsusers)
-
+    .get("/gettotalholidays", protectusers, gettotalholidays)
     //  #endregion
 
     //  #region SUPERADMIN
