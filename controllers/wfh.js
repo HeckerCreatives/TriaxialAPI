@@ -123,9 +123,6 @@ exports.requestwfhemployee = async (req, res) => {
     if (!requestdate){
         return res.status(400).json({message: "failed", data: "Please select a request date first!"})
     }
-    else if (!requestend){
-        return res.status(400).json({message: "failed", data: "Please select a request end date first!"})
-    }
     else if (wellnessdaycycle == null){
         return res.status(400).json({message: "failed", data: "Please select a wellness day cycle status first!"})
     }
