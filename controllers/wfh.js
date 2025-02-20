@@ -118,7 +118,7 @@ exports.listwfhrequestemployee = async (req, res) => {
 exports.requestwfhemployee = async (req, res) => {
     const {id, email, reportingto, fullname} = req.user
 
-    const {requestdate, requestend, wellnessdaycycle, totalhourswfh, hoursofleave, reason} = req.body
+    const {requestdate, wellnessdaycycle, totalhourswfh, hoursofleave, reason} = req.body
 
     if (!requestdate){
         return res.status(400).json({message: "failed", data: "Please select a request date first!"})
@@ -139,7 +139,7 @@ exports.requestwfhemployee = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Please enter a reason for work from home first!"})
     }
 
-    await Workfromhome.create({owner: new mongoose.Types.ObjectId(id), requestdate: requestdate, requestend: requestend, wellnessdaycycle: wellnessdaycycle, totalhourswfh: totalhourswfh, hoursofleave: hoursofleave, reason: reason, status: "Approved"})
+    await Workfromhome.create({owner: new mongoose.Types.ObjectId(id), requestdate: requestdate, requestend: requestdate, wellnessdaycycle: wellnessdaycycle, totalhourswfh: totalhourswfh, hoursofleave: hoursofleave, reason: reason, status: "Approved"})
     .catch(err => {
         console.log(`There's a problem requesting wfh by ${id}. Error: ${err}`)
         

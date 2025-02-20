@@ -180,7 +180,7 @@ exports.leaverequestdata = async (req, res) => {
 exports.requestleave = async (req, res) => {
     const {id, email, reportingto, fullname} = req.user
 
-    const {leavetype, details, leavestart, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, comments} = req.body
+    const {leavetype, details, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, comments} = req.body
 
     if (!leavetype){
         return res.status(400).json({message: "failed", data: "Select a leave type first!"})
@@ -204,7 +204,7 @@ exports.requestleave = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Enter Working hours during leave!"})
     }
 
-    await Leave.create({owner: new mongoose.Types.ObjectId(id), type: leavetype, details: details, leavestart: leavestart, leaveend: leavestart, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments, status: "Pending"})
+    await Leave.create({owner: new mongoose.Types.ObjectId(id), type: leavetype, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments, status: "Pending"})
     .catch(err => {
         console.log(`There's a problem creating leave request for ${id} ${email}. Error: ${err}`)
 
