@@ -12,7 +12,7 @@ const formatEmailContent = (content) => {
     `;
 }
 
-exports.sendmail = async (sender, recipients, subject, content, isSuperAdmin = false) => {
+exports.sendmail = async (sender, recipients, subject, content, isSuperAdmin = false, leave) => {
     try {
         console.log(recipients)
         console.log(sender, content, subject)
@@ -24,6 +24,7 @@ exports.sendmail = async (sender, recipients, subject, content, isSuperAdmin = f
             })),
             title: subject,
             content: content,
+            foreignid: leave
         });
 
         await notification.save();

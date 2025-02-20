@@ -89,12 +89,14 @@ exports.listemail = async (req, res) => {
                 title: 1,
                 content: 1,
                 createdAt: 1,
-                isRead: 1
+                isRead: 1,
+                foreignid: 1
             }
         },
         {
             $sort: {
-                createdAt: -1
+                createdAt: -1,
+                isRead: 1
             }
         },
         {

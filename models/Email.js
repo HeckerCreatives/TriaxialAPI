@@ -25,6 +25,10 @@ const EmailSchema = new mongoose.Schema(
         content: {
             type: String
         },
+        foreignid: {
+            type: String,
+            index: true
+        },
         sendtoall: {
             type: Boolean,
             index: true

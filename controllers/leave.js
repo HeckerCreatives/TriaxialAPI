@@ -204,7 +204,7 @@ exports.requestleave = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Enter Working hours during leave!"})
     }
 
-    await Leave.create({owner: new mongoose.Types.ObjectId(id), type: leavetype, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments, status: "Pending"})
+    const createdLeave = await Leave.create({owner: new mongoose.Types.ObjectId(id), type: leavetype, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments, status: "Pending"})
     .catch(err => {
         console.log(`There's a problem creating leave request for ${id} ${email}. Error: ${err}`)
 
@@ -237,7 +237,7 @@ exports.requestleave = async (req, res) => {
         Timestamp:                  ${moment().format('YYYY-MM-DD HH:mm:ss')}
         Name:                       ${fullname}
         Leave Type:                 ${leavetype}
-        Details:                    ${details}
+        Details:                    ${details || 'No details provided'}
         Leave Start Date:           ${leavestart}
         Leave End Date:             ${leaveend}
         Total Working Days:         ${totalworkingdays}
@@ -266,7 +266,8 @@ exports.requestleave = async (req, res) => {
         recipients,
         `Leave Request - ${fullname}`,
         sendmailcontent,
-        false
+        false,
+        createdLeave._id
     );
     return res.json({message: "success"})
 }
