@@ -247,21 +247,18 @@ exports.requestleave = async (req, res) => {
         Working Hours During Leave: ${workinghoursduringleave}
         Comments:                   ${comments}
 
-        Best Regards,
-        ${fullname}
-
         Note: This is an auto-generated message, please do not reply.
         Please forward on this email thread any necessary documents for the leave.
         Please add your leave to LEAVE CALENDAR and WORKLOAD SPREADSHEET.    
         `;
 
         const recipients = [
-            { _id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID) },
-            { _id: new mongoose.Types.ObjectId(userdetails.reportingto) }
+             new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID),
+             new mongoose.Types.ObjectId(userdetails.reportingto)
         ];
     
         if (payrollemail?._id) {
-            recipients.push({ _id: new mongoose.Types.ObjectId(payrollemail._id) });
+            recipients.push(new mongoose.Types.ObjectId(payrollemail._id));
         }
     
     await sendmail(

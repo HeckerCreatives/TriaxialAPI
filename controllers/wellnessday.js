@@ -78,7 +78,7 @@ exports.wellnessdayrequest = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details."})
     })
 
-    await sendmail(new mongoose.Types.ObjectId(id), [{_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID)}, {_id: new mongoose.Types.ObjectId(reportingto)}], `Wellness Day Request by ${fullname}`, `Hello Manager!\n\nThere's a wellness day request from ${fullname}!\nOn ${request}.\n\nIf you have any question please contact ${fullname}.\n\nThank you and have a great day`, false)
+    await sendmail(new mongoose.Types.ObjectId(id), [ new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID), new mongoose.Types.ObjectId(reportingto)], `Wellness Day Request by ${fullname}`, `Hello Manager!\n\nThere's a wellness day request from ${fullname}!\nOn ${request}.\n\nIf you have any question please contact ${fullname}.\n\nThank you and have a great day`, false)
 
     return res.json({message: "success"})
 }

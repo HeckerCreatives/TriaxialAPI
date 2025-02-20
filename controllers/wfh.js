@@ -185,12 +185,12 @@ exports.requestwfhemployee = async (req, res) => {
     `;
 
     const recipients = [
-        { _id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID) },
-        { _id: new mongoose.Types.ObjectId(userdetails.reportingto) }
+        new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID),
+        new mongoose.Types.ObjectId(userdetails.reportingto)
     ];
 
     if (payrollemail?._id) {
-        recipients.push({ _id: new mongoose.Types.ObjectId(payrollemail._id) });
+        recipients.push(new mongoose.Types.ObjectId(payrollemail._id));
     }
 
 

@@ -14,19 +14,21 @@ const formatEmailContent = (content) => {
 
 exports.sendmail = async (sender, recipients, subject, content, isSuperAdmin = false) => {
     try {
-        const emailContent = formatEmailContent(content);
+        console.log(recipients)
+        console.log(sender, content, subject)
+        
         const notification = new Emails({
             sender: sender,
             receiver: recipients.map((receiverId) => ({
                 userid: new mongoose.Types.ObjectId(receiverId),
             })),
             title: subject,
-            content: emailContent,
+            content: content,
         });
 
         await notification.save();
         return "success"
     } catch (err) {
-        // Handle error
+        console.error(err);
     }
 };
