@@ -139,7 +139,10 @@ exports.createinvoice = async (req, res) => {
         Present %invoice:            ${findCurrinvoice.newinvoice}%
         This Claim Percentage:       ${invoice}%
         This Claim Amount:           $${claimamount}
-       
+        Admin Notes:                 ${jobcomponent.adminnotes || 'No notes provided'}
+        JM Comments:                 ${comments || 'No comments provided'}
+
+
         Note: This is an auto generated message, please do not reply. For your inquiries, 
         comments and/or concerns please use the button "Troubleshoot/Bug Fix" at 
         the Workload spreadsheet.    
