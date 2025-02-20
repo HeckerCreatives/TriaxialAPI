@@ -659,7 +659,7 @@ exports.completejobcomponent = async (req, res) => {
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
         })
 
-        const claimamount = (findCurrinvoice.invoiceamount * (findCurrinvoice.newinvoice / 100))
+        const claimamount = (findCurrinvoice?.invoiceamount * (findCurrinvoice?.newinvoice / 100))
         const emailContent = `
         A component of the project shown below has now been removed 
         from the Workload Spreadsheet and has now been recorded to 
