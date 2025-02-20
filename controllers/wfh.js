@@ -170,7 +170,7 @@ exports.requestwfhemployee = async (req, res) => {
                                      
         Timestamp:                   ${moment().format('YYYY-MM-DD HH:mm:ss')}
         Request Date:                ${requestdate}
-        Request End Date:            ${requestend}
+        Request End Date:            ${requestdate}
         Wellness Day Cycle:          ${wellnessdaycycle ? 'Yes' : 'No'}
         Total Hours WFH:             ${totalhourswfh}
         Hours of Leave:              ${hoursofleave}
