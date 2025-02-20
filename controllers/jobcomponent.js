@@ -104,14 +104,13 @@ exports.createjobcomponent = async (req, res) => {
         const teamMemberIds = team ? team.members.map(m => m._id.toString()) : [];
         const feesemail = await Users.findOne({ email: "fees@triaxial.au" })
         .catch(err => {
-            console.log(`There's a problem with getting the fees email details for email content details in create job component. Error: ${err}`)
-            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+            console.log(`There's moa problem with getting the fees email details for email content details in create job component. Error: ${err}`)
         })
 
         const allRecipientIds = new Set([
             ...financeUsers.map(user => user._id.toString()),
             ...jobmanagerz,
-            ...feesemail?._id.toString(),
+            ...(feesemail?._id ? [feesemail._id.toString()] : []) // Conditionally add fees email if it exists
         ]);
 
         allRecipientIds.delete(id); 
