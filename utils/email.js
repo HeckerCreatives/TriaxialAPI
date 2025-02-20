@@ -3,21 +3,30 @@ const Emails = require("../models/Email")
 const Users = require("../models/Users")
 const Userdetails = require("../models/Userdetails")
 
-exports.sendmail = async(sender, receiver, title, content, sendtoall) => {
-
-    // await Emails.create({sender: sender, receiver: receiver, title: title, content: content, sendtoall: sendtoall})
-
-    // return "success"
-
-    const notification = new Emails({
-        sender: sender,
-        receiver: receiver.map((receiverId) => ({
-            userid: new mongoose.Types.ObjectId(receiverId),
-        })),
-        title,
-        content,
-    });
-
-    await notification.save();
-    return "success"
+const formatEmailContent = (content) => {
+    // Add proper indentation and line breaks
+    return `
+    ${content.trim().split('\n').map(line => `    ${line}`).join('\n')}
+    
+    Best Regards
+    `;
 }
+
+exports.sendmail = async (sender, recipients, subject, content, isSuperAdmin = false) => {
+    try {
+        const emailContent = formatEmailContent(content);
+        const notification = new Emails({
+            sender: sender,
+            receiver: recipients.map((receiverId) => ({
+                userid: new mongoose.Types.ObjectId(receiverId),
+            })),
+            title: subject,
+            content: emailContent,
+        });
+
+        await notification.save();
+        return "success"
+    } catch (err) {
+        // Handle error
+    }
+};

@@ -9,20 +9,7 @@ const { getAllUserIdsExceptSender } = require("../utils/user");
 
 exports.listcomponentprojectinvoice = async (req, res) => {
     const { id } = req.user;
-    const { teamid, search } = req.query;
-
-    let searchQuery = {};
-
-    if (search) {
-        searchQuery = {
-            $or: [
-                { 'projectDetails.projectname': { $regex: search, $options: 'i' } },
-                { 'clientDetails.clientname': { $regex: search, $options: 'i' } },
-                { 'projectDetails.jobno': { $regex: search, $options: 'i' } },
-                { jobcomponent: { $regex: search, $options: 'i' } },
-            ]
-        };
-    }
+    const { teamid } = req.query;
 
     try {
         const result = await Jobcomponents.aggregate([
@@ -124,48 +111,15 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     from: 'invoices',
                     let: { jobComponentId: "$_id" },
                     pipeline: [
-                        { 
-                            $match: { 
-                                $expr: { 
-                                    $and: [
-                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
-                                        { $eq: ["$status", "Approved"] }
-                                    ]
-                                } 
-                            } 
-                        },
+                        { $match: { $expr: { $eq: ["$jobcomponent", "$$jobComponentId"] } } },
                         { $sort: { createdAt: -1 } },
                         { $limit: 1 }
                     ],
                     as: 'latestInvoice'
                 }
-            },   
-            {
-                $unwind: { path: "$latestInvoice", preserveNullAndEmptyArrays: true }
             },
             {
-                $lookup: {
-                    from: 'invoices',
-                    let: { jobComponentId: "$_id" },
-                    pipeline: [
-                        { 
-                            $match: { 
-                                $expr: { 
-                                    $and: [
-                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
-                                        { $eq: ["$status", "Pending"] }
-                                    ]
-                                } 
-                            } 
-                        },
-                        { $sort: { createdAt: -1 } },
-                        { $limit: 1 }
-                    ],
-                    as: 'pendinginvoice'
-                }
-            },   
-            {
-                $unwind: { path: "$pendinginvoice", preserveNullAndEmptyArrays: true }
+                $unwind: { path: "$latestInvoice", preserveNullAndEmptyArrays: true }
             },
             {
                 $lookup: {
@@ -204,7 +158,6 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     as: "clientDetails"
                 }
             },
-            ...(search ? [{ $match: searchQuery }] : []),
             { $unwind: '$clientDetails'},
             {
                 $lookup: {
@@ -234,8 +187,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     projectedValues: { $ifNull: ['$projectedValues.values', []] },
                     invoice: {
                         percentage: { $ifNull: ["$latestInvoice.newinvoice", 0] },
-                        amount:  { $ifNull: ['$latestInvoice.invoiceamount', 0] },
-                        pending: { $ifNull: ["$pendinginvoice.newinvoice", 0] }
+                        amount:  { $ifNull: ['$latestInvoice.invoiceamount', 0] }
                     },
                 }
             },
@@ -304,19 +256,8 @@ exports.listcomponentprojectinvoice = async (req, res) => {
 
 exports.listcomponentprojectinvoicealluser = async (req, res) => {
     const { id } = req.user;
-    const { teamid, search } = req.query;
-    let searchQuery = {};
+    const { teamid } = req.query;
 
-    if (search) {
-        searchQuery = {
-            $or: [
-                { 'projectDetails.projectname': { $regex: search, $options: 'i' } },
-                { 'clientDetails.clientname': { $regex: search, $options: 'i' } },
-                { 'projectDetails.jobno': { $regex: search, $options: 'i' } },
-                { jobcomponent: { $regex: search, $options: 'i' } },
-            ]
-        };
-    }
     try {
         const result = await Jobcomponents.aggregate([
             {
@@ -459,7 +400,6 @@ exports.listcomponentprojectinvoicealluser = async (req, res) => {
                     as: "clientDetails"
                 }
             },
-            ...(search ? [{ $match: searchQuery }] : []),
             { $unwind: '$clientDetails'},
             {
                 $lookup: {

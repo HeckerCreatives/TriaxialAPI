@@ -183,7 +183,18 @@ exports.requestwfhemployee = async (req, res) => {
         Please forward on this email thread any necessary documents for the WFH.
         Please add your Work From Home Schedule to WORKLOAD SPREADSHEET.
     `;
-    await sendmail(new mongoose.Types.ObjectId(id), [{_id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID)}, {_id: new mongoose.Types.ObjectId(userdetails.reportingto)}, { _id: new mongoose.Types.ObjectId(payrollemail._id)} ], `WFH Request - ${fullname}`, sendmailcontent, false)
+
+    const recipients = [
+        { _id: new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID) },
+        { _id: new mongoose.Types.ObjectId(userdetails.reportingto) }
+    ];
+
+    if (payrollemail?._id) {
+        recipients.push({ _id: new mongoose.Types.ObjectId(payrollemail._id) });
+    }
+
+
+    await sendmail(new mongoose.Types.ObjectId(id), recipients, `WFH Request - ${fullname}`, sendmailcontent, false)
 
     return res.json({message: "success"})
 }
