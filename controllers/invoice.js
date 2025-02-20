@@ -132,7 +132,6 @@ exports.createinvoice = async (req, res) => {
         Job Manager:                 ${jobManager.firstname} ${jobManager.lastname}
         Job Number:                  ${project.jobno}
         Client Name:                 ${client.clientname}
-        Leave End Date:              ${leaveend}
         Project Name:                ${project.projectname}
         Component Budget:            $${newInvoiceData.invoiceamount}
         Job Component:               ${jobcomponent.jobcomponent}
