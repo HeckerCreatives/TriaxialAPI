@@ -659,7 +659,10 @@ exports.completejobcomponent = async (req, res) => {
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
         })
 
-        const claimamount = ((findCurrinvoice?.invoiceamount ?? 0) * ((findCurrinvoice?.newinvoice ?? 0) / 100));
+        const invoiceamount = findCurrinvoice?.invoiceamount || 0;
+        const newinvoice = findCurrinvoice?.newinvoice || 0;
+
+        const claimamount = (invoiceamount * (newinvoice / 100))
         const emailContent = `
         A component of the project shown below has now been removed 
         from the Workload Spreadsheet and has now been recorded to 
@@ -670,15 +673,12 @@ exports.completejobcomponent = async (req, res) => {
         Job Number:                   ${project?.jobno || 'N/A'}
         Client Name:                  ${client?.clientname || 'N/A'}
         Project Name:                 ${project?.projectname || 'N/A'}
-        Component Budget:             $${findCurrinvoice.invoiceamount || 0}
+        Component Budget:             $${findCurrinvoice?.invoiceamount || 0}
         Job Component:                ${jobcomponent?.jobcomponent || 'N/A'}
-        Previous %invoice:            ${findCurrinvoice.currentinvoice || 0}%
-        Current %invoice:             ${findCurrinvoice.newinvoice || 0}%
-        This Claim Percentage:        ${findCurrinvoice.newinvoice || 0}%
-        This Claim Amount:            $${claimamount.toFixed(2) || 'N/A'}
-
-        Best Regards,
-        ${fullname}
+        Previous %invoice:            ${findCurrinvoice?.currentinvoice || 0}%
+        Current %invoice:             ${findCurrinvoice?.newinvoice || 0}%
+        This Claim Percentage:        ${findCurrinvoice?.newinvoice || 0}%
+        This Claim Amount:            $${claimamount?.toFixed(2) || 'N/A'}
 
         Note: This is an auto generated message, please do not reply. For your inquiries, 
         comments and/or concerns please use the button "Troubleshoot/Bug Fix" at 
