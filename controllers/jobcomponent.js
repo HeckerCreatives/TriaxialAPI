@@ -1873,7 +1873,9 @@ exports.listteamjobcomponent = async (req, res) => {
                     invoiceDetails: {
                         percentage: { $ifNull: ["$latestInvoice.newinvoice", 0] },
                         amount: { $ifNull: ["$latestInvoice.invoiceamount", 0] },
-                        pendinginvoice: { $ifNull: ["$pendinginvoice.newinvoice", 0] }
+                        pendinginvoice: { $ifNull: ["$pendinginvoice.newinvoice", 0] },
+                        pendinginvoice1: { $ifNull: ["$pendinginvoice.invoiceamount", 0] },
+                        pendinginvoice2: { $ifNull: ["$pendinginvoice.currentinvoice", 0] }
                     }
                 }
             },
