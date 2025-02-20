@@ -29,6 +29,10 @@ const EmailSchema = new mongoose.Schema(
             type: String,
             index: true
         },
+        status: {
+            type: String,
+            default: "Pending"
+        },
         sendtoall: {
             type: Boolean,
             index: true

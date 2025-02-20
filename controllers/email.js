@@ -90,7 +90,8 @@ exports.listemail = async (req, res) => {
                 content: 1,
                 createdAt: 1,
                 isRead: 1,
-                foreignid: 1
+                foreignid: 1,
+                status: 1,
             }
         },
         {

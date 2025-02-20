@@ -6,6 +6,7 @@ const { default: mongoose } = require("mongoose")
 const {sendmail} = require("../utils/email")
 const Userdetails = require("../models/Userdetails")
 const Users = require("../models/Users")
+const Emails = require("../models/Email")
 
 //  #region USERS
 
@@ -548,6 +549,14 @@ exports.processleaverequest = async (req, res) => {
 
          return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
      })
+
+    await Emails.findOneAndUpdate({ foreignid: requestid }, { status: status })
+    .catch(err => {
+        console.log(`There's a problem updating email status. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
+    })
+    
 
     return res.json({message: "success"})
 }
