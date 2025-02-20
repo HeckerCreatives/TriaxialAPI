@@ -108,8 +108,8 @@ exports.createjobcomponent = async (req, res) => {
         })
 
         const allRecipientIds = new Set([
-            ...financeUsers._id.toString(),
-            ...jobmanagerz,
+            ...(financeUsers._id ? [financeUsers._id.toString()] : []),             
+            ...jobManagerIds,
             ...(feesemail?._id ? [feesemail._id.toString()] : null) // Conditionally add fees email if it exists
         ]);
 
@@ -136,40 +136,42 @@ exports.createjobcomponent = async (req, res) => {
         let titlecontent
 
         if(isvariation === true){
-        emailContent = `
-        A component of the project shown below is a Variation Project.
-                                        
-        Team Name:                    ${team.teamname}
-        Job Manager:                  ${jobManager.firstname} ${jobManager.lastname}
-        Job Number:                   ${project.jobno}
-        Client Name:                  ${clientz.clientname}
-        Project Name:                 ${project.projectname}
-        Variation Fee:                $${jobcomponentvalue[0].estimatedbudget}
-        Variation Name:               ${jobcomponentvalue[0].jobcomponent}
-        Description:                  ${description}
-        Admin Notes:                  ${adminnotes}
-
-        Note: This is an auto generated message, please do not reply. For your inquiries, 
-        comments and/or concerns please use the button "Troubleshoot/Bug Fix" 
-        at the Workload spreadsheet.
-        `;
+            emailContent = `
+            A component of the project shown below is a Variation Project.
+    
+            Team Name:                      ${team.teamname}
+            Job Manager:                    ${jobManager.firstname} ${jobManager.lastname}
+            Job Number:                     ${project.jobno}
+            Client Name:                    ${clientz.clientname}
+            Project Name:                   ${project.projectname}
+            Variation Fee:                  $${jobcomponentvalue[0].estimatedbudget}
+            Variation Name:                 ${jobcomponentvalue[0].jobcomponent}
+            Description:                    ${description}
+            Admin Notes:                    ${adminnotes}
+    
+            Note: This is an auto generated message, please do not reply. For your inquiries, 
+            comments and/or concerns please use the button "Troubleshoot/Bug Fix" 
+            at the Workload spreadsheet.
+    `;
 
         titlecontent = `${project.jobno} - ${project.projectname} - Variation`
         } else {
-        emailContent = `
-        A component of the project shown below has been created.
-    
-        Team Name:                   ${team.teamname}
-        Job Manager:                 ${jobManager.firstname} ${jobManager.lastname}
-        Job Number:                  ${project.jobno}
-        Client Name:                 ${clientz.clientname}
-        Project Name:                ${project.projectname}
-        Budget Fee:                  $${jobcomponentvalue[0].estimatedbudget}
-        Job Component:               ${jobcomponentvalue[0].jobcomponent}
-    
-        Note: This is an auto generated message, please do not reply. For your inquiries, 
-        comments and/or concerns please use the button "Troubleshoot/Bug Fix" 
-        at the Workload spreadsheet.
+            emailContent = `
+            A component of the project shown below is a Variation Project.
+                                            
+            Team Name:                    ${team.teamname}
+            Job Manager:                  ${jobManager.firstname} ${jobManager.lastname}
+            Job Number:                   ${project.jobno}
+            Client Name:                  ${clientz.clientname}
+            Project Name:                 ${project.projectname}
+            Variation Fee:                $${jobcomponentvalue[0].estimatedbudget}
+            Variation Name:               ${jobcomponentvalue[0].jobcomponent}
+            Description:                  ${description}
+            Admin Notes:                  ${adminnotes}
+        
+            Note: This is an auto generated message, please do not reply. For your inquiries, 
+            comments and/or concerns please use the button "Troubleshoot/Bug Fix" 
+            at the Workload spreadsheet.
             `;
             titlecontent = `${project.jobno} - ${project.projectname} - New Job Component`
         }
