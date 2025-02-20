@@ -135,8 +135,8 @@ exports.createinvoice = async (req, res) => {
         Project Name:                ${project.projectname}
         Component Budget:            $${newInvoiceData.invoiceamount}
         Job Component:               ${jobcomponent.jobcomponent}
-        Previous %invoice:           ${findCurrinvoice.currentinvoice}%
-        Present %invoice:            ${findCurrinvoice.newinvoice}%
+        Previous %invoice:           ${findCurrinvoice?.currentinvoice || 0}%
+        Present %invoice:            ${findCurrinvoice?.newinvoice || 0}%
         This Claim Percentage:       ${invoice}%
         This Claim Amount:           $${claimamount}
         Admin Notes:                 ${jobcomponent.adminnotes || 'No notes provided'}
