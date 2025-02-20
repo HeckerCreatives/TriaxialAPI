@@ -127,7 +127,7 @@ exports.createinvoice = async (req, res) => {
         const claimamount = (invoiceamount * (invoice / 100))
     const emailContent = `
         A component of the project shown below is now being invoiced.
-                                     a
+                                     
         Team Name:                   ${team.teamname}
         Job Manager:                 ${jobManager.firstname} ${jobManager.lastname}
         Job Number:                  ${project.jobno}
@@ -141,10 +141,6 @@ exports.createinvoice = async (req, res) => {
         This Claim Percentage:       ${invoice}%
         This Claim Amount:           $${claimamount}
        
-
-        Best Regards,
-        ${fullname}
-
         Note: This is an auto generated message, please do not reply. For your inquiries, 
         comments and/or concerns please use the button "Troubleshoot/Bug Fix" at 
         the Workload spreadsheet.    
