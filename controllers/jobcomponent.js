@@ -870,7 +870,6 @@ exports.editstatushours = async (req, res) => {
         });
     }
 };
-
 exports.editMultipleStatusHours = async (req, res) => {
     const { id, email } = req.user;
     const { jobcomponentid, employeeid, updates } = req.body;
@@ -904,11 +903,18 @@ exports.editMultipleStatusHours = async (req, res) => {
 
         // Process each update
         for (const update of updates) {
-            const { date, status, hours } = update;
+            const { startdate, enddate, status, hours } = update;
 
-            // Validate each update object
-            if (!date || isNaN(Date.parse(date))) {
-                return res.status(400).json({ message: "failed", data: `Invalid date provided: ${date}` });
+            // Validate start and end dates
+            if (!startdate || !enddate || isNaN(Date.parse(startdate)) || isNaN(Date.parse(enddate))) {
+                return res.status(400).json({ message: "failed", data: `Invalid date range provided: ${startdate} - ${enddate}` });
+            }
+
+            const startDateObj = new Date(startdate);
+            const endDateObj = new Date(enddate);
+
+            if (startDateObj > endDateObj) {
+                return res.status(400).json({ message: "failed", data: "Start date cannot be after end date." });
             }
 
             const validHours = hours === null || (typeof hours === "number" && hours >= 0);
@@ -917,49 +923,51 @@ exports.editMultipleStatusHours = async (req, res) => {
             if (!validHours || !validStatus) {
                 return res.status(400).json({
                     message: "failed",
-                    data: `Invalid status or hours for date: ${date}`,
+                    data: `Invalid status or hours for date range: ${startdate} - ${enddate}`,
                 });
             }
 
-            // Check if the date already exists in the member's dates array
-            const dateIndex = member.dates.findIndex(
-                (d) => new Date(d.date).toDateString() === new Date(date).toDateString()
-            );
+            // Iterate over date range and update each date entry
+            for (let date = new Date(startDateObj); date <= endDateObj; date.setDate(date.getDate() + 1)) {
+                const formattedDate = new Date(date).toISOString().split("T")[0];
 
-            if (dateIndex !== -1) {
-                // Update existing date entry
-                if (status !== undefined) member.dates[dateIndex].status = status || [];
-                if (hours !== undefined) member.dates[dateIndex].hours = hours;
-            } else {
-                // Add a new date entry if valid data is provided
-                if (hours !== null || (Array.isArray(status) && status.length > 0)) {
-                    member.dates.push({
-                        date: new Date(date),
-                        hours: hours || null,
-                        status: status || [],
-                    });
+                // Find if the date already exists in the member's dates array
+                const dateIndex = member.dates.findIndex(
+                    (d) => new Date(d.date).toISOString().split("T")[0] === formattedDate
+                );
+
+                if (dateIndex !== -1) {
+                    // Update existing date entry
+                    if (status !== undefined) member.dates[dateIndex].status = status || [];
+                    if (hours !== undefined) member.dates[dateIndex].hours = hours;
                 } else {
-                    return res.status(400).json({
-                        message: "failed",
-                        data: `Cannot add empty status and hours for date: ${date}`,
-                    });
+                    // Add a new date entry if valid data is provided
+                    if (hours !== null || (Array.isArray(status) && status.length > 0)) {
+                        member.dates.push({
+                            date: new Date(formattedDate),
+                            hours: hours || null,
+                            status: status || [],
+                        });
+                    }
                 }
             }
         }
 
         await jobComponent.save();
 
+        // Prepare email content
         const emailContent = `Hello Team,
 
         The job component "${jobComponent.jobcomponent}" has been updated.
 
         Employee: ${employeeid}
-        Updates: ${updates
+        Updates:
+        ${updates
             .map(
                 (u) =>
-                    `Date: ${new Date(u.date).toDateString()}, Status: ${(u.status || []).join(
-                        ", "
-                    )}, Hours: ${u.hours !== null ? u.hours : "Cleared"}`
+                    `From: ${new Date(u.startdate).toDateString()} To: ${new Date(u.enddate).toDateString()},
+                     Status: ${(u.status || []).join(", ")}, 
+                     Hours: ${u.hours !== null ? u.hours : "Cleared"}`
             )
             .join("\n")}
 
@@ -996,6 +1004,131 @@ exports.editMultipleStatusHours = async (req, res) => {
         });
     }
 };
+// exports.editMultipleStatusHours = async (req, res) => {
+//     const { id, email } = req.user;
+//     const { jobcomponentid, employeeid, updates } = req.body;
+
+//     // Input validation
+//     if (!jobcomponentid) {
+//         return res.status(400).json({ message: "failed", data: "Please select a valid job component." });
+//     }
+//     if (!employeeid) {
+//         return res.status(400).json({ message: "failed", data: "Please select a valid employee." });
+//     }
+//     if (!Array.isArray(updates) || updates.length === 0) {
+//         return res.status(400).json({ message: "failed", data: "No updates provided." });
+//     }
+
+//     try {
+//         // Fetch the job component
+//         const jobComponent = await Jobcomponents.findById(jobcomponentid);
+//         if (!jobComponent) {
+//             return res.status(404).json({ message: "failed", data: "Job component does not exist." });
+//         }
+
+//         // Find the member corresponding to the employee
+//         const member = jobComponent.members.find(
+//             (m) => (m.employee ? m.employee.toString() : "") === employeeid
+//         );
+
+//         if (!member) {
+//             return res.status(404).json({ message: "failed", data: "Employee not found in the job component." });
+//         }
+
+//         // Process each update
+//         for (const update of updates) {
+//             const { date, status, hours } = update;
+
+//             // Validate each update object
+//             if (!date || isNaN(Date.parse(date))) {
+//                 return res.status(400).json({ message: "failed", data: `Invalid date provided: ${date}` });
+//             }
+
+//             const validHours = hours === null || (typeof hours === "number" && hours >= 0);
+//             const validStatus = status === null || Array.isArray(status);
+
+//             if (!validHours || !validStatus) {
+//                 return res.status(400).json({
+//                     message: "failed",
+//                     data: `Invalid status or hours for date: ${date}`,
+//                 });
+//             }
+
+//             // Check if the date already exists in the member's dates array
+//             const dateIndex = member.dates.findIndex(
+//                 (d) => new Date(d.date).toDateString() === new Date(date).toDateString()
+//             );
+
+//             if (dateIndex !== -1) {
+//                 // Update existing date entry
+//                 if (status !== undefined) member.dates[dateIndex].status = status || [];
+//                 if (hours !== undefined) member.dates[dateIndex].hours = hours;
+//             } else {
+//                 // Add a new date entry if valid data is provided
+//                 if (hours !== null || (Array.isArray(status) && status.length > 0)) {
+//                     member.dates.push({
+//                         date: new Date(date),
+//                         hours: hours || null,
+//                         status: status || [],
+//                     });
+//                 } else {
+//                     return res.status(400).json({
+//                         message: "failed",
+//                         data: `Cannot add empty status and hours for date: ${date}`,
+//                     });
+//                 }
+//             }
+//         }
+
+//         await jobComponent.save();
+
+//         const emailContent = `Hello Team,
+
+//         The job component "${jobComponent.jobcomponent}" has been updated.
+
+//         Employee: ${employeeid}
+//         Updates: ${updates
+//             .map(
+//                 (u) =>
+//                     `Date: ${new Date(u.date).toDateString()}, Status: ${(u.status || []).join(
+//                         ", "
+//                     )}, Hours: ${u.hours !== null ? u.hours : "Cleared"}`
+//             )
+//             .join("\n")}
+
+//         Please review the changes if necessary.
+
+//         Thank you!
+
+//         Best Regards,
+//         ${email}`;
+
+//         const receiver = await getAllUserIdsExceptSender(id);
+
+//         const sender = new mongoose.Types.ObjectId(id);
+//         await sendmail(sender, receiver, "Job Component Update Notification", emailContent)
+//             .catch((err) => {
+//                 console.error(
+//                     `Failed to send email notification for job component: ${jobcomponentid}. Error: ${err}`
+//                 );
+//                 return res.status(400).json({
+//                     message: "bad-request",
+//                     data: "Email notification failed! Please contact customer support for more details.",
+//                 });
+//             });
+
+//         return res.status(200).json({
+//             message: "success",
+//             data: "Job component updated and email sent successfully.",
+//         });
+//     } catch (err) {
+//         console.error(`Error updating job component ${jobcomponentid}: ${err}`);
+//         return res.status(500).json({
+//             message: "server-error",
+//             data: "An error occurred. Please contact customer support for more details.",
+//         });
+//     }
+// };
 
 
 
