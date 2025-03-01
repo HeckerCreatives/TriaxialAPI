@@ -892,6 +892,11 @@ exports.editMultipleStatusHours = async (req, res) => {
             return res.status(404).json({ message: "failed", data: "Job component does not exist." });
         }
 
+        const project = await Projects.findOne({ _id: new mongoose.Types.ObjectId(jobComponent.project) })
+
+        if(!project) {
+            return res.status(404).json({ message: "failed", data: "Project does not exist." });
+        }
         // Find the member corresponding to the employee
         const member = jobComponent.members.find(
             (m) => (m.employee ? m.employee.toString() : "") === employeeid
@@ -908,6 +913,18 @@ exports.editMultipleStatusHours = async (req, res) => {
             // Validate start and end dates
             if (!startdate || !enddate || isNaN(Date.parse(startdate)) || isNaN(Date.parse(enddate))) {
                 return res.status(400).json({ message: "failed", data: `Invalid date range provided: ${startdate} - ${enddate}` });
+            }
+
+            // check if start date and end date is between the project start date and end date
+
+            if (new Date(startdate) <= new Date(project.startdate) || new Date(enddate) >= new Date(project.deadlinedate)) {
+                const formattedStartDate = moment(project.startdate).format('DD-MM-YYYY');
+                const formattedEndDate = moment(project.deadlinedate).format('DD-MM-YYYY');
+                
+                return res.status(400).json({ 
+                    message: "failed", 
+                    data: `Date range provided is not within the project start date and end date: ${formattedStartDate} - ${formattedEndDate}` 
+                });            
             }
 
             const startDateObj = new Date(startdate);
