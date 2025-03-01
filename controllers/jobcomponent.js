@@ -108,9 +108,9 @@ exports.createjobcomponent = async (req, res) => {
         })
 
         const allRecipientIds = new Set([
-            ...(financeUsers._id ? [financeUsers._id.toString()] : []),             
+            ...(financeUsers?._id ? [financeUsers?._id.toString()] : []),             
             ...jobManagerIds,
-            ...(feesemail?._id ? [feesemail._id.toString()] : []) // Conditionally add fees email if it exists
+            ...(feesemail?._id ? [feesemail?._id.toString()] : []) // Conditionally add fees email if it exists
         ]);
 
         allRecipientIds.delete(id); 
