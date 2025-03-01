@@ -66,7 +66,9 @@ exports.createinvoice = async (req, res) => {
                 return res.status(400).json({ message: "failed", data: "Please enter a valid new invoice" });
             }
 
-
+            if (findCurrinvoice.newinvoice === 100) {
+                return res.status(400).json({ message: "failed", data: "The current invoice is already at 100%" });
+            }
             previousInvoice = parseInt(findCurrinvoice?.newinvoice) || 0;
             const checkRemaining = 100 - previousInvoice;
 
