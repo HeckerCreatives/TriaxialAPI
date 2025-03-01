@@ -563,23 +563,47 @@ exports.editalljobcomponentdetails = async (req, res) => {
 
         await jobcomponent.save();
 
+        // Filter out empty or invalid employee IDs
+        const validEmployees = members
+            .map(m => m.employee)
+            .filter(employeeId => employeeId && mongoose.Types.ObjectId.isValid(employeeId));
+
+        // Get member details only for valid employee IDs
+        const memberDetails = await Userdetails.find({ 
+            owner: { $in: validEmployees } 
+        });
+        // Create a map of employee IDs to full names, with validation
+        const employeeNameMap = memberDetails.reduce((map, member) => {
+            if (member.owner) {
+                map[member.owner.toString()] = `${member.firstname} ${member.lastname}`;
+            }
+            return map;
+        }, {});
         // Construct email content
         const emailContent = `
-            Hello Team,
-            
-            The job component "${jobName}" has been updated with the following details:
-            
-            Project ID: ${projectid}
-            Job Manager ID: ${jobmanagerid}
-            Updated Members:
-            ${members.map(member => `Employee: ${member.employee || 'N/A'}, Role: ${member.role}`).join("\n")}
-            
-            If you have any questions or concerns, please reach out.
-            
-            Thank you!
-            
-            Best Regards,
-            ${email}`;
+        Hello Team,
+        
+        The job component "${jobName}" has been updated with the following details:
+        
+        Project ID: ${projectid}
+        Job Manager ID: ${jobmanagerid}
+        
+        Updated Members:
+        ${members
+            .map(
+                member => 
+        `
+        Name: ${employeeNameMap[member.employee?.toString()] || 'N/A'}
+        Role: ${member.role || 'N/A'}`
+            )
+            .join("\n\n")}
+        
+        If you have any questions or concerns, please reach out.
+        
+        Thank you!
+        
+        Best Regards,
+        ${email}`;
 
         // Send email notification
         const sender = new mongoose.Types.ObjectId(id);
@@ -2945,18 +2969,40 @@ exports.editjobmanagercomponents = async (req, res) => {
         const financeUserIds = financeUsers.map((user) => user._id);
 
         const allRecipientIds = Array.from(new Set([...financeUserIds, jobManagerId]));
+
+        // Filter out empty or invalid employee IDs
+        const validEmployees = members
+        .map(m => m.employee)
+        .filter(employeeId => employeeId && mongoose.Types.ObjectId.isValid(employeeId));
+
+        // Get member details only for valid employee IDs
+        const memberDetails = await Userdetails.find({ 
+        owner: { $in: validEmployees } 
+        });
+
+        // Create a map of employee IDs to full names, with validation
+        const employeeNameMap = memberDetails.reduce((map, member) => {
+        if (member.owner) {
+            map[member.owner.toString()] = `${member.firstname} ${member.lastname}`;
+        }
+        return map;
+        }, {});
+
+        // Construct email content
         const emailContent = `Hello Team,
 
         The job component "${jobcomponent.jobcomponent}" has been updated with new member details.
 
         Updated Members:
         ${members
-            .map(
-                (m) =>
-                    `        Employee ID: ${m.employee}\n        Role: ${m.role}\n        Notes: ${m.notes || "No notes provided"
-                    }`
-            )
-            .join("\n\n")}
+        .map(
+            member => 
+        `        
+        Name: ${employeeNameMap[member.employee?.toString()] || 'N/A'}
+        Role: ${member.role || 'N/A'}
+        Notes: ${member.notes || "No notes provided"}`
+        )
+        .join("\n\n")}
 
         Please review the updated job component details if necessary.
 
