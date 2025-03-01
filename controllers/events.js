@@ -23,10 +23,10 @@ exports.geteventsusers = async (req, res) => {
     }
 
     const userteams = []
-
+    
     teams.forEach(tempdata => {
         const {_id} = tempdata
-
+        
         userteams.push(new mongoose.Types.ObjectId(_id))
     })
 
@@ -35,17 +35,26 @@ exports.geteventsusers = async (req, res) => {
     const currentEvents = await Events.find({
         startdate: { $lte: today }, // Events that have started before or on today
         enddate: { $gte: today }, // Events that end on or after today
-        teams: { $in: userteams } 
+        teams: { 
+            $elemMatch: { 
+                $in: userteams 
+            }
+        }    
     })
     .populate({
         path: "teams",
         select: "teamname"
     });
 
+
     // Query for upcoming events
     const upcomingEvents = await Events.find({
         startdate: { $gt: today }, // Events that start after today
-        teams: userteams
+        teams: { 
+            $elemMatch: { 
+                $in: userteams 
+            }
+        }
     })
     .populate({
         path: "teams",
