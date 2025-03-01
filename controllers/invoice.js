@@ -59,13 +59,13 @@ exports.createinvoice = async (req, res) => {
         let currentinvoice = 0;
         let previousInvoice = 0;
         let newinvoice = 0;
-        // Inside the createinvoice function, modify the validation logic:
+        const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Approved" }).sort({ createdAt: -1 });
+        // Inside the createinvoice function, modify the validation logic:z
         if (budgettype === 'lumpsum') {
             if (invoice == null || !invoice) {
                 return res.status(400).json({ message: "failed", data: "Please enter a valid new invoice" });
             }
 
-            const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Approved" }).sort({ createdAt: -1 });
 
             previousInvoice = parseInt(findCurrinvoice?.newinvoice) || 0;
             const checkRemaining = 100 - previousInvoice;
