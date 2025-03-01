@@ -30,6 +30,7 @@ router
 
     .get("/managerwellnessdaylistrequestbyemployee", protectmanager, managerwellnessdaylistrequestbyemployee)
     .post("/wellnessdayapprovalmanager", protectmanager, wellnessdayapproval)
+    .get("/wellnessdaylistrequestmanager", protectmanager, wellnessdaylistrequest)
 
     //  #endregion
 

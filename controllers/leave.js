@@ -205,6 +205,22 @@ exports.requestleave = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Enter Working hours during leave!"})
     }
 
+    // check if leave start date is greater than leave end date or vice versa
+    if (moment(leavestart).isAfter(moment(leaveend))){
+        return res.status(400).json({message: "failed", data: "Leave start date should be less than leave end date!"})
+    }
+
+    // check if leave start date is less than current date
+    if (moment(leavestart).isBefore(moment().format('YYYY-MM-DD'))){
+        return res.status(400).json({message: "failed", data: "Leave start date should be greater than current date!"})
+    }
+
+    // check if leave start date is less than current date
+    if (moment(leaveend).isBefore(moment().format('YYYY-MM-DD'))){
+        return res.status(400).json({message: "failed", data: "Leave end date should be greater than current date!"})
+    }
+
+
     const createdLeave = await Leave.create({owner: new mongoose.Types.ObjectId(id), type: leavetype, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments, status: "Pending"})
     .catch(err => {
         console.log(`There's a problem creating leave request for ${id} ${email}. Error: ${err}`)

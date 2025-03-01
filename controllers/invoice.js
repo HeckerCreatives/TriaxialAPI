@@ -44,9 +44,9 @@ exports.createinvoice = async (req, res) => {
 
     if (!jobcomponentid) {
         return res.status(400).json({ message: "failed", data: "Please select a valid job component" });
-    } else if (invoice == null || isNaN(invoice)) {
+    } else if (invoice == null || !invoice) {
         return res.status(400).json({ message: "failed", data: "Please enter a valid new invoice" });
-    } else if (invoiceamount == null || isNaN(invoiceamount)) {
+    } else if (invoiceamount == null || !invoiceamount) {
         return res.status(400).json({ message: "failed", data: "Please enter a valid invoice amount" });
     }
 

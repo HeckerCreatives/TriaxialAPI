@@ -600,6 +600,17 @@ exports.createhrwellnessevent = async (req, res) => {
     const start = new Date(cyclestart);
     const end = new Date(cycleend);
 
+    // check if end date is greater than start date
+    if (new Date(startdate) > new Date(enddate)){
+        return res.status(400).json({message: "failed", data: "End date must be greater than start date"})
+    }
+
+    // check if cycle end date is greater than cycle start date
+    if (start > end){
+        return res.status(400).json({message: "failed", data: "Cycle end date must be greater than cycle start date"})
+    }
+    
+    
     const conflictingEvent = await Wellnessdayevent.findOne({
         $or: [
             { startdate: new Date(startdate) }, // Check if startdate exists

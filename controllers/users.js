@@ -106,7 +106,7 @@ exports.createemployee = async (req, res) => {
 
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     const withSpecialCharRegex = /^[A-Za-z0-9@/[\]#]+$/;
-
+    const nameRegex = /^[a-zA-Z.-]+$/;
     if (!email){
         return res.status(400).json({message: "failed", data: "Enter your email first!"})
     }
@@ -127,7 +127,13 @@ exports.createemployee = async (req, res) => {
     }
     else if (resource != "Civil" && resource != "Structural" && resource != "Drafter" && resource != "Hydraulic" && resource != "Remedial" && resource != "Admin"){
         return res.status(400).json({message: "failed", data: "Please select a valid resource type"})
-    }
+    } else if (!nameRegex.test(firstname)){
+        return res.status(400).json({message: "failed", data: "Please enter a valid first name!"})
+    } else if (!nameRegex.test(lastname)){
+        return res.status(400).json({message: "failed", data: "Please enter a valid last name!"})
+    } else if (!nameRegex.test(initial)){
+        return res.status(400).json({message: "failed", data: "Please enter a valid initial!"})
+    } 
 
     const userlogin = await Users.findOne({email: { $regex: new RegExp('^' + email + '$', 'i') }})
     .then(data => data)
