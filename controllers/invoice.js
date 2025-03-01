@@ -74,9 +74,9 @@ exports.createinvoice = async (req, res) => {
             //     return res.status(400).json({ message: "failed", data: `The remaining invoice is ${checkRemaining}%` });
             // }
 
-            if (previousInvoice > invoice) {
-                return res.status(400).json({ message: "failed", data: "The new invoice should be greater than the current invoice" });
-            }
+            // if (previousInvoice > invoice) {
+            //     return res.status(400).json({ message: "failed", data: "The new invoice should be greater than the current invoice" });
+            // }
 
             if (invoice > 100) {
                 return res.status(400).json({ message: "failed", data: "The new invoice should not be greater than 100" });
