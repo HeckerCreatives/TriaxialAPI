@@ -205,21 +205,33 @@ exports.requestleave = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Enter Working hours during leave!"})
     }
 
-    // check if leave start date is greater than leave end date or vice versa
-    if (moment(leavestart).isAfter(moment(leaveend))){
-        return res.status(400).json({message: "failed", data: "Leave start date should be less than leave end date!"})
-    }
+        // Format dates for comparison, setting to start of day to ignore time
+        const today = moment().startOf('day');
+        const startDate = moment(leavestart).startOf('day');
+        const endDate = moment(leaveend).startOf('day');
 
-    // check if leave start date is less than current date
-    if (moment(leavestart).isBefore(moment().format('YYYY-MM-DD'))){
-        return res.status(400).json({message: "failed", data: "Leave start date should be greater than current date!"})
-    }
+        // Check if dates are in the past or today
+        if (startDate.isSameOrBefore(today)) {
+            return res.status(400).json({
+                message: "failed", 
+                data: "Leave start date must be a future date"
+            });
+        }
 
-    // check if leave start date is less than current date
-    if (moment(leaveend).isBefore(moment().format('YYYY-MM-DD'))){
-        return res.status(400).json({message: "failed", data: "Leave end date should be greater than current date!"})
-    }
+        if (endDate.isSameOrBefore(today)) {
+            return res.status(400).json({
+                message: "failed", 
+                data: "Leave end date must be a future date"
+            });
+        }
 
+        // Check if start date is before end date
+        if (startDate.isAfter(endDate)) {
+            return res.status(400).json({
+                message: "failed", 
+                data: "Leave start date cannot be after end date"
+            });
+        }
 
     const createdLeave = await Leave.create({owner: new mongoose.Types.ObjectId(id), type: leavetype, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments, status: "Pending"})
     .catch(err => {
