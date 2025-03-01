@@ -69,9 +69,9 @@ exports.createinvoice = async (req, res) => {
             const previousInvoice = parseInt(findCurrinvoice?.newinvoice) || 0;
             const checkRemaining = 100 - previousInvoice;
 
-            if (invoice > checkRemaining) {
-                return res.status(400).json({ message: "failed", data: `The remaining invoice is ${checkRemaining}%` });
-            }
+            // if (invoice > checkRemaining) {
+            //     return res.status(400).json({ message: "failed", data: `The remaining invoice is ${checkRemaining}%` });
+            // }
 
             if (previousInvoice > invoice) {
                 return res.status(400).json({ message: "failed", data: "The new invoice should be greater than the current invoice" });
