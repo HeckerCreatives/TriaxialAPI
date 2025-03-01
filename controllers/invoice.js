@@ -57,7 +57,8 @@ exports.createinvoice = async (req, res) => {
 
         const { status, budgettype, jobmanager } = jobcomponent;
         let currentinvoice = 0;
-
+        let previousInvoice = 0;
+        let newinvoice = 0;
         // Inside the createinvoice function, modify the validation logic:
         if (budgettype === 'lumpsum') {
             if (invoice == null || !invoice) {
@@ -66,7 +67,7 @@ exports.createinvoice = async (req, res) => {
 
             const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Approved" }).sort({ createdAt: -1 });
 
-            const previousInvoice = parseInt(findCurrinvoice?.newinvoice) || 0;
+            previousInvoice = parseInt(findCurrinvoice?.newinvoice) || 0;
             const checkRemaining = 100 - previousInvoice;
 
             // if (invoice > checkRemaining) {
@@ -80,15 +81,14 @@ exports.createinvoice = async (req, res) => {
             if (invoice > 100) {
                 return res.status(400).json({ message: "failed", data: "The new invoice should not be greater than 100" });
             }
-
+            newinvoice = invoice;
             currentinvoice = previousInvoice;
         } else if (budgettype === 'rates') {
             // For rates budget type, set invoice percentages to 0
-            invoice = 0;
+            newinvoice = 0;
+            previousInvoice = 0;
             currentinvoice = 0;
         }
-        currentinvoice = previousInvoice;
-
         const existingInvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Pending" });
 
         if (existingInvoice) {
@@ -99,7 +99,7 @@ exports.createinvoice = async (req, res) => {
         const newInvoiceData = new Invoice({
             jobcomponent: new mongoose.Types.ObjectId(jobcomponentid),
             currentinvoice: currentinvoice,
-            newinvoice: invoice, // Ensure 'invoice' is passed correctly
+            newinvoice: newinvoice, // Ensure 'invoice' is passed correctly
             invoiceamount: invoiceamount,
             comments: comments,
             reasonfordenie: "",
