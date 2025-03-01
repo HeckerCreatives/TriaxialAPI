@@ -29,7 +29,7 @@ router
     //  #endregion
 
     //  #region MANAGER
-
+    .get("/managerleaverequestlist", protectmanager, superadminleaverequestlist)
     .get("/managerleaverequestlistemployee", protectmanager, managerleaverequestlistemployee)
     .get("/managerleaverequestdataemployee", protectmanager, leaverequestdata)
     .post("/managerprocessleaverequest", protectmanager, processleaverequest)
