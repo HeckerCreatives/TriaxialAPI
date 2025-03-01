@@ -2953,8 +2953,7 @@ exports.editjobmanagercomponents = async (req, res) => {
         ${members
             .map(
                 (m) =>
-                    `Employee ID: ${m.employee}\nRole: ${m.role}\nNotes: ${
-                        m.notes || "No notes provided"
+                    `        Employee ID: ${m.employee}\n        Role: ${m.role}\n        Notes: ${m.notes || "No notes provided"
                     }`
             )
             .join("\n\n")}

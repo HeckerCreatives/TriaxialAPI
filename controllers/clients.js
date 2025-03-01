@@ -10,11 +10,15 @@ exports.createclients = async (req, res) => {
 
     const {clientname, priority} = req.body
 
+    const clientnameregex = /^[a-zA-Z0-9.-]+$/;
     if (!clientname){
         return res.status(400).json({message: "failed", data: "Enter a client name first!"})
-    }
-    else if (!priority){
+    } else if (!clientnameregex.test(clientname)){
+        return res.status(400).json({message: "failed", data: "Client name can only contain letters, dots and hyphens"})
+    } else if (!priority){
         return res.status(400).json({message: "failed", data: "Select a priority first!"})
+    } else if (clientname.length > 30){
+        return res.status(400).json({message: "failed", data: "Client name should not exceed 30 characters" })
     }
 
     const clients = await Clients.findOne({clientname: { $regex: clientname, $options: 'i' }})
@@ -178,13 +182,17 @@ exports.getclientdata = async (req, res) => {
 exports.editclient = async (req, res) => {
     const { id, email } = req.user;
     const { clientid, clientname, priority } = req.body;
-
+    const clientnameregex = /^[a-zA-Z0-9.-]+$/;
     if (!clientid) {
         return res.status(400).json({ message: "failed", data: "Select a client first!" });
     } else if (!clientname) {
         return res.status(400).json({ message: "failed", data: "Enter a client name first!" });
     } else if (!priority) {
         return res.status(400).json({ message: "failed", data: "Select a priority first!" });
+    } else if (clientname.length > 30) {
+        return res.status(400).json({ message: "failed", data: "Client name should not exceed 30 characters!" });
+    } else if (!clientnameregex.test(clientname)) {
+        return res.status(400).json({ message: "failed", data: "Client name can only contain letters, dots and hyphens!" });
     }
 
     const updatedClient = await Clients.findOneAndUpdate(

@@ -13,11 +13,6 @@ exports.listcomponentprojectinvoice = async (req, res) => {
 
     try {
         const result = await Jobcomponents.aggregate([
-            { 
-                $match: { 
-                    jobmanager: new mongoose.Types.ObjectId(id)
-                }
-            },
             {
                 $lookup: {
                     from: 'projects',
