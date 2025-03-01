@@ -44,8 +44,6 @@ exports.createinvoice = async (req, res) => {
 
     if (!jobcomponentid) {
         return res.status(400).json({ message: "failed", data: "Please select a valid job component" });
-    } else if (invoice == null || !invoice) {
-        return res.status(400).json({ message: "failed", data: "Please enter a valid new invoice" });
     } else if (invoiceamount == null || !invoiceamount) {
         return res.status(400).json({ message: "failed", data: "Please enter a valid invoice amount" });
     }
@@ -60,23 +58,35 @@ exports.createinvoice = async (req, res) => {
         const { status, budgettype, jobmanager } = jobcomponent;
         let currentinvoice = 0;
 
-        const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Approved" }).sort({ createdAt: -1 });
+        // Inside the createinvoice function, modify the validation logic:
+        if (budgettype === 'lumpsum') {
+            if (invoice == null || !invoice) {
+                return res.status(400).json({ message: "failed", data: "Please enter a valid new invoice" });
+            }
 
-        const previousInvoice = parseInt(findCurrinvoice?.newinvoice) || 0;
-        const checkRemaining = 100 - previousInvoice;
+            const findCurrinvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Approved" }).sort({ createdAt: -1 });
 
-        if (invoice > checkRemaining && budgettype === 'lumpsum') {
-            return res.status(400).json({ message: "failed", data: `The remaining invoice is ${checkRemaining}%` });
+            const previousInvoice = parseInt(findCurrinvoice?.newinvoice) || 0;
+            const checkRemaining = 100 - previousInvoice;
+
+            if (invoice > checkRemaining) {
+                return res.status(400).json({ message: "failed", data: `The remaining invoice is ${checkRemaining}%` });
+            }
+
+            if (previousInvoice > invoice) {
+                return res.status(400).json({ message: "failed", data: "The new invoice should be greater than the current invoice" });
+            }
+
+            if (invoice > 100) {
+                return res.status(400).json({ message: "failed", data: "The new invoice should not be greater than 100" });
+            }
+
+            currentinvoice = previousInvoice;
+        } else if (budgettype === 'rates') {
+            // For rates budget type, set invoice percentages to 0
+            invoice = 0;
+            currentinvoice = 0;
         }
-
-        if (previousInvoice > invoice) {
-            return res.status(400).json({ message: "failed", data: "The new invoice should be greater than the current invoice" });
-        }
-
-        if (invoice > 100) {
-            return res.status(400).json({ message: "failed", data: "The new invoice should not be greater than 100" });
-        }
-
         currentinvoice = previousInvoice;
 
         const existingInvoice = await Invoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), status: "Pending" });

@@ -2007,6 +2007,7 @@ exports.listteamjobcomponent = async (req, res) => {
                         percentage: { $ifNull: ["$latestInvoice.newinvoice", 0] },
                         amount: { $ifNull: ["$latestInvoice.invoiceamount", 0] },
                         pendinginvoice: { $ifNull: ["$pendinginvoice.newinvoice", 0] },
+                        pendingamount: { $ifNull: ["$pendinginvoice.invoiceamount", 0] }
                     }
                 }
             },
