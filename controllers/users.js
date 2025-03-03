@@ -106,7 +106,7 @@ exports.createemployee = async (req, res) => {
 
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     const withSpecialCharRegex = /^[A-Za-z0-9@/[\]#]+$/;
-    const nameRegex = /^[a-zA-Z.-]+$/;
+    const nameRegex = /^[a-zA-Z .-]+$/;
     
     if (!email){
         return res.status(400).json({message: "failed", data: "Enter your email first!"})

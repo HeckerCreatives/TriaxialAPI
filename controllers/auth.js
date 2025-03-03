@@ -74,7 +74,7 @@ exports.login = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: `There's a problem logging in your account! Error: ${err}`})
     }
 
-    res.cookie('sessionToken', jwtoken, { secure: true, sameSite: 'None' } )
+    res.cookie('sessionToken', jwtoken, { secure: false, sameSite: 'Lax', HttpOnly: true } )
     
     return res.json({message: "success", data: {
         auth: userdata.auth
