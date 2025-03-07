@@ -3477,7 +3477,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     teamName: "$_id.team",
                 }
             },
-            { $sort: { "teamName": 1, "employee": 1, "date": 1 } }
+            { $sort: { "teamName": 1, "employee": 1, "date": 1, "teamData.index": 1  } }
         ])
         .catch((err) => {
             console.error(err);
