@@ -3676,7 +3676,8 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     _id: {
                         teamId: '$_id',
                         teamName: '$teamname',
-                        memberId: '$memberDetails.owner'
+                        memberId: '$memberDetails.owner',
+                        index: '$index',
                     },
                     teamData: { $first: '$$ROOT' },
                     memberDetails: { $first: '$memberDetails' },
@@ -3702,11 +3703,12 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
             },
             {
                 $sort: { 
-                    index: 1,
+                    '_id.index': 1  
                 }
             }
         ]);
 
+        console.log(result)
         // Prepare response data structure
         const data = {
             alldates: [],
@@ -3716,7 +3718,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         // Generate dates array
         let currentDate = new Date(startOfWeek);
         while (currentDate <= endOfRange) {
-            if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+            if (currentDate.getDay() !== 0 && currentDate.getDay() !== 1) {
                 data.alldates.push(currentDate.toISOString().split('T')[0]);
             }
             currentDate.setDate(currentDate.getDate() + 1);
