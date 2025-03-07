@@ -10,7 +10,7 @@ const Wellnessdayevent = require("../models/wellnessdayevent")
 exports.createteam = async (req, res) => {
     const {id, email} = req.user
 
-    const {teamname, directorpartner, associate, managerid, teamleader, members} = req.body
+    const {teamname, directorpartner, associate, managerid, teamleader, members, index} = req.body
 
     if (!teamname){
         return res.status(400).json({message: "failed", data: "Please enter team name"})
@@ -31,15 +31,34 @@ exports.createteam = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Invalid users"})
     }
 
+    // check if the index is already in use
+
+    const checkindex = await Teams.findOne({ index: index })
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem with checking the index. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
+    })
+
+    const highestIndex = await Teams.getHighestIndex();
     const memberusers = []
 
     members.forEach(tempdata => {
         memberusers.push(new mongoose.Types.ObjectId(tempdata))
     })
 
-    await Teams.create({teamname: teamname, directorpartner: new mongoose.Types.ObjectId(directorpartner), associate: !associate ? null : new mongoose.Types.ObjectId(associate), manager: new mongoose.Types.ObjectId(managerid), teamleader: new mongoose.Types.ObjectId(teamleader), members: members})
+    await Teams.create({teamname: teamname, directorpartner: new mongoose.Types.ObjectId(directorpartner), associate: !associate ? null : new mongoose.Types.ObjectId(associate), manager: new mongoose.Types.ObjectId(managerid), teamleader: new mongoose.Types.ObjectId(teamleader), members: members, index: index})
     .catch(err => {
         console.log(`There's a problem with saving teams for ${teamname}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
+    })
+
+    checkindex.index = highestIndex + 1
+    await checkindex.save()
+    .catch(err => {
+        console.log(`There's a problem with saving the index for ${teamname}. Error: ${err}`)
 
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
     })
@@ -123,6 +142,7 @@ exports.listteam = async (req, res) => {
                 $project: {
                     _id: 1,
                     teamname: 1,
+                    index: 1,
                     manager: {
                         $concat: [
                             { $ifNull: ['$managerDetails.firstname', ''] },
@@ -147,6 +167,7 @@ exports.listteam = async (req, res) => {
                     projectCount: { $size: '$projects' },
                 },
             },
+            { $sort: { index: 1 } },
             { $skip: pageOptions.page * pageOptions.limit },
             { $limit: pageOptions.limit },
         ]);
@@ -344,6 +365,7 @@ exports.teamdata = async (req, res) => {
             $project: {
                 _id: 1,
                 teamname: 1,
+                index: 1,
                 directorpartner: {
                     fullname: { $concat: ['$directorPartnerDetails.firstname', ' ', '$directorPartnerDetails.lastname'] },
                     dpid: '$directorPartnerDetails.owner'
@@ -376,7 +398,8 @@ exports.teamdata = async (req, res) => {
                     }
                 },
             },
-        }
+        },
+        { $sort: { index: 1 } },
     ]);
 
     if (!team[0]) {
@@ -409,7 +432,7 @@ exports.teamdata = async (req, res) => {
 };
 
 exports.editteam = async (req, res) => {
-    const {teamid, teamname, directorpartner, associate, manager, teamleader, members} = req.body
+    const {teamid, teamname, directorpartner, associate, manager, teamleader, members, index} = req.body
 
     if (!teamid){
         return res.status(400).json({message: "failed", data: "Select a team first!"})
@@ -433,17 +456,40 @@ exports.editteam = async (req, res) => {
         return res.status(400).json({message: "failed", data: "Members selected is invalid!"})
     }
 
+    const checkindex = await Teams.findOne({ 
+        index: index,
+        _id: { $ne: new mongoose.Types.ObjectId(teamid) } // Exclude the current team
+    })
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem checking the index. Error: ${err}`)
+        return res.status(400).json({
+            message: "bad-request", 
+            data: "There's a problem with the server! Please contact customer support for more details."
+        })
+    })
+
     const memberlist = []
 
     members.forEach(tempdata => {
         memberlist.push(new mongoose.Types.ObjectId(tempdata))
     })
 
-    await Teams.findOneAndUpdate({_id: new mongoose.Types.ObjectId(teamid)}, {teamname: teamname, directorpartner: new mongoose.Types.ObjectId(directorpartner), associate: !associate ? null : new mongoose.Types.ObjectId(associate), manager: new mongoose.Types.ObjectId(manager), teamleader: new mongoose.Types.ObjectId(teamleader), members: memberlist})
+    await Teams.findOneAndUpdate({_id: new mongoose.Types.ObjectId(teamid)}, {teamname: teamname, directorpartner: new mongoose.Types.ObjectId(directorpartner), associate: !associate ? null : new mongoose.Types.ObjectId(associate), manager: new mongoose.Types.ObjectId(manager), teamleader: new mongoose.Types.ObjectId(teamleader), members: memberlist, index: index}) 
     .catch(err => {
         console.log(`There's a problem editing the team ${teamname}. Error: ${err}`)
 
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    const highestIndex = await Teams.getHighestIndex();
+
+    checkindex.index = highestIndex + 1
+    await checkindex.save()
+    .catch(err => {
+        console.log(`There's a problem saving the index for ${teamname}. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
     })
 
     return res.json({message: "success"})
@@ -537,6 +583,9 @@ exports.listownteam = async (req, res) => {
                         $concat: ['$teamleaderDetails.firstname', ' ', '$teamleaderDetails.lastname'],
                     },
                 },
+            },
+            {
+                $sort: { index: 1 },
             },
             {
                 $skip: pageOptions.page * pageOptions.limit,
@@ -685,6 +734,9 @@ exports.listprojectduedates = async (req, res) => {
                 teamLeaderFullname: 1,
                 projectCount: 1
             }
+        },
+        {
+            $sort: { index: 1 }
         }
     ]);
     
@@ -786,6 +838,9 @@ exports.listprojectduedatessuperadmin = async (req, res) => {
                 teamLeaderFullname: 1,
                 projectCount: 1
             }
+        },
+        {
+            $sort: { index: 1 }
         }
     ]);
     
@@ -913,6 +968,7 @@ exports.listteammembers = async (req, res) => {
                 }
             }
         },
+        { $sort: { index: 1 } },
         { $skip: pageOptions.page * pageOptions.limit },
         { $limit: pageOptions.limit }
     ]);
@@ -1024,6 +1080,9 @@ exports.listallteams = async (req, res) => {
                 },
             },
             {
+                $sort: { index: 1 }
+            },
+            {
                 $skip: pageOptions.page * pageOptions.limit,
             },
             {
@@ -1067,6 +1126,7 @@ exports.listallteams = async (req, res) => {
 exports.listteamselect = async (req, res) => {
 
     const teamdata = await Teams.find()
+    .sort({ index: 1 })
 
     const data = []
 

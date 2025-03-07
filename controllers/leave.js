@@ -210,20 +210,20 @@ exports.requestleave = async (req, res) => {
         const startDate = moment(leavestart).startOf('day');
         const endDate = moment(leaveend).startOf('day');
 
-        // Check if dates are in the past or today
-        if (startDate.isSameOrBefore(today)) {
-            return res.status(400).json({
-                message: "failed", 
-                data: "Leave start date must be a future date"
-            });
-        }
+        // // Check if dates are in the past or today
+        // if (startDate.isSameOrBefore(today)) {
+        //     return res.status(400).json({
+        //         message: "failed", 
+        //         data: "Leave start date must be a future date"
+        //     });
+        // }
 
-        if (endDate.isSameOrBefore(today)) {
-            return res.status(400).json({
-                message: "failed", 
-                data: "Leave end date must be a future date"
-            });
-        }
+        // if (endDate.isSameOrBefore(today)) {
+        //     return res.status(400).json({
+        //         message: "failed", 
+        //         data: "Leave end date must be a future date"
+        //     });
+        // }
 
         // Check if start date is before end date
         if (startDate.isAfter(endDate)) {

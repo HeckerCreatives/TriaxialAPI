@@ -30,12 +30,23 @@ const TeamsSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Users',
             index: true
-        }]
+        }],
+        index: {
+            type: Number
+        }
     },
     {
         timestamps: true
     }
 )
+
+TeamsSchema.statics.getHighestIndex = async function() {
+    const highestTeam = await this.findOne({}, { index: 1 })
+        .sort({ index: -1 })
+        .limit(1);
+    return highestTeam ? highestTeam.index : 0;
+};
+
 
 const Teams = mongoose.model("Teams", TeamsSchema)
 module.exports = Teams
