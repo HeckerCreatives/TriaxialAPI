@@ -1169,3 +1169,27 @@ exports.listallteamsforselect = async (req, res) => {
 
     return res.json({message: "success", data: data})
 }
+exports.updateteamindexes = async (req, res) => {
+    const { teamindexes } = req.body;
+
+    if (!teamindexes) {
+        return res.status(400).json({ message: "failed", data: "No team indexes provided" });
+    }
+
+    const bulkOps = teamindexes.map((index, i) => ({
+        updateOne: {
+            filter: { _id: index.teamid },
+            update: { index: index.index },
+        },
+    }));
+
+    await Teams.bulkWrite(bulkOps)
+    .then(() => {
+        return res.json({ message: "success" });
+    })
+    .catch(err => {
+        console.log(`There's a problem updating the team indexes. Error: ${err}`);
+
+        return res.status(400).json({ message: "failed", data: "There's a problem with the server! Please contact customer support for more details." });
+    })
+}
