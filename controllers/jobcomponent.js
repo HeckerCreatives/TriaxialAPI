@@ -3702,8 +3702,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
             },
             {
                 $sort: { 
-                    '_id.teamName': 1,
-                    'memberDetails.firstname': 1
+                    index: 1,
                 }
             }
         ]);

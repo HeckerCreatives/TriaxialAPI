@@ -1142,3 +1142,30 @@ exports.listteamselect = async (req, res) => {
     return res.json({message: "success", data: data})
 }
 
+
+exports.listallteamsforselect = async (req, res) => {
+
+    const { id, email } = req.user;
+
+    const teamdata = await Teams.find()
+    .sort({ index: 1 })
+    .catch(err => {
+        console.log(`There's a problem with getting the teams list. Error: ${err}`)
+
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+    })
+
+    const data = []
+
+    teamdata.forEach(tempdata => {
+        const {_id, teamname, index} = tempdata
+
+        data.push({
+            teamid: _id,
+            teamname: teamname,
+            index: index
+        })
+    })
+
+    return res.json({message: "success", data: data})
+}
