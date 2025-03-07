@@ -49,6 +49,6 @@ router
      .get("/listallteams", protectalluser, listallteams)
      .get("/listteamau", protectalluser, listteam)
      .get("/listallteamsforselect", protectalluser, listallteamsforselect)
-     .get("/updateteamindexes", protectalluser, updateteamindexes)
+     .post("/updateteamindexes", protectalluser, updateteamindexes)
 
 module.exports = router;
