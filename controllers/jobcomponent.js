@@ -2710,7 +2710,7 @@ exports.yourworkload = async (req, res) => {
             },
             {
                 $lookup: {
-                    from: 'workfromhome',
+                    from: 'workfromhomes',
                     let: { employeeId: new mongoose.Types.ObjectId(id) },
                     pipeline: [
                         { 
@@ -2783,8 +2783,7 @@ exports.yourworkload = async (req, res) => {
                                 ]
                             }
                         },
-                    },
-                    
+                    },                 
                     'members.leaveDates': {
                         $filter: {
                             input: '$leaveData.leavedates',
@@ -2819,13 +2818,13 @@ exports.yourworkload = async (req, res) => {
                             }
                         }
                     },
-                    'members.wfhDates': {
+                   'members.wfhDates': {
                         $filter: {
                             input: '$wfhData.requestdates',
                             as: 'wfh',
                             cond: {
                                 $and: [
-                                    { $lte: ['$$wfh.requestdate', '$projectDetails.deadlinedate'] }
+                                    { $lte: ['$$wfh.requeststart', '$projectDetails.deadlinedate'] }
                                 ]
                             }
                         }
@@ -2911,6 +2910,8 @@ exports.yourworkload = async (req, res) => {
                 eventDates: member.eventDates,
                 wfhDates: member.wfhDates
             }));
+
+            console.log(members)
             
 
             // Push members into the yourworkload array
@@ -4545,7 +4546,7 @@ exports.individualworkload = async (req, res) => {
             },
             {
                 $lookup: {
-                    from: 'workfromhome',
+                    from: 'workfromhomes',
                     let: { employeeId: new mongoose.Types.ObjectId(id) },
                     pipeline: [
                         { 
@@ -4660,7 +4661,7 @@ exports.individualworkload = async (req, res) => {
                             as: 'wfh',
                             cond: {
                                 $and: [
-                                    { $lte: ['$$wfh.requestdate', '$projectDetails.deadlinedate'] }
+                                    { $lte: ['$$wfh.requeststart', '$projectDetails.deadlinedate'] }
                                 ]
                             }
                         }
