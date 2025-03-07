@@ -2825,7 +2825,7 @@ exports.yourworkload = async (req, res) => {
                             as: 'wfh',
                             cond: {
                                 $and: [
-                                    { $lte: ['$$wfh.startdate', '$projectDetails.deadlinedate'] }
+                                    { $lte: ['$$wfh.requestdate', '$projectDetails.deadlinedate'] }
                                 ]
                             }
                         }
@@ -4660,7 +4660,7 @@ exports.individualworkload = async (req, res) => {
                             as: 'wfh',
                             cond: {
                                 $and: [
-                                    { $lte: ['$$wfh.startdate', '$projectDetails.deadlinedate'] }
+                                    { $lte: ['$$wfh.requestdate', '$projectDetails.deadlinedate'] }
                                 ]
                             }
                         }
