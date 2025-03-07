@@ -2545,6 +2545,7 @@ exports.yourworkload = async (req, res) => {
         // Calculate the total days between startOfWeek and endOfRange
         const totalDays = Math.ceil((endOfRange - startOfWeek) / (1000 * 60 * 60 * 24));
 
+        console.log(referenceDate)
         const result = await Jobcomponents.aggregate([
             {
                 $match: {
@@ -2591,11 +2592,11 @@ exports.yourworkload = async (req, res) => {
             },       
             
             { $unwind: { preserveNullAndEmptyArrays: true, path: "$members.dates" } },
-            {
-                $match: {
-                    "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
-                }
-            },
+            // {
+            //     $match: {
+            //         "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
+            //     }
+            // },
             {
                 $lookup: {
                     from: 'users',
@@ -2842,7 +2843,6 @@ exports.yourworkload = async (req, res) => {
             }
         ]);
 
-        console.log(result)
 
         const dateList = [];
         let currentDate = new Date(startOfWeek);
@@ -3211,7 +3211,6 @@ exports.getjobcomponentdashboard = async (req, res) => {
             teams: []
         };
 
-        console.log(result)
 
         let currentDate = new Date(startOfWeek);
         while (currentDate <= endOfRange) {
@@ -3708,7 +3707,6 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
             }
         ]);
 
-        console.log(result)
         // Prepare response data structure
         const data = {
             alldates: [],
@@ -3983,7 +3981,6 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             teams: []
         };
 
-        console.log(result);
 
         let currentDate = new Date(startOfWeek);
         while (currentDate <= endOfRange) {
@@ -4643,7 +4640,6 @@ exports.individualworkload = async (req, res) => {
             }
         ]);
 
-        console.log(result)
 
         const dateList = [];
         let currentDate = new Date(startOfWeek);
