@@ -2542,10 +2542,7 @@ exports.yourworkload = async (req, res) => {
         const startOfWeek = referenceDate.startOf('isoWeek').toDate();
         const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate(); // End date for eight weeks, Friday
 
-        // Calculate the total days between startOfWeek and endOfRange
-        const totalDays = Math.ceil((endOfRange - startOfWeek) / (1000 * 60 * 60 * 24));
 
-        console.log(referenceDate)
         const result = await Jobcomponents.aggregate([
             {
                 $match: {
@@ -2713,6 +2710,31 @@ exports.yourworkload = async (req, res) => {
             },
             {
                 $lookup: {
+                    from: 'workfromhome',
+                    let: { employeeId: new mongoose.Types.ObjectId(id) },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $eq: ['$owner', new mongoose.Types.ObjectId(id)] 
+                                } 
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                requestdates: {
+                                    requeststart: "$requestdate",
+                                    requestend: "$requestend"
+                                }
+                            }
+                        }
+                    ],
+                    as: 'wfhData'
+                }
+            },
+            {
+                $lookup: {
                     from: 'wellnessdays',
                     let: { employeeId: new mongoose.Types.ObjectId(id) },
                     pipeline: [
@@ -2796,6 +2818,17 @@ exports.yourworkload = async (req, res) => {
                                 ]
                             }
                         }
+                    },
+                    'members.wfhDates': {
+                        $filter: {
+                            input: '$wfhData.requestdates',
+                            as: 'wfh',
+                            cond: {
+                                $and: [
+                                    { $lte: ['$$wfh.startdate', '$projectDetails.deadlinedate'] }
+                                ]
+                            }
+                        }
                     }
                 }
             },            
@@ -2875,7 +2908,8 @@ exports.yourworkload = async (req, res) => {
                 dates: member.dates,
                 leaveDates: member.leaveDates,
                 wellnessDates: member.wellnessDates,
-                eventDates: member.eventDates
+                eventDates: member.eventDates,
+                wfhDates: member.wfhDates
             }));
             
 
@@ -2895,6 +2929,7 @@ exports.yourworkload = async (req, res) => {
                 jobcomponent: job.jobcomponent,
                 members
             });
+
         });
 
         return res.json({ message: 'success', data: data.data });
@@ -4389,11 +4424,11 @@ exports.individualworkload = async (req, res) => {
             },       
             
             { $unwind: { preserveNullAndEmptyArrays: true, path: "$members.dates" } },
-            {
-                $match: {
-                    "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
-                }
-            },
+            // {
+            //     $match: {
+            //         "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
+            //     }
+            // },
             {
                 $lookup: {
                     from: 'users',
@@ -4510,6 +4545,31 @@ exports.individualworkload = async (req, res) => {
             },
             {
                 $lookup: {
+                    from: 'workfromhome',
+                    let: { employeeId: new mongoose.Types.ObjectId(id) },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $eq: ['$owner', new mongoose.Types.ObjectId(id)] 
+                                } 
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                requestdates: {
+                                    requeststart: "$requestdate",
+                                    requestend: "$requestend"
+                                }
+                            }
+                        }
+                    ],
+                    as: 'wfhData'
+                }
+            },
+            {
+                $lookup: {
                     from: 'wellnessdays',
                     let: { employeeId: new mongoose.Types.ObjectId(employeeid) },
                     pipeline: [
@@ -4593,6 +4653,17 @@ exports.individualworkload = async (req, res) => {
                                 ]
                             }
                         }
+                    },
+                    'members.wfhDates': {
+                        $filter: {
+                            input: '$wfhData.requestdates',
+                            as: 'wfh',
+                            cond: {
+                                $and: [
+                                    { $lte: ['$$wfh.startdate', '$projectDetails.deadlinedate'] }
+                                ]
+                            }
+                        }
                     }
                 }
             },            
@@ -4672,7 +4743,8 @@ exports.individualworkload = async (req, res) => {
                 dates: member.dates,
                 leaveDates: member.leaveDates,
                 wellnessDates: member.wellnessDates,
-                eventDates: member.eventDates
+                eventDates: member.eventDates,
+                wfhDates: member.wfhDates
             }));
             
 
