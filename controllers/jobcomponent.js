@@ -3568,7 +3568,6 @@ exports.getjobcomponentdashboard = async (req, res) => {
 // };
 
 
-// getsuperadminteamdashboard
 exports.getsuperadminjobcomponentdashboard = async (req, res) => {
     const { filterDate } = req.query;
 
@@ -3586,34 +3585,52 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     as: 'projects'
                 }
             },
-            { $unwind: '$projects' },
-            {
-                $lookup: {
-                    from: 'jobcomponents',
-                    localField: 'projects._id',
-                    foreignField: 'project',
-                    as: 'jobComponents'
-                }
-            },
-            {
-                $match: {
-                    "projects.startdate": { $lte: endOfRange },
-                    "projects.deadlinedate": { $gte: startOfWeek }
-                }
-            },
             {
                 $lookup: {
                     from: 'userdetails',
-                    localField: '_id',
-                    foreignField: 'team',
-                    as: 'members'
+                    localField: 'members',
+                    foreignField: 'owner',
+                    as: 'memberDetails'
                 }
             },
-            { $unwind: '$members' },
+            {
+                $lookup: {
+                    from: 'projects',
+                    let: { teamId: '$_id' },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ['$team', '$$teamId'] },
+                                        { $lte: ['$startdate', endOfRange] },
+                                        { $gte: ['$deadlinedate', startOfWeek] }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            $lookup: {
+                                from: 'jobcomponents',
+                                localField: '_id',
+                                foreignField: 'project',
+                                as: 'jobComponents'
+                            }
+                        }
+                    ],
+                    as: 'activeProjects'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$memberDetails',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
             {
                 $lookup: {
                     from: 'leaves',
-                    localField: 'members.owner',
+                    localField: 'memberDetails.owner',
                     foreignField: 'owner',
                     as: 'leaveData'
                 }
@@ -3621,7 +3638,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
             {
                 $lookup: {
                     from: 'workfromhomes',
-                    localField: 'members.owner',
+                    localField: 'memberDetails.owner',
                     foreignField: 'owner',
                     as: 'wfhData'
                 }
@@ -3629,7 +3646,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
             {
                 $lookup: {
                     from: 'wellnessdays',
-                    localField: 'members.owner',
+                    localField: 'memberDetails.owner',
                     foreignField: 'owner',
                     as: 'wellnessData'
                 }
@@ -3639,11 +3656,15 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     from: 'events',
                     let: { teamId: '$_id' },
                     pipeline: [
-                        { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
-                        {
-                            $project: {
-                                _id: 0,
-                                eventdates: { startdate: '$startdate', enddate: '$enddate' }
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $in: ['$$teamId', '$teams'] },
+                                        { $lte: ['$startdate', endOfRange] },
+                                        { $gte: ['$enddate', startOfWeek] }
+                                    ]
+                                }
                             }
                         }
                     ],
@@ -3651,86 +3672,120 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                 }
             },
             {
-                $project: {
-                    teamid: '$_id',
-                    teamName: '$teamname',
-                    members: 1,
-                    leaveData: 1,
-                    wfhData: 1,
-                    wellnessData: 1,
-                    eventData: 1,
-                    jobComponents: 1
+                $group: {
+                    _id: {
+                        teamId: '$_id',
+                        teamName: '$teamname',
+                        memberId: '$memberDetails.owner'
+                    },
+                    teamData: { $first: '$$ROOT' },
+                    memberDetails: { $first: '$memberDetails' },
+                    leaveData: { $first: '$leaveData' },
+                    wfhData: { $first: '$wfhData' },
+                    wellnessData: { $first: '$wellnessData' },
+                    eventData: { $first: '$eventData' },
+                    jobComponentsData: { 
+                        $push: {
+                            $reduce: {
+                                input: '$activeProjects',
+                                initialValue: [],
+                                in: { 
+                                    $concatArrays: [
+                                        '$$value',
+                                        '$$this.jobComponents'
+                                    ]
+                                }
+                            }
+                        }
+                    }
                 }
             },
-            { $sort: { 'teamName': 1, 'members.firstname': 1 } }
+            {
+                $sort: { 
+                    '_id.teamName': 1,
+                    'memberDetails.firstname': 1
+                }
+            }
         ]);
 
+        // Prepare response data structure
         const data = {
             alldates: [],
             teams: []
         };
 
+        // Generate dates array
         let currentDate = new Date(startOfWeek);
         while (currentDate <= endOfRange) {
-            if (currentDate.getDay() !== 1 && currentDate.getDay() !== 0) {
+            if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
                 data.alldates.push(currentDate.toISOString().split('T')[0]);
             }
             currentDate.setDate(currentDate.getDate() + 1);
         }
 
+        // Process results
         result.forEach(entry => {
-            const { teamName, teamid, members, leaveData, wfhData, wellnessData, eventData, jobComponents } = entry;
-            let teamData = data.teams.find(team => team.name === teamName);
+            const { _id, memberDetails, leaveData, wfhData, wellnessData, eventData, jobComponentsData } = entry;
+
+            let teamData = data.teams.find(team => team.teamid.toString() === _id.teamId.toString());
             if (!teamData) {
-                teamData = { teamid, name: teamName, members: [] };
+                teamData = {
+                    teamid: _id.teamId,
+                    name: _id.teamName,
+                    members: []
+                };
                 data.teams.push(teamData);
             }
 
-            let employeeData = teamData.members.find(emp => emp.name === members.fullname);
-            if (!employeeData) {
-                employeeData = {
-                    id: members.owner,
-                    name: members.fullname,
-                    initial: members.initial,
-                    resource: members.resource,
-                    role: members.role,
-                    notes: members.notes,
-                    leave: leaveData,
-                    wfh: wfhData,
-                    wellness: wellnessData,
-                    event: eventData,
+            if (memberDetails) {
+                let employeeData = {
+                    id: memberDetails.owner,
+                    name: `${memberDetails.firstname} ${memberDetails.lastname}`,
+                    initial: memberDetails.initial,
+                    resource: memberDetails.resource,
+                    leave: leaveData || [],
+                    wfh: wfhData || [],
+                    wellness: wellnessData || [],
+                    event: eventData || [],
                     dates: []
                 };
+
+                // Process job component hours
+                jobComponentsData.flat().forEach(job => {
+                    if (job.members) {
+                        job.members.forEach(member => {
+                            if (member.employee.toString() === memberDetails.owner.toString()) {
+                                member.dates.forEach(date => {
+                                    const formattedDate = moment(date.date).format('YYYY-MM-DD');
+                                    let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
+                                    if (!dateEntry) {
+                                        dateEntry = {
+                                            date: formattedDate,
+                                            totalhoursofjobcomponents: date.hours || 0
+                                        };
+                                        employeeData.dates.push(dateEntry);
+                                    } else {
+                                        dateEntry.totalhoursofjobcomponents += date.hours || 0;
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+
                 teamData.members.push(employeeData);
             }
-
-            jobComponents.forEach(job => {
-                if (job.members) {
-                    job.members.forEach(member => {
-                        if (member.employee === members.owner && member.dates) {
-                            member.dates.forEach(d => {
-                                const formattedDate = new Date(d.date).toISOString().split('T')[0];
-                                let dateEntry = employeeData.dates.find(dt => dt.date === formattedDate);
-                                if (!dateEntry) {
-                                    dateEntry = { date: formattedDate, totalhoursofjobcomponents: d.hours };
-                                    employeeData.dates.push(dateEntry);
-                                } else {
-                                    dateEntry.totalhoursofjobcomponents += d.hours;
-                                }
-                            });
-                        }
-                    });
-                }
-            });
         });
 
         return res.json({ message: 'success', data });
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ message: 'Error processing request', error: err.message });
+        return res.status(500).json({ 
+            message: 'Error processing request', 
+            error: err.message 
+        });
     }
 };
-
 
 exports.getjobcomponentindividualrequest = async (req, res) => {
     const { id, email } = req.user;
