@@ -3751,27 +3751,50 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                 };
 
                 // Process job component hours
+                // Safely process job component data with null checks and default values
                 jobComponentsData.flat().forEach(job => {
-                    if (job.members) {
+                    // Check if job exists and has members
+                    if (job && Array.isArray(job.members)) {
                         job.members.forEach(member => {
-                            if (member.employee.toString() === memberDetails.owner.toString()) {
-                                member.dates.forEach(date => {
-                                    const formattedDate = moment(date.date).format('YYYY-MM-DD');
-                                    let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
-                                    if (!dateEntry) {
-                                        dateEntry = {
-                                            date: formattedDate,
-                                            totalhoursofjobcomponents: date.hours || 0
-                                        };
-                                        employeeData.dates.push(dateEntry);
-                                    } else {
-                                        dateEntry.totalhoursofjobcomponents += date.hours || 0;
+                            // Check if member and employee exist
+                            if (member && member.employee && memberDetails && memberDetails.owner) {
+                                try {
+                                    const memberEmployeeId = member.employee.toString();
+                                    const memberDetailsOwnerId = memberDetails.owner.toString();
+                                    
+                                    if (memberEmployeeId === memberDetailsOwnerId) {
+                                        // Ensure dates array exists
+                                        const dates = Array.isArray(member.dates) ? member.dates : [];
+                                        
+                                        dates.forEach(date => {
+                                            if (date && date.date) {
+                                                const formattedDate = moment(date.date).format('YYYY-MM-DD');
+                                                let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
+                                                
+                                                if (!dateEntry) {
+                                                    dateEntry = {
+                                                        date: formattedDate,
+                                                        totalhoursofjobcomponents: Number(date.hours) || 0
+                                                    };
+                                                    employeeData.dates.push(dateEntry);
+                                                } else {
+                                                    dateEntry.totalhoursofjobcomponents += Number(date.hours) || 0;
+                                                }
+                                            }
+                                        });
                                     }
-                                });
+                                } catch (err) {
+                                    console.error('Error processing member data:', err);
+                                }
                             }
                         });
                     }
                 });
+
+                // Ensure employeeData has dates array even if no data was processed
+                if (!employeeData.dates) {
+                    employeeData.dates = [];
+                }
 
                 teamData.members.push(employeeData);
             }
