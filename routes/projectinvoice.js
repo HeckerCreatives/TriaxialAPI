@@ -25,7 +25,7 @@ router
 
     //  #region SUPERADMIN
 
-    .get("/listcomponentprojectinvoicesa", protectsuperadmin, listcomponentprojectinvoicesa)
+    .get("/listcomponentprojectinvoicesa", protectalluser, listcomponentprojectinvoicesa)
     .get("/listcomponenttotalinvoice", protectsuperadmin, listcomponenttotalinvoice)
     .get("/listcomponentclienttotalinvoice", protectsuperadmin, listcomponentclienttotalinvoice)
     

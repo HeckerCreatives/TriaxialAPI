@@ -1831,11 +1831,16 @@ exports.listjobcomponent = async (req, res) => {
 
 exports.listteamjobcomponent = async (req, res) => {
     const { id, email } = req.user;
-    const { teamid, search } = req.query;
+    const { teamid, search, filterdate } = req.query;
 
     if(!mongoose.Types.ObjectId.isValid(teamid)) {
         return res.status(400).json({ message: "failed", data: "Invalid team ID" });
     }
+
+    const referenceDate = filterdate ? moment(new Date(filterdate)) : moment();
+    const startOfWeek = referenceDate.startOf('isoWeek').toDate();
+    const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
+
 
     let searchQuery = {};
 
@@ -2109,7 +2114,7 @@ exports.listteamjobcomponent = async (req, res) => {
                   "allDates": {
                     "$let": {
                       "vars": {
-                        "startDate": "$projectDetails.startdate",
+                        "startDate": startOfWeek,
                         "endDate": "$projectDetails.deadlinedate"
                       },
                       "in": {

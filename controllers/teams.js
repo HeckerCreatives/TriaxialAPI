@@ -132,6 +132,41 @@ exports.listteam = async (req, res) => {
             },
             {
                 $lookup: {
+                    from: 'jobcomponents',
+                    localField: 'projects._id',
+                    foreignField: 'project',
+                    as: 'jobcomponents',
+                }
+            },
+            { $unwind: { path: '$jobcomponents', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'invoices',
+                    let: { jobComponentId: "$jobcomponents._id" },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
+                                        { $eq: ["$status", "Approved"] },                                        
+                                    ]
+                                } 
+                            } 
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalAmount: { $sum: "$invoiceamount" }
+                            }
+                        }
+                    ],
+                    as: 'wip'
+                }
+            },
+            { $unwind: { path: '$wip', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
                     from: 'clients',
                     localField: 'projects.client',
                     foreignField: '_id',
@@ -165,6 +200,7 @@ exports.listteam = async (req, res) => {
                         },
                     },
                     projectCount: { $size: '$projects' },
+                    wip: { $ifNull: ['$wip.totalAmount', 0] },
                 },
             },
             { $sort: { index: 1 } },
