@@ -4,6 +4,7 @@ const {sendmail} = require("../utils/email")
 const moment = require("moment");
 const Userdetails = require("../models/Userdetails");
 const Users = require("../models/Users");
+const { formatDate } = require("../utils/date");
 
 //  #region ALL USERS
 
@@ -165,9 +166,9 @@ exports.requestwfhemployee = async (req, res) => {
         A Work From Home application has been generated. 
         Please see the details below:
                                      
-        Timestamp:                   ${moment().format('YYYY-MM-DD HH:mm:ss')}
-        Request Date:                ${requestdate}
-        Request End Date:            ${requestdate}
+        Timestamp:                   ${moment().format('DD/MM/YYYY HH:mm:ss')}
+        Request Date:                ${formatDate(requestdate)}
+        Request End Date:            ${formatDate(requestdate)}
         Wellness Day Cycle:          ${wellnessdaycycle ? 'Yes' : 'No'}
         Total Hours WFH:             ${totalhourswfh}
         Hours of Leave:              ${hoursofleave}
@@ -176,9 +177,7 @@ exports.requestwfhemployee = async (req, res) => {
         Best Regards,
         ${fullname}
 
-        Note: This is an auto-generated message, please do not reply.
-        Please forward on this email thread any necessary documents for the WFH.
-        Please add your Work From Home Schedule to WORKLOAD SPREADSHEET.
+        Note: This is an auto-generated message.
     `;
 
     const recipients = [

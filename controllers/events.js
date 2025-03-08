@@ -6,6 +6,7 @@ const {sendmail} = require("../utils/email")
 
 const moment = require('moment');
 const { getAllUserIdsExceptSender } = require("../utils/user");
+const { formatDate, formatDateRange } = require("../utils/date");
 
 //  #region USERS
 
@@ -251,7 +252,7 @@ exports.createevents = async (req, res) => {
 
     const receiver = await getAllUserIdsExceptSender(id)
 
-    await sendmail(sender, receiver, `${eventtitle} (Event)`, `Hello Everyone!\n\nThere would be an event on ${startdate} until ${enddate}.\n\nIf there's any question, please feel free to contact your respective immediate advisors\n\nThank you and have a great day!`)
+    await sendmail(sender, receiver, `${eventtitle} (Event)`, `Hello Everyone!\n\nThere would be an event on ${formatDateRange(startdate, enddate)}.\n\nIf there's any question, please feel free to contact your respective immediate advisors\n\nThank you and have a great day!\n\nNote: This is an auto-generated message.`)
 
     return res.json({message: "success"})
 }

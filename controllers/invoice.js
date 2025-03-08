@@ -8,6 +8,7 @@ const Projects = require("../models/Projects")
 const Clients = require("../models/Clients")
 const Teams = require("../models/Teams")
 const Userdetails = require("../models/Userdetails")
+const { formatCurrency } = require("../utils/currency")
 
 
 //  #region EMPLOYEE & MANAGER
@@ -147,23 +148,21 @@ exports.createinvoice = async (req, res) => {
         Job Number:                  ${project.jobno}
         Client Name:                 ${client.clientname}
         Project Name:                ${project.projectname}
-        Component Budget:            $${newInvoiceData.invoiceamount}
+        Component Budget:            $${formatCurrency(newInvoiceData.invoiceamount)} 
         Job Component:               ${jobcomponent.jobcomponent}
         Previous %invoice:           ${findCurrinvoice?.currentinvoice || 0}%
-        Present %invoice:            ${findCurrinvoice?.newinvoice || 0}%
+        Present %invoice:            ${invoiceamount || 0}%
         This Claim Percentage:       ${invoice}%
-        This Claim Amount:           $${claimamount}
-        Admin Notes:                 ${jobcomponent.adminnotes || 'No notes provided'}
-        JM Comments:                 ${comments || 'No comments provided'}
+        This Claim Amount:           $${formatCurrency(claimamount)}
+        Admin Notes:                 ${jobcomponent.adminnotes || ''}
+        JM Comments:                 ${comments || ''}
 
 
-        Note: This is an auto generated message, please do not reply. For your inquiries, 
-        comments and/or concerns please use the button "Troubleshoot/Bug Fix" at 
-        the Workload spreadsheet.    
+        Note: This is an auto generated message.    
         `;        
         // Send email notification
         const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, allRecipientIds, `${project.jobno} - ${project.projectname} - Request Invoice`, emailContent, false)
+        await sendmail(sender, allRecipientIds, `${project.jobno} - ${project.projectname} - Invoice Request`, emailContent, false)
             .catch(err => {
                 console.log(`Failed to send email notification for new invoice creation. Error: ${err}`);
             });
@@ -174,7 +173,7 @@ exports.createinvoice = async (req, res) => {
         return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details" });
     }
 };
-;
+
 //  #endregion
 
 //  #region FINANCE

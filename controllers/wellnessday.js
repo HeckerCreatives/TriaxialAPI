@@ -1,7 +1,8 @@
 const { default: mongoose } = require("mongoose");
 const Wellnessday = require ("../models/wellnessday");
 const Wellnessdayevent = require("../models/wellnessdayevent")
-const {sendmail} = require("../utils/email")
+const {sendmail} = require("../utils/email");
+const { formatDate } = require("../utils/date");
 
 //  #region USERS
 
@@ -79,7 +80,41 @@ exports.wellnessdayrequest = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details."})
     })
 
-    await sendmail(new mongoose.Types.ObjectId(id), [ new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID), new mongoose.Types.ObjectId(reportingto)], `Wellness Day Request by ${fullname}`, `Hello Manager!\n\nThere's a wellness day request from ${fullname}!\nOn ${request}.\n\nIf you have any question please contact ${fullname}.\n\nThank you and have a great day`, false)
+        const payrollemail = await Users.findOne({
+            email: "payroll@triaxial.au"
+        })    
+        .catch(err => {
+            console.log(`There's a problem with getting payroll email. Error: ${err}`)
+    
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
+        })
+
+        
+        const recipients = [
+            new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID),
+            new mongoose.Types.ObjectId(userdetails.reportingto)
+       ];
+   
+       if (payrollemail?._id) {
+           recipients.push(new mongoose.Types.ObjectId(payrollemail._id));
+       }
+   
+       const emailContent = 
+       `
+       Wellness Day Request by ${fullname}, 
+       
+       Hello Manager!
+       
+       Theres a wellness day request from ${fullname} On ${formatDate(request)}.
+      
+       If you have any question please contact ${fullname}.
+       
+       Thank you and have a great day
+
+       Note: This is an auto-generated message.
+       `
+
+    await sendmail(new mongoose.Types.ObjectId(id), recipients, emailContent, false)
 
     return res.json({message: "success"})
 }

@@ -407,6 +407,9 @@ exports.managerlist = async (req, res) => {
             $project: {
                 name: { $concat: ['$details.firstname', ' ', '$details.lastname'] },
             }
+        },
+        {
+            $sort: { name: 1 }
         }
     ])
 
@@ -467,7 +470,11 @@ exports.employeesearchlist = async (req, res) => {
                 _id: 1, // Keep the employee _id
                 name: { $concat: ['$details.firstname', ' ', '$details.lastname'] }, // Combine first and last name
             }
+        },
+        {
+            $sort: { name: 1 } // Sort by name
         }
+
     ]);
 
     const data = {

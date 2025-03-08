@@ -7,6 +7,8 @@ const {sendmail} = require("../utils/email")
 const Userdetails = require("../models/Userdetails")
 const Users = require("../models/Users")
 const Emails = require("../models/Email")
+const { formatDate } = require("../utils/date")
+const { getLeaveTypeName } = require("../utils/leave")
 
 //  #region USERS
 
@@ -256,34 +258,18 @@ exports.requestleave = async (req, res) => {
     })
 
 
-    const getLeaveTypeName = (type) => {
-        const leaveTypes = {
-            '1': 'Annual Leave',
-            '2': 'Sick Leave',
-            '3': "Carer's Leave",
-            '4': 'Bereavement Leave',
-            '5': 'Study Leave',
-            '6': 'Long Services Leave',
-            '7': 'Anniversary Day',
-            '8': 'Paid Parental Leave',
-            '9': 'Time in Lieu',
-            '10': 'Other Leave'
-        };
-        return leaveTypes[type] || 'Unknown Leave Type';
-    };
-
     const sendmailcontent = `
         Good day!
 
         A leave request has been generated. 
         Please see the details below:
                                         
-        Timestamp:                  ${moment().format('YYYY-MM-DD HH:mm:ss')}
+        Timestamp:                  ${moment().format('DD/MM/YYYY HH:mm:ss')}
         Name:                       ${fullname}
         Leave Type:                 ${getLeaveTypeName(leavetype)}${leavetype === '10' ? ` (${comments})` : ''}
         Details:                    ${details || 'No details provided'}
-        Leave Start Date:           ${leavestart}
-        Leave End Date:             ${leaveend}
+        Leave Start Date:           ${formatDate(leavestart)}
+        Leave End Date:             ${formatDate(leaveend)}
         Total Working Days:         ${totalworkingdays}
         Total Public Holidays:      ${totalpublicholidays}
         Wellness Day Cycle:         ${wellnessdaycycle ? 'Yes' : 'No'}
@@ -291,9 +277,7 @@ exports.requestleave = async (req, res) => {
         Working Hours During Leave: ${workinghoursduringleave}
         Comments:                   ${comments}
 
-        Note: This is an auto-generated message, please do not reply.
-        Please forward on this email thread any necessary documents for the leave.
-        Please add your leave to LEAVE CALENDAR and WORKLOAD SPREADSHEET.    
+        Note: This is an auto-generated message.   
         `;
 
         const recipients = [

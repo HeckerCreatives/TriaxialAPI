@@ -9,6 +9,7 @@ const { getAllUserIdsExceptSender } = require("../utils/user");
 const Teams = require("../models/Teams");
 const Invoice = require("../models/invoice");
 const Userdetails = require("../models/Userdetails");
+const { formatCurrency } = require("../utils/currency");
 
 //  #region MANAGER
 exports.createjobcomponent = async (req, res) => {
@@ -149,12 +150,10 @@ exports.createjobcomponent = async (req, res) => {
         Description:                  ${description}
         Admin Notes:                  ${adminnotes}
 
-        Note: This is an auto generated message, please do not reply. For your inquiries, 
-        comments and/or concerns please use the button "Troubleshoot/Bug Fix" 
-        at the Workload spreadsheet.
+        Note: This is an auto generated message.
         `;
 
-        titlecontent = `${project.jobno} - ${project.projectname} - Variation`
+        titlecontent = `${project.jobno} - ${project.projectname} - Variation Project`
         } else {
             emailContent = `
             A component of the project shown below has been created.
@@ -164,12 +163,10 @@ exports.createjobcomponent = async (req, res) => {
             Job Number:                   ${project.jobno}
             Client Name:                  ${clientz.clientname}
             Project Name:                 ${project.projectname}
-            Budget Fee:                   $${jobcomponentvalue[0].estimatedbudget}
+            Budget Fee:                   $${formatCurrency(jobcomponentvalue[0].estimatedbudget)}
             Job Component:                ${jobcomponentvalue[0].jobcomponent}
     
-            Note: This is an auto generated message, please do not reply. For your inquiries, 
-            comments and/or concerns please use the button "Troubleshoot/Bug Fix" 
-            at the Workload spreadsheet.
+            Note: This is an auto generated message.
     `;
             titlecontent = `${project.jobno} - ${project.projectname} - New Job Component`
         }
@@ -652,7 +649,7 @@ exports.completejobcomponent = async (req, res) => {
         await jobcomponent.save();
 
         // Fetch job manager details
-        const jobManager = await Users.findById(jobcomponent.jobmanager);
+        const jobManager = await Userdetails.findOne({ owner: jobcomponent.jobmanager});
         if (!jobManager) {
             console.error(`Job Manager with ID ${jobcomponent.jobmanager} not found.`);
             return res.status(404).json({ message: "failed", data: "Job Manager not found." });
@@ -682,12 +679,22 @@ exports.completejobcomponent = async (req, res) => {
             console.log(`There's a problem with getting the current invoice details for email content details in create invoice. Error: ${err}`)
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
         })
-
-        const invoiceamount = findCurrinvoice?.invoiceamount || 0;
+        
+        let emailContent
+        
+        const invoiceamount = jobcomponent?.estimatedbudget || 0;
         const newinvoice = findCurrinvoice?.newinvoice || 0;
 
-        const claimamount = (invoiceamount * (newinvoice / 100))
-        const emailContent = `
+        const claimamount = (invoiceamount * ((newinvoice || 100) / 100))
+        const thisclaimpercentage = 100 - newinvoice
+
+        console.log(claimamount)
+
+        console.log(jobcomponent.budgettype)
+
+        if(jobcomponent.budgettype.toString() == 'rates'){
+
+            emailContent = `
         A component of the project shown below has now been removed 
         from the Workload Spreadsheet and has now been recorded to 
         Invoice Spreadsheet.
@@ -697,22 +704,48 @@ exports.completejobcomponent = async (req, res) => {
         Job Number:                   ${project?.jobno || 'N/A'}
         Client Name:                  ${client?.clientname || 'N/A'}
         Project Name:                 ${project?.projectname || 'N/A'}
-        Component Budget:             $${findCurrinvoice?.invoiceamount || 0}
         Job Component:                ${jobcomponent?.jobcomponent || 'N/A'}
-        Previous %invoice:            ${findCurrinvoice?.currentinvoice || 0}%
-        Current %invoice:             ${findCurrinvoice?.newinvoice || 0}%
-        This Claim Percentage:        ${findCurrinvoice?.newinvoice || 0}%
-        This Claim Amount:            $${claimamount?.toFixed(2) || 'N/A'}
+        Component Budget:             $${formatCurrency(jobcomponent?.estimatedbudget) || 0.00}
+        This Claim Amount:            $${formatCurrency(findCurrinvoice?.invoiceamount) || 0.00}
+        Admin Notes:                  ${adminnotes || ''}
+        JM Comments:                  ${comments || ''}(Complete)
 
-        Note: This is an auto generated message, please do not reply. For your inquiries, 
-        comments and/or concerns please use the button "Troubleshoot/Bug Fix" at 
-        the Workload spreadsheet.    
-        `;   
+        Note: This is an auto generated message.    
+        `
+
+        // , please do not reply. For your inquiries, 
+        // comments and/or concerns please use the button "Troubleshoot/Bug Fix" at 
+        // the Workload spreadsheet
+        } else if(jobcomponent.budgettype.toString() == 'lumpsum'){
+            emailContent = `
+            A component of the project shown below has now been removed 
+            from the Workload Spreadsheet and has now been recorded to 
+            Invoice Spreadsheet.
+                                                      
+            Team Name:                    ${team?.teamname || 'N/A'}
+            Job Manager:                  ${jobManager?.firstname || ''} ${jobManager?.lastname || ''}
+            Job Number:                   ${project?.jobno || 'N/A'}
+            Client Name:                  ${client?.clientname || 'N/A'}
+            Project Name:                 ${project?.projectname || 'N/A'}
+            Job Component:                ${jobcomponent?.jobcomponent || 'N/A'}
+            Component Budget:             $${formatCurrency(jobcomponent?.estimatedbudget) || 0.00}
+            Current %invoice:             ${findCurrinvoice?.newinvoice || 0}%
+            Previous %invoice:            ${findCurrinvoice?.currentinvoice || 0}%
+            This Claim Percentage:        ${findCurrinvoice?.newinvoice || 0}%
+            This Claim Amount:            $${formatCurrency(findCurrinvoice?.invoiceamount) || 0.00}
+            Admin Notes:                  ${adminnotes || ''}
+            JM Comments:                  ${comments || ''}(Complete)
+    
+            Note: This is an auto generated message.    
+            `;   
+        
+        }
+
 
         // Send email notification
         const sender = new mongoose.Types.ObjectId(id);
         const receiver = await getAllUserIdsExceptSender(id)
-        await sendmail(sender, receiver, `${project.jobno} - ${project.projectname} - Delete`, emailContent)
+        await sendmail(sender, receiver, `${project.jobno} - ${project.projectname} - Complete Project`, emailContent)
             .catch(err => {
                 console.error(`Failed to send email notification for job component: ${jobcomponentId}. Error: ${err}`);
                 return res.status(400).json({
@@ -1861,7 +1894,7 @@ exports.listteamjobcomponent = async (req, res) => {
         const result = await Jobcomponents.aggregate([
             { 
                 $match: { 
-                    status: { $in: ["completed", "", null, "unarchived", "archived", "On-going"] } 
+                    status: { $in: ["", null, "unarchived", "On-going"] } 
                 }
             },
             {
