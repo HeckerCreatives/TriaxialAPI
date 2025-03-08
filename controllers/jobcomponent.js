@@ -3980,7 +3980,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                             }
                         }
                     ],
-                    as: 'wellnessData'
+                    as: 'wfhData'
                 }
             },
             {
@@ -4097,7 +4097,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                     leave: [],
                     wellness: wellnessData,
                     event: eventData,
-                    wfhs: wfhData,
+                    wfh: wfhData,
                     dates: []
                 };
 
