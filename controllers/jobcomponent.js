@@ -2141,7 +2141,7 @@ exports.listteamjobcomponent = async (req, res) => {
                           "cond": {
                             "$and": [
                               { "$ne": [{ "$dayOfWeek": "$$date" }, 1] }, // Exclude Sunday (1)
-                              { "$ne": [{ "$dayOfWeek": "$$date" }, 0] }  // Exclude Saturday (7)
+                              { "$ne": [{ "$dayOfWeek": "$$date" }, 7] }  // Exclude Saturday (7)
                             ]
                           }
                         }

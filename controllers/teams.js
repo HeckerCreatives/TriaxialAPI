@@ -1077,6 +1077,7 @@ exports.listallteams = async (req, res) => {
                     teamleader: {
                         $concat: ['$teamleaderDetails.firstname', ' ', '$teamleaderDetails.lastname'],
                     },
+                    index: 1,
                 },
             },
             {
