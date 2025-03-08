@@ -476,7 +476,7 @@ exports.editjobcomponentdetails = async (req, res) => {
 
 exports.editalljobcomponentdetails = async (req, res) => {
     const { id, email } = req.user;
-    const { jobcomponentid, projectid, jobmanagerid, members } = req.body;
+    const { jobcomponentid, projectid, jobmanagerid, members, budgettype, budget, adminnotes, jobcomponentname, clientid } = req.body;
 
     // Validate input
     if (!jobcomponentid) {
@@ -504,7 +504,12 @@ exports.editalljobcomponentdetails = async (req, res) => {
         // Update job component details
         await Jobcomponents.findByIdAndUpdate(jobcomponentid, {
             project: projectid,
+            client: clientid,
             jobmanager: jobmanagerid,
+            budgettype: budgettype,
+            estimatedbudget: budget,
+            adminnotes: adminnotes,
+            jobcomponent: jobcomponentname
         });
 
         // Ensure unique roles and update members
