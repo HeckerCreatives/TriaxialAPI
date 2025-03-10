@@ -330,8 +330,12 @@ exports.getinvoicelist = async (req, res) => {
                 newinvoice: 1,
                 invoiceamount: 1,
                 status: 1,
+                projectname: '$projectDetails.projectname',
                 createdAt: 1,
                 updatedAt: 1,
+                jobmanagercomments: '$jobComponentDetails.comments',
+                notes: 1,
+                comments: 1,
                 client: {
                     clientname: '$clientDetails.clientname',
                     priority: '$clientDetails.priority'
@@ -345,6 +349,7 @@ exports.getinvoicelist = async (req, res) => {
                 }
             }
         },
+        { $sort: { createdAt: -1 } },
         { $skip: pageOptions.page * pageOptions.limit },
         { $limit: pageOptions.limit }
     ])
