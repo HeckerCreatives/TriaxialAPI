@@ -311,6 +311,7 @@ exports.listwfhrequestadmin = async (req, res) => {
                 requestend: 1,
                 wellnessdaycycle: 1,
                 totalhourswfh: 1,
+                wfhrequesttimestamp: '$createdAt',
                 hoursofleave: 1,
                 reason: 1,
                 fullname: {$concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']},
@@ -360,7 +361,7 @@ exports.listwfhrequestadmin = async (req, res) => {
     }
 
     wfhlist.forEach(tempdata => {
-        const {_id, owner, requestdate, requestend, wellnessdaycycle, totalhourswfh, hoursofleave, reason, status, fullname} = tempdata
+        const {_id, owner, requestdate, wfhrequesttimestamp, requestend, wellnessdaycycle, totalhourswfh, hoursofleave, reason, status, fullname} = tempdata
 
         data.wfhlist.push({
             requestid: _id,
@@ -372,7 +373,8 @@ exports.listwfhrequestadmin = async (req, res) => {
             totalhourswfh: totalhourswfh,
             hoursofleave: hoursofleave,
             reason: reason,
-            status: status
+            status: status,
+            wfhrequesttimestamp: wfhrequesttimestamp
         })
     })
 
@@ -519,6 +521,7 @@ exports.listwfhrequestmanager = async (req, res) => {
             $project: {
                 _id: 1,
                 owner: 1,
+                wfhrequesttimestamp: '$createdAt',
                 requestdate: 1,
                 requestend: 1,
                 wellnessdaycycle: 1,
@@ -572,7 +575,7 @@ exports.listwfhrequestmanager = async (req, res) => {
     }
 
     wfhlist.forEach(tempdata => {
-        const {_id, owner, requestdate, requestend, wellnessdaycycle, totalhourswfh, hoursofleave, reason, status, fullname} = tempdata
+        const {_id, owner, requestdate, wfhrequesttimestamp, requestend, wellnessdaycycle, totalhourswfh, hoursofleave, reason, status, fullname} = tempdata
 
         data.wfhlist.push({
             requestid: _id,
@@ -584,7 +587,8 @@ exports.listwfhrequestmanager = async (req, res) => {
             totalhourswfh: totalhourswfh,
             hoursofleave: hoursofleave,
             reason: reason,
-            status: status
+            status: status,
+            wfhrequesttimestamp: wfhrequesttimestamp
         })
     })
 

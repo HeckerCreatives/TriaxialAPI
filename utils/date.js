@@ -1,3 +1,6 @@
+const moment = require('moment');
+
+
 exports.formatDate = (dateString) => {
     return moment(dateString).format('DD/MM/YYYY');
 };

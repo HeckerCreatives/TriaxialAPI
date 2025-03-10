@@ -3,6 +3,7 @@ const Wellnessday = require ("../models/wellnessday");
 const Wellnessdayevent = require("../models/wellnessdayevent")
 const {sendmail} = require("../utils/email");
 const { formatDate } = require("../utils/date");
+const Users = require("../models/Users");
 
 //  #region USERS
 
@@ -92,7 +93,7 @@ exports.wellnessdayrequest = async (req, res) => {
         
         const recipients = [
             new mongoose.Types.ObjectId(process.env.ADMIN_USER_ID),
-            new mongoose.Types.ObjectId(userdetails.reportingto)
+            new mongoose.Types.ObjectId(reportingto)
        ];
    
        if (payrollemail?._id) {
@@ -314,7 +315,7 @@ exports.wellnessdayrequestedit = async (req, res) => {
 exports.wellnessdaylistrequest = async (req, res) => {
     const {id, email} = req.user
 
-    const {page, limit, statusfilter, fullnamefilter} = req.query
+    const {page, limit, statusfilter = "Pending", fullnamefilter} = req.query
 
     const pageOptions = {
         page: parseInt(page) || 0,
@@ -369,13 +370,25 @@ exports.wellnessdaylistrequest = async (req, res) => {
             }
         },
         {
+            $lookup: {
+                from: 'wellnessdayevents',
+                localField: 'firstdayofwellnessdaycyle',
+                foreignField: '_id',
+                as: 'firstdayofwellnessdaycyle'
+            }
+        },
+        {
+            $unwind: '$firstdayofwellnessdaycyle'
+        },
+        {
             // Format the output to include only the relevant information
             $project: {
                 _id: 0,
                 wellnessdayId: '$_id',
                 requestdate: 1,
                 status: 1,
-                firstdayofwellnessdaycyle: 1,
+                firstdayofwellnessdaycyle: "$firstdayofwellnessdaycyle",
+                wdrequesttimestamp: '$createdAt',
                 // Full name of the user
                 userFullName: {
                     $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']
@@ -390,6 +403,7 @@ exports.wellnessdaylistrequest = async (req, res) => {
                 }
             }
         },
+        { $sort: { wdrequesttimestamp: -1 } }, // Sort by request timestamp
         { $skip: pageOptions.page * pageOptions.limit }, // Skip for pagination
         { $limit: pageOptions.limit } // Limit for pagination
     ]);
@@ -424,7 +438,7 @@ exports.wellnessdaylistrequest = async (req, res) => {
     }
 
     wellnessDayData.forEach(tempdata => {
-        const {wellnessdayId, requestdate, firstdayofwellnessdaycyle, userFullName, reportingManagerFullName, status} = tempdata
+        const {wellnessdayId, requestdate, wdrequesttimestamp, firstdayofwellnessdaycyle, userFullName, reportingManagerFullName, status} = tempdata
 
         data.requestlist.push({
             requestid: wellnessdayId,
@@ -432,7 +446,8 @@ exports.wellnessdaylistrequest = async (req, res) => {
             user: userFullName,
             requestdate: requestdate,
             status: status,
-            firstdayofwellnessdaycyle: firstdayofwellnessdaycyle.cyclestart
+            firstdayofwellnessdaycyle: firstdayofwellnessdaycyle.cyclestart,
+            wdrequesttimestamp: wdrequesttimestamp
         })
     })
 

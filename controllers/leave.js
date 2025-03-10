@@ -435,7 +435,16 @@ exports.superadminleaverequestlist = async (req, res) => {
      if (employeenamefilter){
          matchStage['$or'] = [
              { 'userDetails.firstname': { $regex: employeenamefilter, $options: 'i' } },
-             { 'userDetails.lastname': { $regex: employeenamefilter, $options: 'i' } }
+             { 'userDetails.lastname': { $regex: employeenamefilter, $options: 'i' } },
+             {
+                $expr: {
+                    $regexMatch: {
+                        input: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
+                        regex: employeenamefilter,
+                        options: 'i'
+                    }
+                }
+            }
          ];
      }
 
@@ -481,6 +490,7 @@ exports.superadminleaverequestlist = async (req, res) => {
                 workinghoursonleave: 1,
                 workinghoursduringleave: 1,
                 details: 1,
+                approvaltimestamp: 1,
                 employeename: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
                 manager: {
                     $ifNull: [
@@ -528,7 +538,7 @@ exports.superadminleaverequestlist = async (req, res) => {
     }
 
     requestlist.forEach(tempdata => {
-        const {_id, manager, status, employeename, type, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, details} = tempdata
+        const {_id, manager, status, employeename, approvaltimestamp, type, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, details} = tempdata
 
         data.requestlist.push({
             requestid: _id,
@@ -543,7 +553,8 @@ exports.superadminleaverequestlist = async (req, res) => {
             wellnessdaycycle: wellnessdaycycle,
             workinghoursonleave: workinghoursonleave,
             workinghoursduringleave: workinghoursduringleave,
-            details: details
+            details: details,
+            approvaltimestamp: approvaltimestamp || null
         })
     })
 
@@ -570,7 +581,7 @@ exports.processleaverequest = async (req, res) => {
         return res.status(400).json({message: "failed", data: `Status is already ${status}`})
     }
     
-    await Leave.findOneAndUpdate({_id: new mongoose.Types.ObjectId(requestid)}, {status: status, comments: comment})
+    await Leave.findOneAndUpdate({_id: new mongoose.Types.ObjectId(requestid)}, {status: status, comments: comment, approvaltimestamp: new Date()})
      .catch(err => {
          console.log(`There's a problem processing leave request. Error: ${err}`)
 
@@ -609,7 +620,16 @@ exports.managerleaverequestlistemployee = async (req, res) => {
      if (employeenamefilter){
          matchStage['$or'] = [
              { 'userDetails.firstname': { $regex: employeenamefilter, $options: 'i' } },
-             { 'userDetails.lastname': { $regex: employeenamefilter, $options: 'i' } }
+             { 'userDetails.lastname': { $regex: employeenamefilter, $options: 'i' } },
+             {
+                $expr: {
+                    $regexMatch: {
+                        input: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
+                        regex: employeenamefilter,
+                        options: 'i'
+                    }
+                }
+            }
          ];
      }
 
@@ -633,6 +653,7 @@ exports.managerleaverequestlistemployee = async (req, res) => {
             $project: {
                 _id: 1,
                 status: 1,
+                approvaltimestamp: 1,
                 details: 1,
                 leavestart: 1,
                 type: 1,
@@ -683,7 +704,7 @@ exports.managerleaverequestlistemployee = async (req, res) => {
     }
 
     requestlist.forEach(tempdata => {
-        const {_id, status, employeename, type, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, details} = tempdata
+        const {_id, status, employeename, type, approvaltimestamp, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, details} = tempdata
 
         data.requestlist.push({
             requestid: _id,
@@ -697,7 +718,8 @@ exports.managerleaverequestlistemployee = async (req, res) => {
             wellnessdaycycle: wellnessdaycycle,
             workinghoursonleave: workinghoursonleave,
             workinghoursduringleave: workinghoursduringleave,
-            details: details
+            details: details,
+            approvaltimestamp: approvaltimestamp || 'N/A'
         })
     })
 

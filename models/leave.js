@@ -11,6 +11,9 @@ const LeaveSchema = new mongoose.Schema(
             type: Number,
             index: true
         },
+        approvaltimestamp: {
+            type: Date
+        },
         details:{
             type: String
         },
