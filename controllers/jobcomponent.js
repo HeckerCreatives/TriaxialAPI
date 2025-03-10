@@ -517,12 +517,11 @@ exports.editalljobcomponentdetails = async (req, res) => {
             } else {   
                 const data = await Projects.findOne({ _id: new mongoose.Types.ObjectId(jobcomponent.project) })
                 
-
                 const createProject = await Projects.create({
                     team: data.team,
                     jobno: data.jobno,
                     projectname: projectid,
-                    client: new mongoose.Types.ObjectId(clientid),
+                    client: new mongoose.Types.ObjectId('67c194c2849fe5b1c1e3b755'),
                     invoiced: 0,
                     status: "On-going",
                     startdate: data.startdate,
@@ -537,7 +536,7 @@ exports.editalljobcomponentdetails = async (req, res) => {
         // Update job component details
         await Jobcomponents.findByIdAndUpdate(jobcomponentid, {
             project: new mongoose.Types.ObjectId(project),
-            client: clientid,
+            client: new mongoose.Types.ObjectId('67c194c2849fe5b1c1e3b755'),
             jobmanager: jobmanagerid,
             budgettype: budgettype,
             estimatedbudget: budget,
