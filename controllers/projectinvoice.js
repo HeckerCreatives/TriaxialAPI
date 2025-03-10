@@ -9,8 +9,22 @@ const { getAllUserIdsExceptSender } = require("../utils/user");
 
 exports.listcomponentprojectinvoice = async (req, res) => {
     const { id } = req.user;
-    const { teamid } = req.query;
+    const { teamid, search } = req.query;
 
+    let query = {
+    }
+
+    if (search) {
+        query = {
+            $or: [
+                { 'projectDetails.jobno': { $regex: search, $options: 'i' } },
+                { 'projectDetails.projectname': { $regex: search, $options: 'i' } },
+                { 'clientDetails.clientname': { $regex: search, $options: 'i' } },
+                { jobcomponent: { $regex: search, $options: 'i' } },
+            ]
+        }
+    }
+    
     try {
         const result = await Jobcomponents.aggregate([
             {
@@ -169,6 +183,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     budgettype: "$budgettype",
                     jobnumber: '$projectDetails.jobno',
                     jobcomponent: '$jobcomponent',
+                    isVariation: '$isVariation',
                     clientname: "$clientDetails.clientname",
                     priority: "$clientDetails.priority",
                     subconts: "$subconts.value" || 0,
@@ -214,6 +229,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                             componentid: item._id,
                             jobnumber: item.jobnumber,
                             jobcomponent: item.jobcomponent,
+                            isVariation: item.isVariation,
                             jobmanager: item.jobmanager,
                             clientname: item.clientname,
                             priority: item.priority,

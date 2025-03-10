@@ -512,27 +512,25 @@ exports.editalljobcomponentdetails = async (req, res) => {
             const projectExists = await Projects.findOne({ projectname: projectid });
 
             if(projectExists){
-                console.log(projectExists)
+                project = projectExists._id
                 return res.status(400).json({ message: "failed", data: "Project already exists" });
+            } else {   
+                const data = await Projects.findOne({ _id: new mongoose.Types.ObjectId(jobcomponent.project) })
+                
+
+                const createProject = await Projects.create({
+                    team: data.team,
+                    jobno: data.jobno,
+                    projectname: projectid,
+                    client: new mongoose.Types.ObjectId(clientid),
+                    invoiced: 0,
+                    status: "On-going",
+                    startdate: data.startdate,
+                    deadlinedate: data.deadlinedate,
+                })
+
+                project = createProject._id
             }
-
-
-
-            const data = await Projects.findOne({ _id: new mongoose.Types.ObjectId(jobcomponent.project) })
-            
-            // create new project base on the details of the existing project
-            const newproject = await Projects.create({
-                team: data.team,
-                jobno: data.jobno,
-                projectname: projectid,
-                client: clientid,
-                invoiced: data.invoiced,
-                status: data.status,
-                startdate: data.startdate,
-                deadlinedate: data.deadlinedate
-            })
-
-            project = newproject._id
         }
         const jobName = jobcomponent.jobcomponent;
 
