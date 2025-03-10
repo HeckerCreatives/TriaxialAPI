@@ -1166,11 +1166,12 @@ exports.listteamselect = async (req, res) => {
     const data = []
 
     teamdata.forEach(tempdata => {
-        const {_id, teamname} = tempdata
+        const {_id, teamname, index} = tempdata
 
         data.push({
             teamid: _id,
-            teamname: teamname
+            teamname: teamname,
+            index: index
         })
     })
 

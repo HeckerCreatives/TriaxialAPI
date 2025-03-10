@@ -121,15 +121,19 @@ exports.listprojects = async (req, res) => {
     // Search filter
     let matchStage = {};
     if (searchproject) {
-        matchStage["projectname"] = {
-            $regex: searchproject, $options: 'i'
-        };
+       matchStage = {
+            $or: [
+                { projectname: { $regex: searchproject, $options: 'i' } },
+                { jobno: { $regex: searchproject, $options: 'i' } },
+                { 'teamData.teamname': { $regex: searchproject, $options: 'i' } },
+                { 'clientData.clientname': { $regex: searchproject, $options: 'i' } }
+            ]
+       }
     }
 
     const projectlist = await Projects.aggregate([
-        { $match: matchStage },
         {
-
+            
             $lookup: {
                 from: 'teams',
                 localField: 'team',
@@ -175,6 +179,7 @@ exports.listprojects = async (req, res) => {
                 }
             }
         },
+        { $match: matchStage },
         {
             $match: {
                 $or: [
@@ -215,6 +220,7 @@ exports.listprojects = async (req, res) => {
                     $push: {
                         name: '$jobComponentData.jobcomponent',
                         id: '$jobComponentData._id',
+                        isVariation: '$jobComponentData.isVariation',
                         estimatedBudget: '$jobComponentData.estimatedbudget',
                         members: '$jobComponentData.memberInitials'
                     }

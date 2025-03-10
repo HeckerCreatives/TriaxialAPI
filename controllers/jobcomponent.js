@@ -4230,6 +4230,14 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                 employeeData.dates.push(dateEntry);
             }
         });
+
+        data.teams.forEach(team => {
+            team.members.sort((a, b) => a.name.localeCompare(b.name));
+        });
+
+        data.teams.sort((a, b) => a.name.localeCompare(b.name));
+        
+    
         
         return res.json({ message: 'success', data });
     } catch (err) {

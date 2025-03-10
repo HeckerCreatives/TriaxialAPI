@@ -242,9 +242,9 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                             lumpsum: {
                                 invoiced: (item.invoice.percentage / 100) * item.estimatedbudget,
                                 remaining: item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget),
-                                subconts: item.subconts || 0,
+                                subconts: item.subconts * -1 || 0,
                                 catchupinv: (item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve,
-                                wip: (item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve) + totalFirstThree    
+                                wip: ((item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve) + totalFirstThree) * -1    
                             },
                             rates: {
                                 invoiced: item.estimatedbudget * totalvalue,
