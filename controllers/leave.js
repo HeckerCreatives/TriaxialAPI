@@ -9,6 +9,7 @@ const Users = require("../models/Users")
 const Emails = require("../models/Email")
 const { formatDate } = require("../utils/date")
 const { getLeaveTypeName } = require("../utils/leave")
+const { request } = require("express")
 
 //  #region USERS
 
@@ -491,6 +492,7 @@ exports.superadminleaverequestlist = async (req, res) => {
                 workinghoursduringleave: 1,
                 details: 1,
                 approvaltimestamp: 1,
+                requesttimestamp: '$createdAt',
                 employeename: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
                 manager: {
                     $ifNull: [
@@ -538,7 +540,7 @@ exports.superadminleaverequestlist = async (req, res) => {
     }
 
     requestlist.forEach(tempdata => {
-        const {_id, manager, status, employeename, approvaltimestamp, type, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, details} = tempdata
+        const {_id, manager, status, employeename, approvaltimestamp, type, requesttimestamp, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, details} = tempdata
 
         data.requestlist.push({
             requestid: _id,
@@ -554,7 +556,8 @@ exports.superadminleaverequestlist = async (req, res) => {
             workinghoursonleave: workinghoursonleave,
             workinghoursduringleave: workinghoursduringleave,
             details: details,
-            approvaltimestamp: approvaltimestamp || null
+            approvaltimestamp: approvaltimestamp || null,
+            requesttimestamp: requesttimestamp
         })
     })
 
