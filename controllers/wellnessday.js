@@ -115,7 +115,7 @@ exports.wellnessdayrequest = async (req, res) => {
        Note: This is an auto-generated message.
        `
 
-    await sendmail(new mongoose.Types.ObjectId(id), recipients, emailContent, false)
+    await sendmail(new mongoose.Types.ObjectId(id), recipients, `Wellness Day Request - ${fullname}`, emailContent, false)
 
     return res.json({message: "success"})
 }
