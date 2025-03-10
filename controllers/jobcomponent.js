@@ -1457,29 +1457,40 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                     allDates: {
                         $let: {
                             vars: {
-                                startDate: "$projectDetails.startdate",
-                                endDate: "$projectDetails.deadlinedate"
+                                "startDate": "$projectDetails.startdate",
+                                "endDate": "$projectDetails.deadlinedate"
                             },
                             in: {
-                                $map: {
+                                $filter: {
                                     input: {
-                                        $range: [
-                                            0, // start from day 0
-                                            { 
-                                                $add: [
-                                                    { $divide: [{ $subtract: ["$$endDate", "$$startDate"] }, 86400000] },
-                                                    1
+                                        $map: {
+                                            input: {
+                                                $range: [
+                                                    0,
+                                                    {
+                                                        $add: [
+                                                            { $divide: [{ $subtract: ["$$endDate", "$$startDate"] }, 86400000] },
+                                                            1
+                                                        ]
+                                                    }
                                                 ]
-                                            } // end at the total number of days + 1 for inclusive range
-                                        ]
-                                    },
-                                    as: "daysFromStart",
-                                    in: {
-                                        $dateAdd: {
-                                            startDate: "$$startDate",
-                                            unit: "day",
-                                            amount: "$$daysFromStart"
+                                            },
+                                            as: "daysFromStart",
+                                            in: {
+                                                $dateAdd: {
+                                                    "startDate": "$$startDate",
+                                                    "unit": "day",
+                                                    "amount": "$$daysFromStart"
+                                                }
+                                            }
                                         }
+                                    },
+                                    as: "date",
+                                    cond: {
+                                        $and: [
+                                            { $ne: [{ "$dayOfWeek": "$$date" }, 1] }, // Exclude Sunday (1)
+                                            { $ne: [{ "$dayOfWeek": "$$date" }, 7] }  // Exclude Saturday (7)
+                                        ]
                                     }
                                 }
                             }
