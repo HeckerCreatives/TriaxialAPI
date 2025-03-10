@@ -726,9 +726,6 @@ exports.completejobcomponent = async (req, res) => {
         const claimamount = (invoiceamount * ((newinvoice || 100) / 100))
         const thisclaimpercentage = 100 - newinvoice
 
-        console.log(claimamount)
-
-        console.log(jobcomponent.budgettype)
 
         if(jobcomponent.budgettype.toString() == 'rates'){
 
@@ -3014,7 +3011,6 @@ exports.yourworkload = async (req, res) => {
                 wfhDates: member.wfhDates
             }));
 
-            console.log(members)
             
 
             // Push members into the yourworkload array

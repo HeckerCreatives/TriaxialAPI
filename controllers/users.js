@@ -182,8 +182,6 @@ exports.createemployee = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
     });
 
-    console.log(user)
-
     await Userdetails.create({owner: new mongoose.Types.ObjectId(user._id), firstname: firstname, lastname: lastname, initial: initial, contactno: contactnumber, reportingto: new mongoose.Types.ObjectId(reportingto), resource: resource})
     .catch(async err => {
         console.log(`There's a problem creating user details. Error ${err}`)
@@ -582,7 +580,6 @@ exports.viewemployeedata = async (req, res) => {
     ]);
     
 
-    console.log(employee)
 
     if (!employee[0]){
         return res.status(400).json({message: "failed", data: "Selected employee does not exist!"})

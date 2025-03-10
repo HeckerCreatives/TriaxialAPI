@@ -162,7 +162,6 @@ exports.unreadEmails = async (req, res) => {
         }
     ]);
 
-    console.log(unreadCount);
 
     return res.json({ message: "success", unreademails: unreadCount.length > 0 ? unreadCount[0].totalUnread : 0 });
 };
@@ -177,9 +176,7 @@ exports.reademail = async (req, res) => {
 
     const mappeddcheck = checkemail.receiver.map((receiver) => {
         if(id == receiver.userid.toString()) {
-            console.log(receiver, id);
         }
-        console.log(receiver.userid.toString(), id);
 
 
         return receiver;

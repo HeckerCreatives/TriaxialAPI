@@ -520,7 +520,6 @@ exports.saveprojectinvoicevalue = async (req, res) => {
         // Format the finalDate as "MM-YYYY"
         const formattedDate = finalDate.toISOString().slice(0, 7); // "YYYY-MM" format
 
-        console.log(finalDate);
 
         // Find and update the document in the projectedinvoices collection
         const result = await Projectedinvoice.findOneAndUpdate(
