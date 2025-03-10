@@ -540,24 +540,6 @@ exports.saveprojectinvoicevalue = async (req, res) => {
             );
         }
 
-        // Send email notification after saving project invoice value
-        const sender = new mongoose.Types.ObjectId(id);
-        const emailContent = `
-            Dear User, \n\nThe invoice for Job Component ID ${jobcomponentid} has been successfully updated with the amount: ${amount}.
-            Date: ${formattedDate}\n\n
-            Thank you for your attention.
-        `;
-
-        const receiver = await getAllUserIdsExceptSender(id)
-        
-        await sendmail(sender, receiver, "Project Invoice Value Updated", emailContent)
-            .catch(err => {
-                console.log(`Failed to send email notification for job component: ${jobcomponentid}. Error: ${err}`);
-                return res.status(400).json({
-                    message: "bad-request",
-                    data: "Email notification failed! Please contact customer support for more details."
-                });
-            });
 
         return res.json({ message: "success" });
     } catch (error) {

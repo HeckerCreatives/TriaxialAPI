@@ -159,18 +159,18 @@ exports.createjobcomponent = async (req, res) => {
 
         titlecontent = `${project.jobno} - ${project.projectname} - Variation Project`
         } else {
-            emailContent = `
-            A component of the project shown below has been created.
+        emailContent = `
+        A component of the project shown below has been created.
     
-            Team Name:                    ${team.teamname}
-            Job Manager:                  ${jobManager.firstname} ${jobManager.lastname}
-            Job Number:                   ${project.jobno}
-            Client Name:                  ${clientz.clientname}
-            Project Name:                 ${project.projectname}
-            Budget Fee:                   $${formatCurrency(jobcomponentvalue[0].estimatedbudget)}
-            Job Component:                ${jobcomponentvalue[0].jobcomponent}
+        Team Name:                    ${team.teamname}
+        Job Manager:                  ${jobManager.firstname} ${jobManager.lastname}
+        Job Number:                   ${project.jobno}
+        Client Name:                  ${clientz.clientname}
+        Project Name:                 ${project.projectname}
+        Budget Fee:                   $${formatCurrency(jobcomponentvalue[0].estimatedbudget)}
+        Job Component:                ${jobcomponentvalue[0].jobcomponent}
     
-            Note: This is an auto generated message.
+        Note: This is an auto generated message.
     `;
             titlecontent = `${project.jobno} - ${project.projectname} - New Job Component`
         }
@@ -334,10 +334,16 @@ exports.editjobcomponentdetails = async (req, res) => {
         ]));
 
         // Construct email content
-        const emailContent = `Hello Team,\n\nThe job component "${jobName}" has been updated with new details:\n\n` +
-            `Project Name: ${projectdata.name}\n` +
-            `New Job Manager: ${jobmanagerid}\n\n` +
-            `If you have any questions or concerns, please reach out.\n\nThank you!\n\nBest Regards,\n${email}`;
+        const emailContent = `
+        Good Day,
+        
+        The job component "${jobName}" has been updated with new details:
+        
+        Project Name:            ${projectdata.name}
+        New Job Manager:         ${jobmanagerid} 
+        
+        Note: This is an auto-generated message.
+        `;
 
         // Send email notification
         const sender = new mongoose.Types.ObjectId(id);
@@ -752,27 +758,27 @@ exports.completejobcomponent = async (req, res) => {
         // comments and/or concerns please use the button "Troubleshoot/Bug Fix" at 
         // the Workload spreadsheet
         } else if(jobcomponent.budgettype.toString() == 'lumpsum'){
-            emailContent = `
-            A component of the project shown below has now been removed 
-            from the Workload Spreadsheet and has now been recorded to 
-            Invoice Spreadsheet.
+        emailContent = `
+        A component of the project shown below has now been removed 
+        from the Workload Spreadsheet and has now been recorded to 
+        Invoice Spreadsheet.
                                                       
-            Team Name:                    ${team?.teamname || 'N/A'}
-            Job Manager:                  ${jobManager?.firstname || ''} ${jobManager?.lastname || ''}
-            Job Number:                   ${project?.jobno || 'N/A'}
-            Client Name:                  ${client?.clientname || 'N/A'}
-            Project Name:                 ${project?.projectname || 'N/A'}
-            Job Component:                ${jobcomponent?.jobcomponent || 'N/A'}
-            Component Budget:             $${formatCurrency(jobcomponent?.estimatedbudget) || 0.00}
-            Current %invoice:             ${findCurrinvoice?.newinvoice || 0}%
-            Previous %invoice:            ${findCurrinvoice?.currentinvoice || 0}%
-            This Claim Percentage:        ${findCurrinvoice?.newinvoice || 0}%
-            This Claim Amount:            $${formatCurrency(findCurrinvoice?.invoiceamount) || 0.00}
-            Admin Notes:                  ${adminnotes || ''}
-            JM Comments:                  ${comments || ''}(Complete)
+        Team Name:                    ${team?.teamname || 'N/A'}
+        Job Manager:                  ${jobManager?.firstname || ''} ${jobManager?.lastname || ''}
+        Job Number:                   ${project?.jobno || 'N/A'}
+        Client Name:                  ${client?.clientname || 'N/A'}
+        Project Name:                 ${project?.projectname || 'N/A'}
+        Job Component:                ${jobcomponent?.jobcomponent || 'N/A'}
+        Component Budget:             $${formatCurrency(jobcomponent?.estimatedbudget) || 0.00}
+        Current %invoice:             ${findCurrinvoice?.newinvoice || 0}%
+        Previous %invoice:            ${findCurrinvoice?.currentinvoice || 0}%
+        This Claim Percentage:        ${findCurrinvoice?.newinvoice || 0}%
+        This Claim Amount:            $${formatCurrency(findCurrinvoice?.invoiceamount) || 0.00}
+        Admin Notes:                  ${adminnotes || ''}
+        JM Comments:                  ${comments || ''}(Complete)
     
-            Note: This is an auto generated message.    
-            `;   
+        Note: This is an auto generated message.    
+        `;   
         
         }
 
@@ -828,7 +834,8 @@ exports.archivejobcomponent = async (req, res) => {
         }
 
 
-        const emailContent = `Hello Team,
+        const emailContent = `
+        Hello Team,
 
         The job component "${jobComponent.jobcomponent}" has been archived.
 
@@ -925,7 +932,8 @@ exports.editstatushours = async (req, res) => {
         }
 
         await jobComponent.save();
-        const emailContent = `Hello Team,
+        const emailContent = `
+        Hello Team,
 
         The job component "${jobComponent.jobcomponent}" has been updated.
 

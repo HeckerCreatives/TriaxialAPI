@@ -226,6 +226,11 @@ exports.updateinvoice = async (req, res) => {
             return res.status(400).json({ message: "failed", data: "You cannot update an approved or completed invoice" });
         }
 
+        const project = await Projects.findOne({ _id: new mongoose.Types.ObjectId(jobcomponent[0].projectDetails[0]._id) })
+        .catch(err => {
+            console.log(`There's a problem with getting the project details for email content details in update invoice. Error: ${err}`)
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
+        })
  
         invoice.invoiceamount = invoiceamount;
         invoice.comments = comments || invoice.comments; 
@@ -244,10 +249,22 @@ exports.updateinvoice = async (req, res) => {
         
         const allRecipientIds = [jobcomponent.jobmanager, jobcomponent.teamDetails?.manager, new mongoose.Types.ObjectId(id), superadmin._id];
 
-        const emailContent = `Hello Team,\n\nThe invoice for job component "${invoice.jobcomponent}" has been updated:\n\nInvoice Amount: ${invoiceamount}\nComments: ${comments || 'No comments provided'}\n\nIf you have any questions, feel free to reach out.\n\nBest Regards,\n${email}`;
+        const emailContent = `
+        Hello Team,
+        
+        The invoice for job component "${invoice.jobcomponent}" has been updated:
+        
+        Invoice Amount:         ${invoiceamount}
+        Comments:               ${comments || 'No comments provided'}
+        
+        Best Regards,
+        ${email}
+        
+        Note: This is an auto generated message.
+        `;
         
         const sender = new mongoose.Types.ObjectId(id);
-        await sendmail(sender, allRecipientIds, "Invoice Updated", emailContent)
+        await sendmail(sender, allRecipientIds, `${project.jobno} - ${project.projectname} - Invoice Update`, emailContent)
             .catch(err => {
                 console.log(`Failed to send email notification for invoice update. Error: ${err}`);
             });

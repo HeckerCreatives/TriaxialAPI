@@ -4,6 +4,7 @@ const Wellnessdayevent = require("../models/wellnessdayevent")
 const {sendmail} = require("../utils/email");
 const { formatDate } = require("../utils/date");
 const Users = require("../models/Users");
+const { getAllUserIdsExceptSender } = require("../utils/user");
 
 //  #region USERS
 
@@ -106,7 +107,7 @@ exports.wellnessdayrequest = async (req, res) => {
        
        Hello Manager!
        
-       Theres a wellness day request from ${fullname} On ${formatDate(request)}.
+       There's a wellness day request from ${fullname} On ${formatDate(request)}.
       
        If you have any question please contact ${fullname}.
        
@@ -733,6 +734,26 @@ exports.createhrwellnessevent = async (req, res) => {
 
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
     })
+
+    const emailContent =
+    `
+        Good Day,
+
+        A Wellness Day event has been created. 
+    
+        The event will start on ${formatDate(startdate)} and end on ${formatDate(enddate)}.
+        The cycle will start on ${formatDate(cyclestart)} and end on ${formatDate(cycleend)}.
+
+        Thank you and have a great day.
+
+        Note: This is an auto-generated message.
+    `
+
+    const emailSubject = `Wellness Day Event Created`;
+
+    const receivers = await getAllUserIdsExceptSender(id);
+
+    await sendmail(new mongoose.Types.ObjectId(id), receivers, emailSubject, emailContent, false);
 
     return res.json({message: "success"})
 }
