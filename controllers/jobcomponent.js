@@ -34,14 +34,18 @@ exports.createjobcomponent = async (req, res) => {
     
         if (clientExists) {
             return res.status(400).json({ message: "failed", data: "Client already exists" });
-        }
-    
+        } else if (!clientid) {    
+            return res.status(400).json({ message: "failed", data: "Please select a client" });
+        } else if (clientid.length < 3) {
         try {
             const newClient = await Clients.create({ clientname: clientid, priority });
             client = newClient._id;  // Ensure `client` is assigned here
         } catch (err) {
             console.error("Error creating client:", err);
             return res.status(400).json({ message: "bad-request", data: "Server error! Contact support." });
+        }
+        } else {
+            return res.status(400).json({ message: "failed", data: "Invalid client selection" });
         }
     }
     
@@ -490,7 +494,10 @@ exports.editalljobcomponentdetails = async (req, res) => {
     }
     if (!Array.isArray(members) || members.length < 1 || members.length > 4) {
         return res.status(400).json({ message: "failed", data: "Invalid members data. There should be 1 to 4 members." });
-    }
+    } 
+
+    let project 
+
 
     try {
         // Fetch the job component
@@ -499,11 +506,39 @@ exports.editalljobcomponentdetails = async (req, res) => {
             return res.status(404).json({ message: "failed", data: "Job component not found" });
         }
 
+        if(!mongoose.Types.ObjectId.isValid(projectid)){
+
+            // check if projectname is existing
+            const projectExists = await Projects.findOne({ projectname: projectid });
+
+            if(projectExists){
+                console.log(projectExists)
+                return res.status(400).json({ message: "failed", data: "Project already exists" });
+            }
+
+
+
+            const data = await Projects.findOne({ _id: new mongoose.Types.ObjectId(jobcomponent.project) })
+            
+            // create new project base on the details of the existing project
+            const newproject = await Projects.create({
+                team: data.team,
+                jobno: data.jobno,
+                projectname: projectid,
+                client: clientid,
+                invoiced: data.invoiced,
+                status: data.status,
+                startdate: data.startdate,
+                deadlinedate: data.deadlinedate
+            })
+
+            project = newproject._id
+        }
         const jobName = jobcomponent.jobcomponent;
 
         // Update job component details
         await Jobcomponents.findByIdAndUpdate(jobcomponentid, {
-            project: projectid,
+            project: new mongoose.Types.ObjectId(project),
             client: clientid,
             jobmanager: jobmanagerid,
             budgettype: budgettype,
@@ -563,7 +598,8 @@ exports.editalljobcomponentdetails = async (req, res) => {
             }
         }
 
-        await jobcomponent.save();
+        await jobcomponent.save()
+
 
         // Filter out empty or invalid employee IDs
         const validEmployees = members

@@ -70,20 +70,17 @@ exports.listteam = async (req, res) => {
     const { id, email } = req.user;
     const { teamnamefilter, page, limit } = req.query;
 
-    // Set pagination options
     const pageOptions = {
         page: parseInt(page) || 0,
         limit: parseInt(limit) || 10,
     };
 
-    // Filter by team name if provided
     const matchStage = {};
     if (teamnamefilter) {
         matchStage['teamname'] = { $regex: teamnamefilter, $options: 'i' };
     }
 
     try {
-        // Perform aggregation
         const teams = await Teams.aggregate([
             { $match: matchStage },
             {
@@ -97,7 +94,7 @@ exports.listteam = async (req, res) => {
             { $unwind: { path: '$managerData', preserveNullAndEmptyArrays: true } },
             {
                 $lookup: {
-                    from: 'userdetails',
+                    from: 'userdetails',  
                     localField: 'managerData._id',
                     foreignField: 'owner',
                     as: 'managerDetails',
@@ -107,7 +104,7 @@ exports.listteam = async (req, res) => {
             {
                 $lookup: {
                     from: 'users',
-                    localField: 'teamleader',
+                    localField: 'teamleader', 
                     foreignField: '_id',
                     as: 'teamleaderData',
                 },
@@ -117,7 +114,7 @@ exports.listteam = async (req, res) => {
                 $lookup: {
                     from: 'userdetails',
                     localField: 'teamleaderData._id',
-                    foreignField: 'owner',
+                    foreignField: 'owner', 
                     as: 'teamleaderDetails',
                 },
             },
@@ -132,46 +129,50 @@ exports.listteam = async (req, res) => {
             },
             {
                 $lookup: {
-                    from: 'jobcomponents',
-                    localField: 'projects._id',
-                    foreignField: 'project',
-                    as: 'jobcomponents',
-                }
-            },
-            { $unwind: { path: '$jobcomponents', preserveNullAndEmptyArrays: true } },
-            {
-                $lookup: {
-                    from: 'invoices',
-                    let: { jobComponentId: "$jobcomponents._id" },
-                    pipeline: [
-                        { 
-                            $match: { 
-                                $expr: { 
-                                    $and: [
-                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
-                                        { $eq: ["$status", "Approved"] },                                        
-                                    ]
-                                } 
-                            } 
-                        },
-                        {
-                            $group: {
-                                _id: null,
-                                totalAmount: { $sum: "$invoiceamount" }
-                            }
-                        }
-                    ],
-                    as: 'wip'
-                }
-            },
-            { $unwind: { path: '$wip', preserveNullAndEmptyArrays: true } },
-            {
-                $lookup: {
                     from: 'clients',
                     localField: 'projects.client',
                     foreignField: '_id',
                     as: 'clientDetails',
                 },
+            },
+            {
+                $lookup: {
+                    from: 'jobcomponents',
+                    let: { projectIds: '$projects._id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $in: ['$project', '$$projectIds'] }
+                            }
+                        },
+                        {
+                            $lookup: {
+                                from: 'invoices',
+                                let: { jobComponentId: '$_id' },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    { $eq: ['$jobcomponent', '$$jobComponentId'] },
+                                                    { $eq: ['$status', 'Approved'] }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                ],
+                                as: 'invoices'
+                            }
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalWip: { $sum: { $sum: '$invoices.invoiceamount' } }
+                            }
+                        }
+                    ],
+                    as: 'wipData'
+                }
             },
             {
                 $project: {
@@ -193,14 +194,12 @@ exports.listteam = async (req, res) => {
                         ],
                     },
                     clients: {
-                        $map: {
-                            input: '$clientDetails',
-                            as: 'client',
-                            in: '$$client.clientname',
-                        },
+                        $setUnion: ['$clientDetails.clientname']
                     },
                     projectCount: { $size: '$projects' },
-                    wip: { $ifNull: ['$wip.totalAmount', 0] },
+                    wip: { 
+                        $ifNull: [{ $arrayElemAt: ['$wipData.totalWip', 0] }, 0]
+                    },
                 },
             },
             { $sort: { index: 1 } },
@@ -208,7 +207,6 @@ exports.listteam = async (req, res) => {
             { $limit: pageOptions.limit },
         ]);
 
-        // Get total number of teams for pagination
         const totalTeams = await Teams.countDocuments(matchStage);
 
         const data = {
