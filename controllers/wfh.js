@@ -518,6 +518,18 @@ exports.listwfhrequestmanager = async (req, res) => {
             $match: matchConditions // Apply the dynamic match conditions
         },
         {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'userDetails.reportingto',
+                foreignField: 'owner',
+                as: 'managerDetails'
+            },
+
+        },
+        {
+            $unwind: '$managerDetails'
+        },
+        {
             $project: {
                 _id: 1,
                 owner: 1,
@@ -528,6 +540,7 @@ exports.listwfhrequestmanager = async (req, res) => {
                 totalhourswfh: 1,
                 hoursofleave: 1,
                 reason: 1,
+                manager: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] },
                 fullname: {$concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']},
                 status: 1
             }
@@ -575,12 +588,13 @@ exports.listwfhrequestmanager = async (req, res) => {
     }
 
     wfhlist.forEach(tempdata => {
-        const {_id, owner, requestdate, wfhrequesttimestamp, requestend, wellnessdaycycle, totalhourswfh, hoursofleave, reason, status, fullname} = tempdata
+        const {_id, owner, requestdate, wfhrequesttimestamp, manager, requestend, wellnessdaycycle, totalhourswfh, hoursofleave, reason, status, fullname} = tempdata
 
         data.wfhlist.push({
             requestid: _id,
             userid: owner._id,
             fullname: fullname,
+            manager: manager,
             requestdate: requestdate,
             requestend: requestend,
             wellnessdaycycle: wellnessdaycycle,
