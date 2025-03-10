@@ -302,56 +302,96 @@ exports.requestleave = async (req, res) => {
 }
 
 exports.employeeleaverequestlist = async (req, res) => {
-    const {id, email} = req.user
+    const { id, email } = req.user;
+    const { status, page, limit } = req.query;
 
-    const {status, page, limit} = req.query
-
-    // Set pagination options
     const pageOptions = {
         page: parseInt(page) || 0,
-        limit: parseInt(limit) || 10,
+        limit: parseInt(limit) || 10
     };
 
-    const requestlist = await Leave.find({owner: new mongoose.Types.ObjectId(id), status: status})
-    .sort({createdAt: -1})
-    .skip(pageOptions.page * pageOptions.limit)
-    .limit(pageOptions.limit)
-    .then(data => data)
-    .catch(err => {
-        console.log(`There's a problem with getting the leave list for ${id} ${email}. Error: ${err}`)
+    try {
+        const requestlist = await Leave.aggregate([
+            { 
+                $match: { 
+                    owner: new mongoose.Types.ObjectId(id),
+                    status: status 
+                }
+            },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'owner',
+                    foreignField: 'owner',
+                    as: 'employeeDetails'
+                }
+            },
+            { $unwind: '$employeeDetails' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'employeeDetails.reportingto',
+                    foreignField: 'owner',
+                    as: 'managerDetails'
+                }
+            },
+            { $unwind: { path: '$managerDetails', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 1,
+                    employeeid: '$owner',
+                    requestid: '$_id',
+                    type: 1,
+                    startdate: '$leavestart',
+                    enddate: '$leaveend',
+                    status: 1,
+                    totalworkingdays: 1,
+                    totalpublicholidays: 1,
+                    wellnessdaycycle: 1,
+                    workinghoursonleave: 1,
+                    workinghoursduringleave: 1,
+                    comments: 1,
+                    details: 1,
+                    requesttimestamp: '$createdAt',
+                    manager: {
+                        $concat: [
+                            { $ifNull: ['$managerDetails.firstname', ''] },
+                            ' ',
+                            { $ifNull: ['$managerDetails.lastname', ''] }
+                        ]
+                    }
+                }
+            },
+            { $sort: { requesttimestamp: -1 } },
+            { $skip: pageOptions.page * pageOptions.limit },
+            { $limit: pageOptions.limit }
+        ]);
 
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details"})
-    })
+        const totalCount = await Leave.aggregate([
+            {
+                $match: {
+                    owner: new mongoose.Types.ObjectId(id),
+                    status: status
+                }
+            },
+            { $count: 'total' }
+        ]);
 
-    const totallist = await Leave.countDocuments({owner: new mongoose.Types.ObjectId(id), status: status})
+        const data = {
+            requestlist: requestlist,
+            totalpage: Math.ceil((totalCount[0]?.total || 0) / pageOptions.limit)
+        };
 
-    const data = {
-        requestlist: [],
-        totalpage: Math.ceil(totallist / pageOptions.limit),
+        return res.json({ message: "success", data });
+
+    } catch (err) {
+        console.error(`There's a problem with getting the leave list for ${id} ${email}. Error: ${err}`);
+        return res.status(400).json({
+            message: "bad-request", 
+            data: "There's a problem with the server. Please contact customer support for more details"
+        });
     }
-
-    requestlist.forEach(tempdata => {
-        const {_id, type, leavestart, leaveend, status, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, comments, details} = tempdata
-
-        data.requestlist.push({
-            employeeid: id,
-            requestid: _id,
-            type: type,
-            startdate: leavestart,
-            enddate: leaveend,
-            status: status,
-            totalworkingdays: totalworkingdays,
-            totalpublicholidays: totalpublicholidays,
-            wellnessdaycycle: wellnessdaycycle,
-            workinghoursonleave: workinghoursonleave,
-            workinghoursduringleave: workinghoursduringleave,
-            comments: comments,
-            details: details
-        })
-    })
-
-    return res.json({message: "success", data: data})
-}
+};
 
 exports.editrequestleave = async (req, res) => {
     const {id, email} = req.user
@@ -503,7 +543,7 @@ exports.superadminleaverequestlist = async (req, res) => {
                
             }
         },
-
+        { $sort: { requesttimestamp: -1 } },
         { $skip: pageOptions.page * pageOptions.limit },
         { $limit: pageOptions.limit }
     ]);
@@ -650,6 +690,17 @@ exports.managerleaverequestlistemployee = async (req, res) => {
         },
         { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
         {
+            $lookup: {
+                from: 'userdetails',
+                localField: 'userDetails.reportingto',
+                foreignField: 'owner',
+                as: 'managerDetails'
+            }
+        },
+        {
+            $unwind: { path: '$managerDetails', preserveNullAndEmptyArrays: true }
+        },
+        {
             $match: matchStage
         },
         {
@@ -657,6 +708,7 @@ exports.managerleaverequestlistemployee = async (req, res) => {
                 _id: 1,
                 status: 1,
                 approvaltimestamp: 1,
+                requesttimestamp: '$createdAt',
                 details: 1,
                 leavestart: 1,
                 type: 1,
@@ -667,10 +719,11 @@ exports.managerleaverequestlistemployee = async (req, res) => {
                 workinghoursonleave: 1,
                 workinghoursduringleave: 1,
                 details: 1,
+                manager: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] },
                 employeename: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] }
             }
         },
-
+        { $sort: { requesttimestamp: -1 } },
         { $skip: pageOptions.page * pageOptions.limit },
         { $limit: pageOptions.limit }
     ]);
@@ -707,12 +760,13 @@ exports.managerleaverequestlistemployee = async (req, res) => {
     }
 
     requestlist.forEach(tempdata => {
-        const {_id, status, employeename, type, approvaltimestamp, leavestart, leaveend, totalworkingdays, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, details} = tempdata
+        const {_id, status, employeename, type, approvaltimestamp, leavestart, leaveend, totalworkingdays, manager, totalpublicholidays, wellnessdaycycle, workinghoursonleave, workinghoursduringleave, details} = tempdata
 
         data.requestlist.push({
             requestid: _id,
             status: status,
             name: employeename,
+            manager: manager,
             type: type,
             leavestart: leavestart,
             leaveend: leaveend,

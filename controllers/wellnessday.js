@@ -140,64 +140,112 @@ exports.deletewellnessdayrequest = async (req, res) => {
 }
 
 exports.requestlist = async (req, res) => {
-    const {id, username} = req.user
-    const {page, limit} = req.query
+    const { id, username } = req.user;
+    const { page, limit } = req.query;
 
     const pageOptions = {
         page: parseInt(page) || 0,
         limit: parseInt(limit) || 10
+    };
+
+    try {
+        const wellnessDayHistory = await Wellnessday.aggregate([
+            { 
+                $match: { 
+                    owner: new mongoose.Types.ObjectId(id)
+                }
+            },
+            {
+                $lookup: {
+                    from: 'wellnessdayevents',
+                    localField: 'firstdayofwellnessdaycyle',
+                    foreignField: '_id',
+                    as: 'cycleDetails'
+                }
+            },
+            { $unwind: '$cycleDetails' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'owner',
+                    foreignField: 'owner',
+                    as: 'userDetails'
+                }
+            },
+            { $unwind: '$userDetails' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'userDetails.reportingto',
+                    foreignField: 'owner',
+                    as: 'managerDetails'
+                }
+            },
+            { 
+                $unwind: { 
+                    path: '$managerDetails',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    requestdate: 1,
+                    status: 1,
+                    createdAt: 1,
+                    cyclestart: '$cycleDetails.cyclestart',
+                    userFullName: {
+                        $concat: [
+                            '$userDetails.firstname',
+                            ' ',
+                            '$userDetails.lastname'
+                        ]
+                    },
+                    manager: {
+                        $concat: [
+                            { $ifNull: ['$managerDetails.firstname', ''] },
+                            ' ',
+                            { $ifNull: ['$managerDetails.lastname', ''] }
+                        ]
+                    }
+                }
+            },
+            { $sort: { createdAt: -1 } },
+            { $skip: pageOptions.page * pageOptions.limit },
+            { $limit: pageOptions.limit }
+        ]);
+
+        const totalCount = await Wellnessday.aggregate([
+            {
+                $match: {
+                    owner: new mongoose.Types.ObjectId(id)
+                }
+            },
+            { $count: 'total' }
+        ]);
+
+        const data = {
+            totalPages: Math.ceil((totalCount[0]?.total || 0) / pageOptions.limit),
+            history: wellnessDayHistory.map(item => ({
+                createdAt: item.createdAt,
+                requestid: item._id,
+                manager: item.manager.trim() || 'N/A',
+                user: item.userFullName,
+                requestdate: item.requestdate,
+                status: item.status,
+                firstdayofwellnessdaycycle: item.cyclestart
+            }))
+        };
+
+        return res.json({ message: "success", data });
+    } catch (err) {
+        console.error(`Error getting wellness day history for user ${username}: ${err}`);
+        return res.status(400).json({ 
+            message: "bad-request", 
+            data: "There's a problem with the server! Please contact customer support for more details." 
+        });
     }
-
-    const wellnessdayhistory = await Wellnessday.find({owner: new mongoose.Types.ObjectId(id)})
-    .populate({
-        path: "firstdayofwellnessdaycyle"
-    })
-    .skip(pageOptions.page * pageOptions.limit)
-    .limit(pageOptions.limit)
-    .sort({'createdAt': -1})
-    .then(data => data)
-    .catch(err => {
-        console.log(`${err}`)
-        return res.status(400).json({ message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details." })
-    })
-
-    const totalPages = await Wellnessday.countDocuments({owner: new mongoose.Types.ObjectId(id)})
-    .then(data => data)
-    .catch(err => {
-
-        console.log(` ${username}, error: ${err}`)
-
-        return res.status(400).json({ message: 'failed', data: `There's a problem with your account. Please contact customer support for more details` })
-    })
-
-    const pages = Math.ceil(totalPages / pageOptions.limit)
-
-    const data = {
-        totalPages: pages,
-        history: []
-    }
-
-    const today = new Date();
-    const firstdayoftheweek = new Date(today);
-    const day = firstdayoftheweek.getDay(),  // Get the current day (0 for Sunday, 1 for Monday, etc.)
-    diff = firstdayoftheweek.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-
-    wellnessdayhistory.forEach(tempdata => {
-        const {_id, requestdate, userFullName, status, firstdayofwellnessdaycyle, reportingManagerFullName, createdAt} = tempdata
-
-        data.history.push({
-            createdAt: createdAt,
-            requestid: _id,
-            manager: reportingManagerFullName,
-            user: userFullName,
-            requestdate: requestdate,
-            status: status,
-            firstdayofwellnessdaycycle: firstdayofwellnessdaycyle.cyclestart
-        })
-    })
-
-    return res.json({message: "success", data: data})
-}
+};
 
 exports.wellnessdaydata = async (req, res) => {
     const {id, email} = req.user
@@ -525,6 +573,7 @@ exports.managerwellnessdaylistrequestbyemployee = async (req, res) => {
                 requestdate: 1,
                 status: 1,
                 firstdayofwellnessdaycyle: 1,
+                wdrequesttimestamp: '$createdAt',
                 // Full name of the user
                 userFullName: {
                     $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname']
@@ -539,6 +588,7 @@ exports.managerwellnessdaylistrequestbyemployee = async (req, res) => {
                 }
             }
         },
+        { $sort: { wdrequesttimestamp: -1 } }, // Sort by request date
         { $skip: pageOptions.page * pageOptions.limit }, // Skip for pagination
         { $limit: pageOptions.limit } // Limit for pagination
     ]);

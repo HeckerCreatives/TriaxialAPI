@@ -68,12 +68,11 @@ exports.showdatawfhrequest = async (req, res) => {
 }
 
 exports.listwfhrequestemployee = async (req, res) => {
-    const {id, email} = req.user
+    const { id, email } = req.user;
+    const { page, limit, statusfilter } = req.query;
 
-    const {page, limit, statusfilter} = req.query
-
-    if (!statusfilter){
-        return res.status(400).json({message: "failed", data: "Please select a status filter first!"})
+    if (!statusfilter) {
+        return res.status(400).json({ message: "failed", data: "Please select a status filter first!" });
     }
 
     const pageOptions = {
@@ -81,40 +80,96 @@ exports.listwfhrequestemployee = async (req, res) => {
         limit: parseInt(limit) || 10
     };
 
-    const requestlist = await Workfromhome.find({status: statusfilter})
-    .sort({createdAt: -1})
-    .skip(pageOptions.page * pageOptions.limit)
-    .limit(pageOptions.limit)
-    .then(data => data)
-    .catch(err => {
-        console.log(`There's a problem with wfh request list of ${email}. Error: ${err}`)
+    try {
+        const requestlist = await Workfromhome.aggregate([
+            { 
+                $match: { 
+                    owner: new mongoose.Types.ObjectId(id),
+                    status: statusfilter 
+                }
+            },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'owner',
+                    foreignField: 'owner',
+                    as: 'employeeDetails'
+                }
+            },
+            { $unwind: '$employeeDetails' },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'employeeDetails.reportingto',
+                    foreignField: 'owner',
+                    as: 'managerDetails'
+                }
+            },
+            { $unwind: { path: '$managerDetails', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 1,
+                    requestdate: 1,
+                    requestend: 1,
+                    wellnessdaycycle: 1,
+                    totalhourswfh: 1,
+                    wfhrequesttimestamp: '$createdAt',
+                    status: 1,
+                    fullname: {
+                        $concat: [
+                            '$employeeDetails.firstname',
+                            ' ',
+                            '$employeeDetails.lastname'
+                        ]
+                    },
+                    manager: {
+                        $concat: [
+                            { $ifNull: ['$managerDetails.firstname', ''] },
+                            ' ',
+                            { $ifNull: ['$managerDetails.lastname', ''] }
+                        ]
+                    }
+                }
+            },
+            { $sort: { wfhrequesttimestamp: -1 } },
+            { $skip: pageOptions.page * pageOptions.limit },
+            { $limit: pageOptions.limit }
+        ]);
 
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
-    })
+        const totalCount = await Workfromhome.aggregate([
+            {
+                $match: {
+                    owner: new mongoose.Types.ObjectId(id),
+                    status: statusfilter
+                }
+            },
+            { $count: 'total' }
+        ]);
 
-    const totallist = await Workfromhome.countDocuments({status: statusfilter})
+        const data = {
+            requestlist: requestlist.map(item => ({
+                requestid: item._id,
+                requestdate: item.requestdate,
+                requestend: item.requestend,
+                wellnessdaycycle: item.wellnessdaycycle,
+                totalhourswfh: item.totalhourswfh,
+                createdAt: item.wfhrequesttimestamp,
+                status: item.status,
+                fullname: item.fullname,
+                manager: item.manager
+            })),
+            totalpage: Math.ceil((totalCount[0]?.total || 0) / pageOptions.limit)
+        };
 
-    const data = {
-        requestlist: [],
-        totalpage: Math.ceil(totallist / pageOptions.limit),
+        return res.json({ message: "success", data });
+    } catch (err) {
+        console.error(`There's a problem with wfh request list of ${email}. Error: ${err}`);
+        return res.status(400).json({
+            message: "bad-request",
+            data: "There's a problem with the server! Please contact customer support for more details"
+        });
     }
-
-    requestlist.forEach(tempdata => {
-        const {_id, requestdate, requestend, wellnessdaycycle, totalhourswfh, createdAt, status} = tempdata
-
-        data.requestlist.push({
-            requestid: _id,
-            requestdate: requestdate,
-            requestend: requestend,
-            wellnessdaycycle: wellnessdaycycle,
-            totalhourswfh: totalhourswfh,
-            createdAt: createdAt,
-            status: status
-        })
-    })
-
-    return res.json({message: "success", data: data})
-}
+};
 
 exports.requestwfhemployee = async (req, res) => {
     const {id, email, reportingto, fullname} = req.user
@@ -556,6 +611,7 @@ exports.listwfhrequestmanager = async (req, res) => {
                 status: 1
             }
         },
+        { $sort: {createdAt: -1}},
         { $skip: pageOptions.page * pageOptions.limit }, // Skip documents based on page number
         { $limit: pageOptions.limit } // Limit the number of documents per page
     ])
