@@ -167,6 +167,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     as: "clientDetails"
                 }
             },
+            ...query ? [{ $match: query }] : [],
             { $unwind: '$clientDetails'},
             {
                 $lookup: {
