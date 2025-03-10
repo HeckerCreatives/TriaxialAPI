@@ -334,6 +334,7 @@ exports.getinvoicelist = async (req, res) => {
                 createdAt: 1,
                 updatedAt: 1,
                 jobmanagercomments: '$jobComponentDetails.comments',
+                adminnotes: '$jobComponentDetails.adminnotes',
                 notes: 1,
                 comments: 1,
                 client: {
