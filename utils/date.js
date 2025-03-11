@@ -7,12 +7,12 @@ exports.formatDate = (dateString) => {
 
 exports.formatDateRange = (startDate, endDate) => {
     if (!startDate || !endDate) {
-        return formatDate(startDate);
+        return this.formatDate(startDate);
     }
     
     if (moment(startDate).isSame(endDate, 'day')) {
-        return formatDate(startDate);
+        return this.formatDate(startDate);
     }
     
-    return `${formatDate(startDate)} until ${formatDate(endDate)}`;
+    return `${this.formatDate(startDate)} until ${this.formatDate(endDate)}`;
 };

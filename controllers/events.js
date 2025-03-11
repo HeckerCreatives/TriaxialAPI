@@ -254,7 +254,7 @@ exports.createevents = async (req, res) => {
 
     await sendmail(sender, receiver, `${eventtitle} (Event)`, `Hello Everyone!\n\nThere would be an event on ${formatDateRange(startdate, enddate)}.\n\nIf there's any question, please feel free to contact your respective immediate advisors\n\nThank you and have a great day!\n\nNote: This is an auto-generated message.`)
 
-    return res.json({message: "success"})
+    return res.status(200).json({message: "success"})
 }
 
 exports.listevents = async (req, res) => {
