@@ -1,7 +1,7 @@
 const { default: mongoose } = require("mongoose")
 const Jobcomponents = require("../models/Jobcomponents")
 const Projects = require("../models/Projects")
-const moment = require('moment');
+const moment = require("moment-timezone");
 const Users = require("../models/Users");
 const { sendmail } = require("../utils/email");
 const Clients = require("../models/Clients");
@@ -3748,9 +3748,9 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
     const { filterDate } = req.query;
 
     try {
-        const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
-        const startOfWeek = referenceDate.startOf('isoWeek').toDate();
-        const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
+        const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
+        const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+        const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
 
         const result = await Teams.aggregate([
             {
@@ -3893,7 +3893,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         // Generate dates array
         let currentDate = new Date(startOfWeek);
         while (currentDate <= endOfRange) {
-            if (currentDate.getDay() !== 0 && currentDate.getDay() !== 1) {
+            if (currentDate.getDay() !== 6 && currentDate.getDay() !== 0) {
                 data.alldates.push(currentDate.toISOString().split('T')[0]);
             }
             currentDate.setDate(currentDate.getDate() + 1);
