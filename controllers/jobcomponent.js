@@ -2198,52 +2198,75 @@ exports.listteamjobcomponent = async (req, res) => {
 
             {
                 "$addFields": {
-                  "allDates": {
-                    "$let": {
-                      "vars": {
-                        "startDate": startOfWeek,
-                        "endDate": "$projectDetails.deadlinedate"
-                      },
-                      "in": {
-                        "$filter": {
-                          "input": {
-                            "$map": {
-                              "input": {
-                                "$range": [
-                                  0,
-                                  {
-                                    "$add": [
-                                      { "$divide": [{ "$subtract": ["$$endDate", "$$startDate"] }, 86400000] },
-                                      1
-                                    ]
-                                  }
-                                ]
-                              },
-                              "as": "daysFromStart",
-                              "in": {
-                                "$dateAdd": {
-                                  "startDate": "$$startDate",
-                                  "unit": "day",
-                                  "amount": "$$daysFromStart"
+                    "allDates": {
+                        "$let": {
+                            "vars": {
+                                "startDate": "$projectDetails.startdate",
+                                "endDate": {
+                                    "$cond": {
+                                        "if": {
+                                            "$gt": [
+                                                { "$subtract": ["$projectDetails.deadlinedate", "$projectDetails.startdate"] },
+                                                2147483647000 // ~24.8 days in milliseconds (32-bit integer max)
+                                            ]
+                                        },
+                                        "then": {
+                                            "$dateAdd": {
+                                                "startDate": "$projectDetails.startdate",
+                                                "unit": "day",
+                                                "amount": 30 // Limit to 30 days
+                                            }
+                                        },
+                                        "else": "$projectDetails.deadlinedate"
+                                    }
                                 }
-                              }
+                            },
+                            "in": {
+                                "$filter": {
+                                    "input": {
+                                        "$map": {
+                                            "input": {
+                                                "$range": [
+                                                    0,
+                                                    {
+                                                        "$min": [
+                                                            {
+                                                                "$floor": {
+                                                                    "$divide": [
+                                                                        { "$subtract": ["$$endDate", "$$startDate"] },
+                                                                        86400000 // milliseconds in a day
+                                                                    ]
+                                                                }
+                                                            },
+                                                            30 // Maximum days to prevent integer overflow
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            "as": "daysFromStart",
+                                            "in": {
+                                                "$dateAdd": {
+                                                    "startDate": "$$startDate",
+                                                    "unit": "day",
+                                                    "amount": "$$daysFromStart"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "as": "date",
+                                    "cond": {
+                                        "$and": [
+                                            { "$ne": [{ "$dayOfWeek": "$$date" }, 1] }, // Exclude Sunday
+                                            { "$ne": [{ "$dayOfWeek": "$$date" }, 7] }  // Exclude Saturday
+                                        ]
+                                    }
+                                }
                             }
-                          },
-                          "as": "date",
-                          "cond": {
-                            "$and": [
-                              { "$ne": [{ "$dayOfWeek": "$$date" }, 1] }, // Exclude Sunday (1)
-                              { "$ne": [{ "$dayOfWeek": "$$date" }, 7] }  // Exclude Saturday (7)
-                            ]
-                          }
                         }
-                      }
                     }
-                  }
                 }
-              },
-              
-            {
+            },
+              {
                 $addFields: {
                     members: {
                         employee: {
@@ -3968,6 +3991,11 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
     const { filterDate, teamid } = req.query;
 
     try {
+
+        if(!teamid || !mongoose.Types.ObjectId.isValid(teamid)) {
+            return res.status(400).json({ message: 'failed', data: 'Team ID is required.' });
+        }
+
         const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
         const startOfWeek = referenceDate.isoWeekday(1).toDate(); // forced to monday
         const endOfRange = moment(startOfWeek).add(1, 'year').subtract(1, 'days').toDate();

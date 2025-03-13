@@ -505,6 +505,26 @@ exports.editteam = async (req, res) => {
         })
     })
 
+    // check team to edit
+
+    const checkteam = await Teams.findOne({_id: new mongoose.Types.ObjectId(teamid)})
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem checking the team. Error: ${err}`)
+        return res.status(400).json({
+            message: "bad-request",
+            data: "There's a problem with the server! Please contact customer support for more details."
+        })
+    })
+
+    if (!checkteam){
+        return res.status(400).json({message: "failed", data: "Selected team does not exist!"})
+    }
+
+    // store previous index of team
+
+    const indextoswap = checkteam.index
+
     const memberlist = []
 
     members.forEach(tempdata => {
@@ -518,16 +538,19 @@ exports.editteam = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
     })
 
-    const highestIndex = await Teams.getHighestIndex();
-
-    checkindex.index = highestIndex + 1
-    await checkindex.save()
-    .catch(err => {
-        console.log(`There's a problem saving the index for ${teamname}. Error: ${err}`)
-
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
-    })
-
+    if (checkindex){
+        const highestIndex = await Teams.getHighestIndex();
+        
+        checkindex.index = indextoswap || highestIndex + 1
+        await checkindex.save()
+        .catch(err => {
+            console.log(`There's a problem saving the index for ${teamname}. Error: ${err}`)
+            
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
+        })
+        console.log("swapped index success")
+        
+    }
     return res.json({message: "success"})
 }
 
