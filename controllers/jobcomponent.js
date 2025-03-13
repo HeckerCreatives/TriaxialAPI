@@ -1962,8 +1962,9 @@ exports.listteamjobcomponent = async (req, res) => {
     }
 
     const referenceDate = filterdate ? moment.tz(new Date(filterdate), "Australia/Sydney") : moment.tz("Australia/Sydney");
-    const startOfWeek = referenceDate.startOf("isoWeek").toDate();
-    const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
+    const startOfWeek = referenceDate.isoWeekday(1).toDate(); // forced to monday
+    const endOfRange = moment(startOfWeek).add(1, 'year').subtract(1, 'days').toDate();
+
 
 
     let searchQuery = {};
