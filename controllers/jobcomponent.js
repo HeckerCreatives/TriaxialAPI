@@ -1293,6 +1293,13 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
     const { teamid } = req.query;
 
     try {
+
+        const now = moment().tz("Australia/Sydney");
+        const today = now.startOf('day').toDate();
+        const startDate = moment.tz(today, "Australia/Sydney").startOf('day').toDate();
+        const endDate = moment.tz(today, "Australia/Sydney").endOf('day').toDate();
+
+
         const result = await Jobcomponents.aggregate([
             {
                 $lookup: {
@@ -1452,13 +1459,25 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                     }
                 }
             },
-            {
+              {
                 $addFields: {
                     allDates: {
                         $let: {
                             vars: {
-                                "startDate": "$projectDetails.startdate",
-                                "endDate": "$projectDetails.deadlinedate"
+                                startDate: {
+                                    $dateToString: {
+                                        date: "$projectDetails.startdate",
+                                        timezone: "Australia/Sydney",
+                                        format: "%Y-%m-%d"
+                                    }
+                                },
+                                endDate: {
+                                    $dateToString: {
+                                        date: "$projectDetails.deadlinedate",
+                                        timezone: "Australia/Sydney",
+                                        format: "%Y-%m-%d"
+                                    }
+                                }
                             },
                             in: {
                                 $filter: {
@@ -1469,7 +1488,17 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                                                     0,
                                                     {
                                                         $add: [
-                                                            { $divide: [{ $subtract: ["$$endDate", "$$startDate"] }, 86400000] },
+                                                            {
+                                                                $divide: [
+                                                                    {
+                                                                        $subtract: [
+                                                                            { $dateFromString: { dateString: "$$endDate", timezone: "Australia/Sydney" } },
+                                                                            { $dateFromString: { dateString: "$$startDate", timezone: "Australia/Sydney" } }
+                                                                        ]
+                                                                    },
+                                                                    86400000
+                                                                ]
+                                                            },
                                                             1
                                                         ]
                                                     }
@@ -1478,9 +1507,10 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                                             as: "daysFromStart",
                                             in: {
                                                 $dateAdd: {
-                                                    "startDate": "$$startDate",
-                                                    "unit": "day",
-                                                    "amount": "$$daysFromStart"
+                                                    startDate: { $dateFromString: { dateString: "$$startDate", timezone: "Australia/Sydney" } },
+                                                    unit: "day",
+                                                    amount: "$$daysFromStart",
+                                                    timezone: "Australia/Sydney"
                                                 }
                                             }
                                         }
@@ -1488,8 +1518,8 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                                     as: "date",
                                     cond: {
                                         $and: [
-                                            { $ne: [{ "$dayOfWeek": "$$date" }, 1] }, // Exclude Sunday (1)
-                                            { $ne: [{ "$dayOfWeek": "$$date" }, 7] }  // Exclude Saturday (7)
+                                            { $ne: [{ "$dayOfWeek": "$$date" }, 6] },
+                                            { $ne: [{ "$dayOfWeek": "$$date" }, 7] }
                                         ]
                                     }
                                 }
@@ -1598,8 +1628,15 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
             }
         ]);
         
+        const formattedResult = result.map(item => ({
+            ...item,
+            allDates: item.allDates.map(date => 
+                moment(date).tz("Australia/Sydney").format('YYYY-MM-DD')
+            )
+        }));
+
  
-        return res.json({ message: "success", data: result });
+        return res.json({ message: "success", data: formattedResult });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ message: "Error processing request", error: err.message });
@@ -1924,9 +1961,9 @@ exports.listteamjobcomponent = async (req, res) => {
         return res.status(400).json({ message: "failed", data: "Invalid team ID" });
     }
 
-    const referenceDate = filterdate ? moment(new Date(filterdate)) : moment();
-    const startOfWeek = referenceDate.startOf('isoWeek').toDate();
-    const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
+    const referenceDate = filterdate ? moment.tz(new Date(filterdate), "Australia/Sydney") : moment.tz("Australia/Sydney");
+    const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+    const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
 
 
     let searchQuery = {};
@@ -2201,7 +2238,7 @@ exports.listteamjobcomponent = async (req, res) => {
                     "allDates": {
                         "$let": {
                             "vars": {
-                                "startDate": "$projectDetails.startdate",
+                                "startDate": startOfWeek,
                                 "endDate": {
                                     "$cond": {
                                         "if": {
@@ -2680,10 +2717,10 @@ exports.yourworkload = async (req, res) => {
     const { filterDate } = req.query; // Assuming the filter date is passed as a query parameter
     try {
         // Use filterDate if provided; otherwise, default to today
-        const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
-        const startOfWeek = referenceDate.startOf('isoWeek').toDate();
-        const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate(); // End date for eight weeks, Friday
-
+        const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
+        const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+        const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
+    
 
         const result = await Jobcomponents.aggregate([
             {
@@ -3023,7 +3060,7 @@ exports.yourworkload = async (req, res) => {
 
         while (currentDate <= endOfRange) {
             const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-            if (dayOfWeek !== 1 && dayOfWeek !== 0) { // Only add weekdays (1-5)
+            if (dayOfWeek !== 6 && dayOfWeek !== 0) { // Only add weekdays (1-5)
                 dateList.push(new Date(currentDate).toISOString().split('T')[0]); // Format as YYYY-MM-DD
             }
         
@@ -3219,9 +3256,9 @@ exports.getjobcomponentdashboard = async (req, res) => {
     const { filterDate } = req.query;
 
     try {
-        const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
-        const startOfWeek = referenceDate.startOf('isoWeek').toDate();
-        const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
+        const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
+        const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+        const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
         
         const result = await Jobcomponents.aggregate([
             { 
@@ -3995,10 +4032,10 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
         if(!teamid || !mongoose.Types.ObjectId.isValid(teamid)) {
             return res.status(400).json({ message: 'failed', data: 'Team ID is required.' });
         }
-
-        const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
+        const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
         const startOfWeek = referenceDate.isoWeekday(1).toDate(); // forced to monday
         const endOfRange = moment(startOfWeek).add(1, 'year').subtract(1, 'days').toDate();
+
 
         const result = await Jobcomponents.aggregate([
             { 
@@ -4294,9 +4331,9 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
     const { filterDate } = req.query;
 
     try {
-        const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
-        const startOfWeek = referenceDate.startOf('isoWeek').toDate();
-        const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate();
+        const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
+        const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+        const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
         
         const result = await Jobcomponents.aggregate([
             { 
@@ -4571,9 +4608,9 @@ exports.individualworkload = async (req, res) => {
     const { employeeid, filterDate } = req.query; // Assuming the filter date is passed as a query parameter
     try {
         // Use filterDate if provided; otherwise, default to today
-        const referenceDate = filterDate ? moment(new Date(filterDate)) : moment();
-        const startOfWeek = referenceDate.startOf('isoWeek').toDate();
-        const endOfRange = moment(startOfWeek).add(8, 'weeks').subtract(1, 'days').toDate(); // End date for eight weeks, Friday
+        const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
+        const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+        const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
 
         // Calculate the total days between startOfWeek and endOfRange
         const totalDays = Math.ceil((endOfRange - startOfWeek) / (1000 * 60 * 60 * 24));
@@ -4917,7 +4954,7 @@ exports.individualworkload = async (req, res) => {
 
         while (currentDate <= endOfRange) {
             const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-            if (dayOfWeek !== 1 && dayOfWeek !== 0) { // Only add weekdays (1-5)
+            if (dayOfWeek !== 6 && dayOfWeek !== 0) { // Only add weekdays (1-5)
                 dateList.push(new Date(currentDate).toISOString().split('T')[0]); // Format as YYYY-MM-DD
             }
         
