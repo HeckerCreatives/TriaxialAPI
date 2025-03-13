@@ -85,6 +85,9 @@ exports.listteam = async (req, res) => {
     try {
         const teams = await Teams.aggregate([
             { $match: matchStage },
+            { $sort: { index: 1 } },
+            { $skip: pageOptions.page * pageOptions.limit },
+            { $limit: pageOptions.limit },
             {
                 $lookup: {
                     from: 'users',
@@ -204,9 +207,6 @@ exports.listteam = async (req, res) => {
                     },
                 },
             },
-            { $sort: { index: 1 } },
-            { $skip: pageOptions.page * pageOptions.limit },
-            { $limit: pageOptions.limit },
         ]);
 
         const totalTeams = await Teams.countDocuments(matchStage);
