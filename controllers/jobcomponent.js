@@ -2240,24 +2240,7 @@ exports.listteamjobcomponent = async (req, res) => {
                         "$let": {
                             "vars": {
                                 "startDate": startOfWeek,
-                                "endDate": {
-                                    "$cond": {
-                                        "if": {
-                                            "$gt": [
-                                                { "$subtract": ["$projectDetails.deadlinedate", "$projectDetails.startdate"] },
-                                                2147483647000 // ~24.8 days in milliseconds (32-bit integer max)
-                                            ]
-                                        },
-                                        "then": {
-                                            "$dateAdd": {
-                                                "startDate": "$projectDetails.startdate",
-                                                "unit": "day",
-                                                "amount": 30 // Limit to 30 days
-                                            }
-                                        },
-                                        "else": "$projectDetails.deadlinedate"
-                                    }
-                                }
+                                "endDate": endOfRange
                             },
                             "in": {
                                 "$filter": {
@@ -2276,8 +2259,7 @@ exports.listteamjobcomponent = async (req, res) => {
                                                                     ]
                                                                 }
                                                             },
-                                                            30 // Maximum days to prevent integer overflow
-                                                        ]
+                                                            365]
                                                     }
                                                 ]
                                             },
