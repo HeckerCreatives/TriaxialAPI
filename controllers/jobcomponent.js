@@ -3769,8 +3769,8 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
 
     try {
         const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
-        const startOfWeek = referenceDate.startOf("isoWeek").toDate();
-        const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
+        const startOfWeek = referenceDate.startOf("isoWeek").utc().toDate();
+        const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").utc().toDate();
 
         const result = await Teams.aggregate([
             {
@@ -3911,12 +3911,12 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         };
 
         // Generate dates array
-        let currentDate = new Date(startOfWeek);
-        while (currentDate <= endOfRange) {
-            if (currentDate.getDay() !== 6 && currentDate.getDay() !== 0) {
-                data.alldates.push(currentDate.toISOString().split('T')[0]);
+        let currentDate = moment.utc(startOfWeek);
+        while (currentDate.isSameOrBefore(endOfRange, "day")) {
+            if (currentDate.day() !== 6 && currentDate.day() !== 0) { // Exclude weekends
+                data.alldates.push(currentDate.format("YYYY-MM-DD")); // Format correctly
             }
-            currentDate.setDate(currentDate.getDate() + 1);
+            currentDate.add(1, "day"); // Move to next day
         }
 
         // Process results
