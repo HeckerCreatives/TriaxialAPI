@@ -3946,20 +3946,18 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     dates: []
                 };
 
-                // Process job component hours
-                // Safely process job component data with null checks and default values
+                // Inside getsuperadminjobcomponentdashboard function, where member dates are processed
+
                 jobComponentsData.flat().forEach(job => {
-                    // Check if job exists and has members
                     if (job && Array.isArray(job.members)) {
                         job.members.forEach(member => {
-                            // Check if member and employee exist
                             if (member && member.employee && memberDetails && memberDetails.owner) {
                                 try {
                                     const memberEmployeeId = member.employee.toString();
                                     const memberDetailsOwnerId = memberDetails.owner.toString();
                                     
                                     if (memberEmployeeId === memberDetailsOwnerId) {
-                                        // Ensure dates array exists
+                                        // Process regular job component dates
                                         const dates = Array.isArray(member.dates) ? member.dates : [];
                                         
                                         dates.forEach(date => {
@@ -3978,6 +3976,33 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                                                 }
                                             }
                                         });
+
+                                        // Process leave dates - add 7.6 hours for each leave day
+                                        if (Array.isArray(employeeData.leave)) {
+                                            employeeData.leave.forEach(leave => {
+                                                const leaveStart = moment(leave.leavestart);
+                                                const leaveEnd = moment(leave.leaveend);
+                                                
+                                                // Iterate through each day of leave
+                                                for (let day = moment(leaveStart); day <= moment(leaveEnd); day.add(1, 'days')) {
+                                                    // Skip weekends
+                                                    if (day.day() !== 0 && day.day() !== 6) {
+                                                        const formattedDate = day.format('YYYY-MM-DD');
+                                                        let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
+                                                        
+                                                        if (!dateEntry) {
+                                                            dateEntry = {
+                                                                date: formattedDate,
+                                                                totalhoursofjobcomponents: 7.6  // Standard leave hours
+                                                            };
+                                                            employeeData.dates.push(dateEntry);
+                                                        } else {
+                                                            dateEntry.totalhoursofjobcomponents = Math.max(dateEntry.totalhoursofjobcomponents, 7.6);
+                                                        }
+                                                    }
+                                                }
+                                            });
+                                        }
                                     }
                                 } catch (err) {
                                     console.error('Error processing member data:', err);
@@ -3986,7 +4011,6 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                         });
                     }
                 });
-
                 // Ensure employeeData has dates array even if no data was processed
                 if (!employeeData.dates) {
                     employeeData.dates = [];
