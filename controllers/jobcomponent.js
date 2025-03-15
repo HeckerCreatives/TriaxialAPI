@@ -1586,6 +1586,68 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                                     ]
                                 }
                             }    
+                        },
+                        dates: {
+                            $let: {
+                                vars: {
+                                    existingDates: "$members.dates",
+                                    leaveDates: "$leaveData.leavedates"
+                                },
+                                in: {
+                                    $reduce: {
+                                        input: "$$leaveDates",
+                                        initialValue: "$$existingDates",
+                                        in: {
+                                            $let: {
+                                                vars: {
+                                                    startDate: "$$this.leavestart",
+                                                    endDate: "$$this.leaveend"
+                                                },
+                                                in: {
+                                                    $concatArrays: [
+                                                        "$$value",
+                                                        {
+                                                            $map: {
+                                                                input: {
+                                                                    $range: [
+                                                                        0,
+                                                                        {
+                                                                            $add: [
+                                                                                {
+                                                                                    $divide: [
+                                                                                        { $subtract: [
+                                                                                            { $toDate: "$$endDate" }, 
+                                                                                            { $toDate: "$$startDate" }
+                                                                                        ]},
+                                                                                        86400000
+                                                                                    ]
+                                                                                },
+                                                                                1
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                as: "dayOffset",
+                                                                in: {
+                                                                    date: {
+                                                                        $dateAdd: {
+                                                                            startDate: { $toDate: "$$startDate" },
+                                                                            unit: "day",
+                                                                            amount: "$$dayOffset"
+                                                                        }
+                                                                    },
+                                                                    hours: 7.6,
+                                                                    status: ["Leave"]
+                                                                }
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -2355,6 +2417,68 @@ exports.listteamjobcomponent = async (req, res) => {
                                     ]
                                 }
                             }    
+                        },
+                        dates: {
+                            $let: {
+                                vars: {
+                                    existingDates: "$members.dates",
+                                    leaveDates: "$leaveData.leavedates"
+                                },
+                                in: {
+                                    $reduce: {
+                                        input: "$$leaveDates",
+                                        initialValue: "$$existingDates",
+                                        in: {
+                                            $let: {
+                                                vars: {
+                                                    startDate: "$$this.leavestart",
+                                                    endDate: "$$this.leaveend"
+                                                },
+                                                in: {
+                                                    $concatArrays: [
+                                                        "$$value",
+                                                        {
+                                                            $map: {
+                                                                input: {
+                                                                    $range: [
+                                                                        0,
+                                                                        {
+                                                                            $add: [
+                                                                                {
+                                                                                    $divide: [
+                                                                                        { $subtract: [
+                                                                                            { $toDate: "$$endDate" }, 
+                                                                                            { $toDate: "$$startDate" }
+                                                                                        ]},
+                                                                                        86400000
+                                                                                    ]
+                                                                                },
+                                                                                1
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                as: "dayOffset",
+                                                                in: {
+                                                                    date: {
+                                                                        $dateAdd: {
+                                                                            startDate: { $toDate: "$$startDate" },
+                                                                            unit: "day",
+                                                                            amount: "$$dayOffset"
+                                                                        }
+                                                                    },
+                                                                    hours: 7.6,
+                                                                    status: ["Leave"]
+                                                                }
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -3061,17 +3185,59 @@ exports.yourworkload = async (req, res) => {
         // Extract all dates and unique members
         result.forEach(job => {
 
-            // Restructure member data
-            const members = job.members.map(member => ({
+        // Restructure member data
+        const members = job.members.map(member => {
+            // First map the basic member data
+            const mappedMember = {
                 employee: member.employee,
                 role: member.role,
                 notes: member.notes,
-                dates: member.dates,
+                dates: member.dates ? [...member.dates] : [], // Create a copy of dates array
                 leaveDates: member.leaveDates,
                 wellnessDates: member.wellnessDates,
                 eventDates: member.eventDates,
                 wfhDates: member.wfhDates
-            }));
+            };
+
+            // If there are leave dates, process them
+            if (member.leaveDates && member.leaveDates.length > 0) {
+                member.leaveDates.forEach(leave => {
+                    if (leave.leavestart && leave.leaveend) {
+                        // Convert dates to moment objects for easier handling
+                        const startDate = moment(leave.leavestart);
+                        const endDate = moment(leave.leaveend);
+                        
+                        // Loop through each day in the leave period
+                        for (let date = startDate.clone(); date <= endDate; date.add(1, 'days')) {
+                            // Skip weekends
+                            if (date.day() !== 0 && date.day() !== 6) {
+                                // Format date to match your date storage format
+                                const dateStr = date.format('YYYY-MM-DD');
+                                
+                                // Check if date entry already exists
+                                const existingDateIndex = mappedMember.dates.findIndex(d => 
+                                    moment(d.date).format('YYYY-MM-DD') === dateStr
+                                );
+
+                                if (existingDateIndex >= 0) {
+                                    // Update existing date entry
+                                    mappedMember.dates[existingDateIndex].hours = 7.6;
+                                } else {
+                                    // Add new date entry
+                                    mappedMember.dates.push({
+                                        date: date.toDate(),
+                                        hours: 7.6,
+                                        status: ['Leave']
+                                    });
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            return mappedMember;
+        });
 
             
 
@@ -3922,7 +4088,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         // Process results
         result.forEach(entry => {
             const { _id, memberDetails, leaveData, wfhData, wellnessData, eventData, jobComponentsData } = entry;
-
+        
             let teamData = data.teams.find(team => team.teamid.toString() === _id.teamId.toString());
             if (!teamData) {
                 teamData = {
@@ -3932,7 +4098,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                 };
                 data.teams.push(teamData);
             }
-
+        
             if (memberDetails) {
                 let employeeData = {
                     id: memberDetails.owner,
@@ -3945,77 +4111,71 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     event: eventData || [],
                     dates: []
                 };
-
-                // Inside getsuperadminjobcomponentdashboard function, where member dates are processed
-
-                jobComponentsData.flat().forEach(job => {
-                    if (job && Array.isArray(job.members)) {
-                        job.members.forEach(member => {
-                            if (member && member.employee && memberDetails && memberDetails.owner) {
-                                try {
-                                    const memberEmployeeId = member.employee.toString();
-                                    const memberDetailsOwnerId = memberDetails.owner.toString();
-                                    
-                                    if (memberEmployeeId === memberDetailsOwnerId) {
-                                        // Process regular job component dates
-                                        const dates = Array.isArray(member.dates) ? member.dates : [];
-                                        
-                                        dates.forEach(date => {
-                                            if (date && date.date) {
-                                                const formattedDate = moment(date.date).format('YYYY-MM-DD');
-                                                let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
-                                                
-                                                if (!dateEntry) {
-                                                    dateEntry = {
-                                                        date: formattedDate,
-                                                        totalhoursofjobcomponents: Number(date.hours) || 0
-                                                    };
-                                                    employeeData.dates.push(dateEntry);
-                                                } else {
-                                                    dateEntry.totalhoursofjobcomponents += Number(date.hours) || 0;
-                                                }
-                                            }
-                                        });
-
-                                        // Process leave dates - add 7.6 hours for each leave day
-                                        if (Array.isArray(employeeData.leave)) {
-                                            employeeData.leave.forEach(leave => {
-                                                const leaveStart = moment(leave.leavestart);
-                                                const leaveEnd = moment(leave.leaveend);
-                                                
-                                                // Iterate through each day of leave
-                                                for (let day = moment(leaveStart); day <= moment(leaveEnd); day.add(1, 'days')) {
-                                                    // Skip weekends
-                                                    if (day.day() !== 0 && day.day() !== 6) {
-                                                        const formattedDate = day.format('YYYY-MM-DD');
-                                                        let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
-                                                        
-                                                        if (!dateEntry) {
-                                                            dateEntry = {
-                                                                date: formattedDate,
-                                                                totalhoursofjobcomponents: 7.6  // Standard leave hours
-                                                            };
-                                                            employeeData.dates.push(dateEntry);
-                                                        } else {
-                                                            dateEntry.totalhoursofjobcomponents = Math.max(dateEntry.totalhoursofjobcomponents, 7.6);
-                                                        }
+        
+                // Process job component dates
+                if (Array.isArray(jobComponentsData)) {
+                    jobComponentsData.flat().forEach(job => {
+                        if (job && Array.isArray(job.members)) {
+                            job.members.forEach(member => {
+                                if (member && member.employee && memberDetails && memberDetails.owner) {
+                                    try {
+                                        const memberEmployeeId = member.employee.toString();
+                                        const memberDetailsOwnerId = memberDetails.owner.toString();
+        
+                                        if (memberEmployeeId === memberDetailsOwnerId) {
+                                            const dates = Array.isArray(member.dates) ? member.dates : [];
+        
+                                            dates.forEach(date => {
+                                                if (date && date.date) {
+                                                    const formattedDate = moment(date.date).format('YYYY-MM-DD');
+                                                    let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
+        
+                                                    if (!dateEntry) {
+                                                        dateEntry = {
+                                                            date: formattedDate,
+                                                            totalhoursofjobcomponents: Number(date.hours) || 0
+                                                        };
+                                                        employeeData.dates.push(dateEntry);
+                                                    } else {
+                                                        dateEntry.totalhoursofjobcomponents += Number(date.hours) || 0;
                                                     }
                                                 }
                                             });
                                         }
+                                    } catch (err) {
+                                        console.error('Error processing job component data:', err);
                                     }
-                                } catch (err) {
-                                    console.error('Error processing member data:', err);
+                                }
+                            });
+                        }
+                    });
+                }
+        
+                // Move leave processing OUTSIDE the job component loop so it applies to all employees
+                if (Array.isArray(employeeData.leave)) {
+                    employeeData.leave.forEach(leave => {
+                        const leaveStart = moment(leave.leavestart);
+                        const leaveEnd = moment(leave.leaveend);
+        
+                        for (let day = moment(leaveStart); day <= moment(leaveEnd); day.add(1, 'days')) {
+                            if (day.day() !== 0 && day.day() !== 6) { // Skip weekends
+                                const formattedDate = day.format('YYYY-MM-DD');
+                                let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
+        
+                                if (!dateEntry) {
+                                    dateEntry = {
+                                        date: formattedDate,
+                                        totalhoursofjobcomponents: 7.6 // Standard leave hours
+                                    };
+                                    employeeData.dates.push(dateEntry);
+                                } else {
+                                    dateEntry.totalhoursofjobcomponents = Math.max(dateEntry.totalhoursofjobcomponents, 7.6);
                                 }
                             }
-                        });
-                    }
-                });
-                // Ensure employeeData has dates array even if no data was processed
-                if (!employeeData.dates) {
-                    employeeData.dates = [];
+                        }
+                    });
                 }
-
+        
                 teamData.members.push(employeeData);
             }
         });
@@ -4979,17 +5139,60 @@ exports.individualworkload = async (req, res) => {
         // Extract all dates and unique members
         result.forEach(job => {
 
-            // Restructure member data
-            const members = job.members.map(member => ({
+        // Restructure member data
+        const members = job.members.map(member => {
+            // First map the basic member data
+            const mappedMember = {
                 employee: member.employee,
                 role: member.role,
                 notes: member.notes,
-                dates: member.dates,
+                dates: member.dates ? [...member.dates] : [], // Create a copy of dates array
                 leaveDates: member.leaveDates,
                 wellnessDates: member.wellnessDates,
                 eventDates: member.eventDates,
                 wfhDates: member.wfhDates
-            }));
+            };
+
+            // If there are leave dates, process them
+            if (member.leaveDates && member.leaveDates.length > 0) {
+                member.leaveDates.forEach(leave => {
+                    if (leave.leavestart && leave.leaveend) {
+                        // Convert dates to moment objects for easier handling
+                        const startDate = moment(leave.leavestart);
+                        const endDate = moment(leave.leaveend);
+                        
+                        // Loop through each day in the leave period
+                        for (let date = startDate.clone(); date <= endDate; date.add(1, 'days')) {
+                            // Skip weekends
+                            if (date.day() !== 0 && date.day() !== 6) {
+                                // Format date to match your date storage format
+                                const dateStr = date.format('YYYY-MM-DD');
+                                
+                                // Check if date entry already exists
+                                const existingDateIndex = mappedMember.dates.findIndex(d => 
+                                    moment(d.date).format('YYYY-MM-DD') === dateStr
+                                );
+
+                                if (existingDateIndex >= 0) {
+                                    // Update existing date entry
+                                    mappedMember.dates[existingDateIndex].hours = 7.6;
+                                } else {
+                                    // Add new date entry
+                                    mappedMember.dates.push({
+                                        date: date.toDate(),
+                                        hours: 7.6,
+                                        status: ['Leave']
+                                    });
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            return mappedMember;
+        });
+
             
 
             // Push members into the yourworkload array
