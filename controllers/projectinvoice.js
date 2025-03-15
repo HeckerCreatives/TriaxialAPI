@@ -202,7 +202,12 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     },
                 }
             },
-            { $sort: { createdAt: 1 } }
+            { $sort: { 
+                'jobmanager.fullname': 1,
+                'clientname': 1, 
+                'jobnumber': 1,
+                'jobcomponent': 1 
+            } }        
         ]);
 
         if (result.length > 0) {

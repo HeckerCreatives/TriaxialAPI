@@ -4195,129 +4195,86 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
     const { filterDate, teamid } = req.query;
 
     try {
-
-        if(!teamid || !mongoose.Types.ObjectId.isValid(teamid)) {
-            return res.status(400).json({ message: 'failed', data: 'Team ID is required.' });
+        if (!teamid || !mongoose.Types.ObjectId.isValid(teamid)) {
+            return res.status(400).json({ message: 'failed', data: 'Valid Team ID is required.' });
         }
-        const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
-        const startOfWeek = referenceDate.isoWeekday(1).toDate(); // forced to monday
-        const endOfRange = moment(startOfWeek).add(1, 'year').subtract(1, 'days').toDate();
 
+        const referenceDate = filterDate 
+            ? moment.tz(new Date(filterDate), "Australia/Sydney") 
+            : moment.tz("Australia/Sydney");
 
-        const result = await Jobcomponents.aggregate([
+        const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+        const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
+
+        const result = await Teams.aggregate([
             { 
-                $match: { 
-                    status: { $in: ["completed", "", null, "unarchive", "On-going"] } 
+                $match: { _id: new mongoose.Types.ObjectId(teamid) } 
+            },
+            {
+                $lookup: {
+                    from: 'userdetails', // Get all team members
+                    localField: 'members',
+                    foreignField: 'owner',
+                    as: 'memberDetails'
                 }
             },
             {
                 $lookup: {
-                    from: 'projects',
-                    localField: 'project',
-                    foreignField: '_id',
-                    as: 'projectDetails'
-                }
-            },
-            { $unwind: '$projectDetails' },
-            {
-                $match: {
-                    $or: [
-                        { 
-                            $and: [
-                                { 'projectDetails.startdate': { $lte: endOfRange } },
-                                { 'projectDetails.deadlinedate': { $gte: startOfWeek } }
-                            ]
+                    from: 'projects', // Get projects for this team
+                    let: { teamId: '$_id' },
+                    pipeline: [
+                        {
+                            $match: { 
+                                $expr: { 
+                                    $eq: ['$team', '$$teamId'] 
+                                }
+                            }
                         },
                         {
-                            $and: [
-                                { 'projectDetails.startdate': { $lte: endOfRange } },
-                                { 'projectDetails.deadlinedate': { $gte: startOfWeek } }
-                            ]
+                            $lookup: {
+                                from: 'jobcomponents', 
+                                localField: '_id', 
+                                foreignField: 'project', 
+                                as: 'jobComponents'
+                            }
                         }
                     ],
-                    'projectDetails.team': new mongoose.Types.ObjectId(teamid),
+                    as: 'activeProjects'
                 }
             },
-            { $unwind: "$members" },
-            { $unwind: { preserveNullAndEmptyArrays: true, path: "$members.dates" } },
-            {
-                $lookup: {
-                    from: 'userdetails',
-                    localField: 'members.employee',
-                    foreignField: 'owner',
-                    as: 'userDetails'
-                }
-            },
-            { $unwind: '$userDetails' },
             {
                 $lookup: {
                     from: 'leaves',
-                    let: { employeeId: '$members.employee' },
-                    pipeline: [
-                        { 
-                            $match: { 
-                                $expr: { 
-                                    $eq: ['$owner', '$$employeeId'] 
-                                } 
-                            }
-                        },
-                        {
-                            $project: {
-                                _id: 0,
-                                leavedates: {
-                                    leavestart: "$leavestart",
-                                    leaveend: "$leaveend"
-                                }
-                            }
-                        }
-                    ],
+                    localField: 'memberDetails.owner',
+                    foreignField: 'owner',
                     as: 'leaveData'
                 }
             },
             {
                 $lookup: {
-                    from: 'wellnessdays',
-                    let: { employeeId: '$members.employee' },
-                    pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
-                        {
-                            $project: {
-                                _id: 0,
-                                wellnessdates: "$requestdate"
-                            }
-                        }
-                    ],
-                    as: 'wellnessData'
-                }
-            },
-            {
-                $lookup: {
                     from: 'workfromhomes',
-                    let: { employeeId: '$members.employee' },
-                    pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
-                        {
-                            $project: {
-                                _id: 0,
-                                requeststart: "$requestdate"
-                            }
-                        }
-                    ],
+                    localField: 'memberDetails.owner',
+                    foreignField: 'owner',
                     as: 'wfhData'
                 }
             },
             {
                 $lookup: {
+                    from: 'wellnessdays',
+                    localField: 'memberDetails.owner',
+                    foreignField: 'owner',
+                    as: 'wellnessData'
+                }
+            },
+            {
+                $lookup: {
                     from: 'events',
-                    let: { teamId: '$projectDetails.team' },
+                    let: { teamId: '$_id' },
                     pipeline: [
-                        { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
-                        {
-                            $project: {
-                                _id: 0,
-                                eventdates: {
-                                    startdate: "$startdate",
-                                    enddate: "$enddate"
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $in: ['$$teamId', '$teams'] 
                                 }
                             }
                         }
@@ -4326,170 +4283,103 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                 }
             },
             {
-                $lookup: {
-                    from: 'teams',
-                    localField: 'projectDetails.team',
-                    foreignField: '_id',
-                    as: 'teamData'
-                }
-            },
-            { $unwind: '$teamData' },
-            {
-                $group: {
-                    _id: {
-                        teamid: "$teamData._id",
-                        team: "$teamData.teamname",
-                        employeeId: "$userDetails._id", 
-                        employeeName: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] },
-                        date: "$members.dates.date"
-                    },
-                    employee: {
-                        $first: {
-                            id: "$userDetails.owner",
-                            fullname: { $concat: ["$userDetails.firstname", " ", "$userDetails.lastname"] },
-                            initial: "$userDetails.initial",
-                            resource: "$userDetails.resource"
-                        }
-                    },
-                    date: { $first: "$members.dates.date" },
-                    status: { $first: "$members.dates.status" },
-                    totalHours: { $sum: "$members.dates.hours" },
-                    leaveData: { $first: "$leaveData" },
-                    wellnessData: { $first: "$wellnessData" },
-                    wfhData: { $first: "$wfhData" },
-                    eventData: { $first: "$eventData" },
-                    project: { $first: "$projectDetails" },
-                    members: { $push: "$members" }
-                }
-            },
-            {
                 $project: {
-                    employee: 1,
-                    date: 1,
-                    status: 1,
-                    totalHours: 1,
+                    _id: 1,
+                    teamname: 1,
+                    memberDetails: 1,
                     leaveData: 1,
+                    wfhData: 1,
                     wellnessData: 1,
                     eventData: 1,
-                    wfhData: 1,
-                    members: 1,
-                    teamid: "$_id.teamid",
-                    teamName: "$_id.team",
+                    jobComponentsData: {
+                        $reduce: {
+                            input: "$activeProjects",
+                            initialValue: [],
+                            in: { $concatArrays: ["$$value", "$$this.jobComponents"] }
+                        }
+                    }
                 }
-            },
-            { $sort: { "teamName": 1, "employee": 1, "date": 1 } }
+            }
         ]);
+
+        if (!result || result.length === 0) {
+            return res.json({ message: 'success', data: { alldates: [], teams: [] } });
+        }
+
+        const teamData = result[0]; // Since we query for one team, take the first result.
 
         const data = {
             alldates: [],
             teams: []
         };
 
-
-        let currentDate = new Date(startOfWeek);
-        while (currentDate <= endOfRange) {
-            if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
-                data.alldates.push(currentDate.toISOString().split('T')[0]);
+        // Generate date range (weekdays only)
+        let currentDate = moment.utc(startOfWeek);
+        while (currentDate.isSameOrBefore(endOfRange, "day")) {
+            if (currentDate.day() !== 6 && currentDate.day() !== 0) { // Exclude weekends
+                data.alldates.push(currentDate.format("YYYY-MM-DD"));
             }
-            currentDate.setDate(currentDate.getDate() + 1);
+            currentDate.add(1, "day");
         }
 
-        result.forEach(entry => {
-            const { teamName, teamid, employee, role, notes, date, status, totalHours, wfhData, leaveData, wellnessData, eventData, members } = entry;
-            const formattedDate = new Date(date).toISOString().split('T')[0];
-        
-            let teamData = data.teams.find(team => team.name === teamName);
-            if (!teamData) {
-                teamData = {
-                    teamid: teamid,
-                    name: teamName,
-                    members: []
-                };
-                data.teams.push(teamData);
-            }
-        
-            let employeeData = teamData.members.find(emp => emp.name === employee.fullname);
-            if (!employeeData) {
-                employeeData = {
-                    id: employee.id,
-                    name: employee.fullname,
-                    initial: employee.initial,
-                    resource: employee.resource,
-                    role: role,  // Include role
-                    notes: notes, // Include notes
-                    leave: [],
-                    wellness: wellnessData,
-                    event: eventData,
-                    wfh: wfhData,
-                    dates: []
-                };
+        // Prepare the team structure
+        let formattedTeam = {
+            teamid: teamData._id,
+            name: teamData.teamname,
+            members: []
+        };
 
-                // wfhData.forEach(wfh => {
-                //     employeeData.wfhs.push({
-                //         requeststart: wfh.requeststart
-                //     });
-                // });
-        
-                leaveData.forEach(leave => {
-                    if (leave && leave.leavedates) {
-                        const leaveStart = new Date(leave.leavedates.leavestart);
-                        const leaveEnd = new Date(leave.leavedates.leaveend);
-                        
-                        // Only include leaves that fall within the project timeline
-                        if (leaveStart <= endOfRange && leaveEnd >= startOfWeek) {
-                            employeeData.leave.push({
-                                leavestart: leaveStart.toISOString().split('T')[0], // Format as YYYY-MM-DD
-                                leaveend: leaveEnd.toISOString().split('T')[0]     // Format as YYYY-MM-DD
-                            });
-                        }
+        // Process each member
+        teamData.memberDetails.forEach(member => {
+            let employeeData = {
+                id: member.owner,
+                name: `${member.firstname} ${member.lastname}`,
+                initial: member.initial,
+                resource: member.resource,
+                leave: teamData.leaveData.filter(l => l.owner.toString() === member.owner.toString()) || [],
+                wfh: teamData.wfhData.filter(w => w.owner.toString() === member.owner.toString()) || [],
+                wellness: teamData.wellnessData.filter(wd => wd.owner.toString() === member.owner.toString()) || [],
+                event: teamData.eventData || [],
+                dates: []
+            };
+
+            // Initialize date structure
+            const dates = data.alldates.map(date => ({
+                date,
+                totalhoursofjobcomponents: 0
+            }));
+
+            // Add job component data (if exists)
+            teamData.jobComponentsData.forEach(job => {
+                if (job.members) {
+                    const memberData = job.members.find(m => m.employee && m.employee.toString() === member.owner.toString());
+                    if (memberData && memberData.dates) {
+                        memberData.dates.forEach(dateEntry => {
+                            const existingDate = dates.find(d => moment(d.date).isSame(dateEntry.date, 'day'));
+                            if (existingDate) {
+                                existingDate.totalhoursofjobcomponents += dateEntry.hours || 0;
+                            }
+                        });
                     }
-                });
-                
-                // Sort leaves by start date
-                employeeData.leave.sort((a, b) => {
-                    return new Date(a.leavestart) - new Date(b.leavestart);
-                });
-                
-                // Remove duplicate leaves
-                employeeData.leave = employeeData.leave.filter((leave, index, self) =>
-                    index === self.findIndex((t) => (
-                        t.leavestart === leave.leavestart && t.leaveend === leave.leaveend
-                    ))
-                );
-        
-                // eventData.forEach(event => {
-                //     employeeData.event.push({
-                //         eventstart: event.startdate,
-                //         eventend: event.enddate
-                //     });
-                // });
-        
-                teamData.members.push(employeeData);
-            }
-        
-            let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
-            if (!dateEntry) {
-                dateEntry = {
-                    date: formattedDate,
-                    totalhoursofjobcomponents: totalHours
-                };
-        
-                employeeData.dates.push(dateEntry);
-            }
+                }
+            });
+
+            employeeData.dates = dates;
+            formattedTeam.members.push(employeeData);
         });
 
-        data.teams.forEach(team => {
-            team.members.sort((a, b) => a.name.localeCompare(b.name));
-        });
+        // Sort members alphabetically
+        formattedTeam.members.sort((a, b) => a.name.localeCompare(b.name));
 
-        data.teams.sort((a, b) => a.name.localeCompare(b.name));
-        
-    
-        
+        data.teams.push(formattedTeam);
+
         return res.json({ message: 'success', data });
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ message: 'Error processing request', error: err.message });
+        return res.status(500).json({
+            message: 'Error processing request',
+            error: err.message
+        });
     }
 };
 
