@@ -54,14 +54,54 @@ exports.wellnessdayrequest = async (req, res) => {
         return res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
     }
 
-    //  CHECK IF THERE'S A REQUEST ON THIS CURRENT WEEK
-    const existingRequest = await Wellnessdayevent.findOne({firstdayofwellnessdaycyle: new mongoose.Types.ObjectId(activeCycle[0]._id)})
-    .then(data => data)
+    // Check if there's a request this week
+    const existingRequest = await Wellnessday.aggregate([
+        {
+            $match: {
+                owner: new mongoose.Types.ObjectId(id),
+                status: { $nin: ["Denied"] }
+            }
+        },
+        {
+            $addFields: {
+                weekStart: {
+                    $dateFromParts: {
+                        year: { $year: "$requestdate" },
+                        month: { $month: "$requestdate" },
+                        day: { 
+                            $subtract: [
+                                { $dayOfMonth: "$requestdate" },
+                                { $subtract: [{ $dayOfWeek: "$requestdate" }, 1] }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        {
+            $match: {
+                weekStart: {
+                    $dateFromParts: {
+                        year: { $year: request },
+                        month: { $month: request },
+                        day: { 
+                            $subtract: [
+                                { $dayOfMonth: request },
+                                { $subtract: [{ $dayOfWeek: request }, 1] }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    ]);
 
-    if (existingRequest){
-        return res.status(400).json({message: "failed", data: "There's an existing request on that wellness day cycle"})
+    if (existingRequest.length > 0) {
+        return res.status(400).json({
+            message: "failed", 
+            data: "You already have a wellness day request this week"
+        });
     }
-
     // const conflictingEvent = await Wellnessdayevent.findOne({
     //     $or: [
     //         { startdate: request },
