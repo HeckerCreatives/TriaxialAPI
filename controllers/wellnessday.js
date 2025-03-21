@@ -92,7 +92,7 @@ exports.wellnessdayrequest = async (req, res) => {
     // }
 
     //  GET THE FRIDAY DATE OF THIS WEEK
-     var fridaydate = getNextFriday();
+     var fridaydate = getNextFriday(request);
 
     await Wellnessday.create({owner: new mongoose.Types.ObjectId(id), requestdate: request, firstdayofwellnessdaycyle: fridaydate, status: "Pending"})
     .catch(err => {
@@ -315,58 +315,60 @@ exports.wellnessdayrequestedit = async (req, res) => {
 
     const request = new Date(requestdate)
 
-    const activeCycle = await Wellnessdayevent.aggregate([
-        {
-            $match: {
-                cyclestart: { $lte: request },
-                cycleend: { $gte: request }
-            }
-        },
-        {
-            $lookup: {
-                from: 'teams',
-                localField: 'teams',
-                foreignField: '_id',
-                as: 'teams'
-            }
-        },
-        {
-            $match: {
-                $or: [
-                    { 'teams.manager': new mongoose.Types.ObjectId(id) },
-                    { 'teams.teamleader': new mongoose.Types.ObjectId(id) },
-                    { 'teams.members': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } }
-                ]
-            }
-        },
-        {
-            $limit: 1
-        }
-    ]);
+    // const activeCycle = await Wellnessdayevent.aggregate([
+    //     {
+    //         $match: {
+    //             cyclestart: { $lte: request },
+    //             cycleend: { $gte: request }
+    //         }
+    //     },
+    //     {
+    //         $lookup: {
+    //             from: 'teams',
+    //             localField: 'teams',
+    //             foreignField: '_id',
+    //             as: 'teams'
+    //         }
+    //     },
+    //     {
+    //         $match: {
+    //             $or: [
+    //                 { 'teams.manager': new mongoose.Types.ObjectId(id) },
+    //                 { 'teams.teamleader': new mongoose.Types.ObjectId(id) },
+    //                 { 'teams.members': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } }
+    //             ]
+    //         }
+    //     },
+    //     {
+    //         $limit: 1
+    //     }
+    // ]);
 
-    if (!activeCycle || activeCycle.length === 0) {
-        return res.status(400).json({message: "failed", data: "No active wellness day cycle for your team or the request is within the request dates"})
-    }
+    // if (!activeCycle || activeCycle.length === 0) {
+    //     return res.status(400).json({message: "failed", data: "No active wellness day cycle for your team or the request is within the request dates"})
+    // }
     
-    const event = activeCycle[0];
-    if (request < event.cyclestart || request > event.cycleend) {
-        return res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
-    }
+    // const event = activeCycle[0];
+    // if (request < event.cyclestart || request > event.cycleend) {
+    //     return res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
+    // }
 
-    const conflictingEvent = await Wellnessdayevent.findOne({
-        $or: [
-            { startdate: request },
-            { enddate: request }
-        ],
-        cyclestart: activeCycle.cyclestart,
-        cycleend: activeCycle.cycleend
-    });
+    // const conflictingEvent = await Wellnessdayevent.findOne({
+    //     $or: [
+    //         { startdate: request },
+    //         { enddate: request }
+    //     ],
+    //     cyclestart: activeCycle.cyclestart,
+    //     cycleend: activeCycle.cycleend
+    // });
 
-    if (conflictingEvent) {
-        return res.status(400).json({message: "failed", data: "The request date conflicts with an existing request date within the active cycle."})
-    }
+    // if (conflictingEvent) {
+    //     return res.status(400).json({message: "failed", data: "The request date conflicts with an existing request date within the active cycle."})
+    // }
 
-    await Wellnessday.findOneAndUpdate({_id: new mongoose.Types.ObjectId(requestid)}, {requestdate: request, firstdayofwellnessdaycyle: activeCycle[0]._id})
+    const nextfriday = getNextFriday(request)
+
+    await Wellnessday.findOneAndUpdate({_id: new mongoose.Types.ObjectId(requestid)}, {requestdate: request, firstdayofwellnessdaycyle: nextfriday})
     .catch(err => {
         console.log(`There's a problem creating wellnessday request for id: ${id}. Error: ${err}`)
 
