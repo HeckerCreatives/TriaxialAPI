@@ -49,56 +49,33 @@ exports.wellnessdayrequest = async (req, res) => {
     // }
 
     // const event = activeCycle[0];
+    
+
+    // Calculate the start of the week (Monday) for the request date
+    const requestWeekStart = new Date(request);
+    const dayOfWeek = requestWeekStart.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek; // Adjust for Sunday being the start of the week
+    requestWeekStart.setDate(requestWeekStart.getDate() + diffToMonday);
+    requestWeekStart.setHours(0, 0, 0, 0); // Set to the start of the day
+
+
 
     if (isValidWellnessDay(request)) {
         return res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
     }
 
-    // Check if there's a request this week
-    const existingRequest = await Wellnessday.aggregate([
-        {
-            $match: {
-                owner: new mongoose.Types.ObjectId(id),
-                status: { $nin: ["Denied"] }
-            }
-        },
-        {
-            $addFields: {
-                weekStart: {
-                    $dateFromParts: {
-                        year: { $year: "$requestdate" },
-                        month: { $month: "$requestdate" },
-                        day: { 
-                            $subtract: [
-                                { $dayOfMonth: "$requestdate" },
-                                { $subtract: [{ $dayOfWeek: "$requestdate" }, 1] }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        {
-            $match: {
-                weekStart: {
-                    $dateFromParts: {
-                        year: { $year: request },
-                        month: { $month: request },
-                        day: { 
-                            $subtract: [
-                                { $dayOfMonth: request },
-                                { $subtract: [{ $dayOfWeek: request }, 1] }
-                            ]
-                        }
-                    }
-                }
-            }
+    const existingRequest = await Wellnessday.findOne({
+        owner: new mongoose.Types.ObjectId(id),
+        status: { $nin: ["Denied"] },
+        requestdate: {
+            $gte: requestWeekStart,
+            $lt: new Date(requestWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000) // Add 7 days to get the end of the week
         }
-    ]);
+    });
 
-    if (existingRequest.length > 0) {
+    if (existingRequest) {
         return res.status(400).json({
-            message: "failed", 
+            message: "failed",
             data: "You already have a wellness day request this week"
         });
     }
