@@ -52,14 +52,9 @@ exports.wellnessdayrequest = async (req, res) => {
 
     // Calculate the start of the week (Monday) for the request date
     const requestWeekStart = new Date(request);
-    const dayOfWeek = requestWeekStart.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek; // Adjust for Sunday being the start of the week
-    requestWeekStart.setDate(requestWeekStart.getDate() + diffToMonday);
-    requestWeekStart.setHours(0, 0, 0, 0); // Set to the start of the day
 
 
-
-    if (isValidWellnessDay(request)) {
+    if (!isValidWellnessDay(request) ) {
         return res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
     }
 
@@ -72,6 +67,7 @@ exports.wellnessdayrequest = async (req, res) => {
         }
     });
 
+console.log(existingRequest)
     if (existingRequest) {
         return res.status(400).json({
             message: "failed",

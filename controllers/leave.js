@@ -247,7 +247,7 @@ exports.requestleave = async (req, res) => {
         console.log(`There's a problem with getting user details for ${id} ${email}. Error: ${err}`)
 
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
-    })
+    }) 
 
     const payrollemail = await Users.findOne({
         email: "payroll@triaxial.au"

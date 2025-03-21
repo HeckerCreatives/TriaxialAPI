@@ -29,6 +29,7 @@ exports.isTuesday = (dateString) => {
 
 exports.isValidWellnessDay = (dateString) => {
     const day = moment(dateString).tz('Australia/Sydney').day();
+
     return day === 1 || day === 2; // 1 = Monday, 2 = Tuesday
 };
 
