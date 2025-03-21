@@ -519,7 +519,7 @@ exports.editalljobcomponentdetails = async (req, res) => {
 
             if(projectExists){
                 project = projectExists._id
-                return res.status(400).json({ message: "failed", data: "Project already exists" });
+                // return res.status(400).json({ message: "failed", data: "Project already exists" });
             } else {   
                 const data = await Projects.findOne({ _id: new mongoose.Types.ObjectId(jobcomponent.project) })
                 
@@ -2521,8 +2521,13 @@ exports.listteamjobcomponent = async (req, res) => {
                 }
             },
             {
-                $sort: { createdAt: 1 }
-            }
+                $sort: {
+                    'jobmanager.fullname': -1,
+                    'clientname.name': 1,
+                    'jobno': 1,
+                    'jobcomponent': 1,
+                }
+            },
         ]);
         
  
