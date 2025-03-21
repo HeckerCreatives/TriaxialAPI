@@ -43,3 +43,10 @@ exports.getCurrentFriday = () => {
     
     return friday.startOf('day').toDate();
 };
+
+exports.getNextFriday = () => {
+    const today = moment().tz('Australia/Sydney');
+    const nextFriday = today.clone().day(12); // 12 represents next week's Friday (5 + 7)
+
+    return nextFriday.startOf('day').toDate();
+};
