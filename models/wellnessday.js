@@ -16,8 +16,7 @@ const WellnessdaySchema = new mongoose.Schema(
             index: true
         },
         firstdayofwellnessdaycyle: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Wellnessdayevent',
+            type: Date,
             index: true
         }
     },

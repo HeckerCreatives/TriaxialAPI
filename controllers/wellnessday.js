@@ -2,7 +2,7 @@ const { default: mongoose } = require("mongoose");
 const Wellnessday = require ("../models/wellnessday");
 const Wellnessdayevent = require("../models/wellnessdayevent")
 const {sendmail} = require("../utils/email");
-const { formatDate } = require("../utils/date");
+const { formatDate, isValidWellnessDay, getCurrentFriday } = require("../utils/date");
 const Users = require("../models/Users");
 const { getAllUserIdsExceptSender } = require("../utils/user");
 
@@ -15,34 +15,34 @@ exports.wellnessdayrequest = async (req, res) => {
 
     const request = new Date(requestdate)
 
-    // const activeCycle = await Wellnessdayevent.aggregate([
-    //     {
-    //         $match: {
-    //             cyclestart: { $lte: request },
-    //             cycleend: { $gte: request }
-    //         }
-    //     },
-    //     {
-    //         $lookup: {
-    //             from: 'teams',
-    //             localField: 'teams',
-    //             foreignField: '_id',
-    //             as: 'teams'
-    //         }
-    //     },
-    //     {
-    //         $match: {
-    //             $or: [
-    //                 { 'teams.manager': new mongoose.Types.ObjectId(id) },
-    //                 { 'teams.teamleader': new mongoose.Types.ObjectId(id) },
-    //                 { 'teams.members': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } }
-    //             ]
-    //         }
-    //     },
-    //     {
-    //         $limit: 1
-    //     }
-    // ]);
+    const activeCycle = await Wellnessdayevent.aggregate([
+        {
+            $match: {
+                cyclestart: { $lte: request },
+                cycleend: { $gte: request }
+            }
+        },
+        {
+            $lookup: {
+                from: 'teams',
+                localField: 'teams',
+                foreignField: '_id',
+                as: 'teams'
+            }
+        },
+        {
+            $match: {
+                $or: [
+                    { 'teams.manager': new mongoose.Types.ObjectId(id) },
+                    { 'teams.teamleader': new mongoose.Types.ObjectId(id) },
+                    { 'teams.members': { $elemMatch: { $eq: new mongoose.Types.ObjectId(id) } } }
+                ]
+            }
+        },
+        {
+            $limit: 1
+        }
+    ]);
 
     // if (!activeCycle || activeCycle.length === 0) {
     //     return res.status(400).json({message: "failed", data: "No active wellness day cycle for your team or the request is within the request dates"})
@@ -50,7 +50,7 @@ exports.wellnessdayrequest = async (req, res) => {
 
     // const event = activeCycle[0];
 
-    if (today != monday && today != tuesday) {
+    if (isValidWellnessDay(request)) {
         return res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
     }
 
@@ -76,7 +76,7 @@ exports.wellnessdayrequest = async (req, res) => {
     // }
 
     //  GET THE FRIDAY DATE OF THIS WEEK
-    //  var fridaydate = new date.currentweek.friday
+     var fridaydate = getCurrentFriday();
 
     await Wellnessday.create({owner: new mongoose.Types.ObjectId(id), requestdate: request, firstdayofwellnessdaycyle: fridaydate, status: "Pending"})
     .catch(err => {
