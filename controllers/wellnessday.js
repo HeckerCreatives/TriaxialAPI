@@ -55,9 +55,9 @@ exports.wellnessdayrequest = async (req, res) => {
     const requestWeekStart = new Date(request);
 
 
-    if (!isValidWellnessDay(request) ) {
-        return res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
-    }
+    // if (!isValidWellnessDay(request) ) {
+    //     return res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
+    // }
     const gte = moment(requestWeekStart).subtract(7, 'days').startOf('day').toDate()
     const lt = moment(requestWeekStart).add(7, 'days').endOf('day').toDate()
 
