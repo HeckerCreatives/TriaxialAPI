@@ -5,6 +5,7 @@ const {sendmail} = require("../utils/email");
 const { formatDate, isValidWellnessDay, getCurrentFriday, getNextFriday } = require("../utils/date");
 const Users = require("../models/Users");
 const { getAllUserIdsExceptSender } = require("../utils/user");
+const moment = require('moment-timezone');
 
 //  #region USERS
 
@@ -57,13 +58,16 @@ exports.wellnessdayrequest = async (req, res) => {
     if (!isValidWellnessDay(request) ) {
         return res.status(400).json({message: "failed", data: "The request date is outside the active wellness day cycle."})
     }
+    const gte = moment(requestWeekStart).subtract(7, 'days').startOf('day').toDate()
+    const lt = moment(requestWeekStart).add(7, 'days').endOf('day').toDate()
+
 
     const existingRequest = await Wellnessday.findOne({
         owner: new mongoose.Types.ObjectId(id),
         status: { $nin: ["Denied"] },
         requestdate: {
-            $gte: requestWeekStart,
-            $lt: new Date(requestWeekStart.getTime() + 13 * 24 * 60 * 60 * 1000) // Add 7 days to get the end of the week
+            $gte: gte,
+            $lt: lt
         }
     });
 
