@@ -160,6 +160,15 @@ exports.listcomponentprojectinvoice = async (req, res) => {
             },
             { $unwind: '$jobManagerDeets' },
             {
+                $lookup: {
+                    from: "teams",
+                    localField: "projectDetails.team",
+                    foreignField: "_id",
+                    as: "teamDetails"
+                }
+            },
+            { $unwind: '$teamDetails' },
+            {
                 $lookup:{
                     from: "clients",
                     localField: "projectDetails.client",
@@ -187,6 +196,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     isVariation: '$isVariation',
                     clientname: "$clientDetails.clientname",
                     priority: "$clientDetails.priority",
+                    teamname: "$teamDetails.teamname",
                     subconts: "$subconts.value" || 0,
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',

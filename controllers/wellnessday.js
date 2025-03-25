@@ -63,11 +63,10 @@ exports.wellnessdayrequest = async (req, res) => {
         status: { $nin: ["Denied"] },
         requestdate: {
             $gte: requestWeekStart,
-            $lt: new Date(requestWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000) // Add 7 days to get the end of the week
+            $lt: new Date(requestWeekStart.getTime() + 13 * 24 * 60 * 60 * 1000) // Add 7 days to get the end of the week
         }
     });
 
-console.log(existingRequest)
     if (existingRequest) {
         return res.status(400).json({
             message: "failed",

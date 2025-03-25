@@ -486,7 +486,7 @@ exports.editjobcomponentdetails = async (req, res) => {
 
 exports.editalljobcomponentdetails = async (req, res) => {
     const { id, email } = req.user;
-    const { jobcomponentid, projectid, jobmanagerid, members, budgettype, budget, adminnotes, jobcomponentname, clientid } = req.body;
+    const { jobcomponentid, projectid, jobno, jobmanagerid, members, budgettype, budget, adminnotes, jobcomponentname, clientid } = req.body;
 
     // Validate input
     if (!jobcomponentid) {
@@ -519,13 +519,18 @@ exports.editalljobcomponentdetails = async (req, res) => {
 
             if(projectExists){
                 project = projectExists._id
+
+                if(jobno){
+                    projectExists.jobno = jobno
+                    await projectExists.save()
+                }
                 // return res.status(400).json({ message: "failed", data: "Project already exists" });
             } else {   
                 const data = await Projects.findOne({ _id: new mongoose.Types.ObjectId(jobcomponent.project) })
                 
                 const createProject = await Projects.create({
                     team: data.team,
-                    jobno: data.jobno,
+                    jobno: jobno,
                     projectname: projectid,
                     client: new mongoose.Types.ObjectId('67c194c2849fe5b1c1e3b755'),
                     invoiced: 0,
