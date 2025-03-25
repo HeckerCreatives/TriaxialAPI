@@ -250,6 +250,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                             clientname: item.clientname,
                             priority: item.priority,
                             projectname: item.projectname,
+                            teamname: item.teamname,
                             budgettype: item.budgettype,
                             estimatedbudget: item.estimatedbudget,
                             projectedValues: item.projectedValues,
