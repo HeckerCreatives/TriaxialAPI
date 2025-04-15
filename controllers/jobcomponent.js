@@ -27,27 +27,20 @@ exports.createjobcomponent = async (req, res) => {
 
     const startdate = new Date(start);
     const end = moment(start).add(1, 'years').toDate();
-    let client = clientid;  // Initialize client before the if block
+    let client;  // Initialize client before the if block
     let jobmanagerz
     if (!mongoose.Types.ObjectId.isValid(clientid)) {
+        // check if clientname is existing
         const clientExists = await Clients.findOne({ clientname: clientid });
-    
-        if (clientExists) {
-            return res.status(400).json({ message: "failed", data: "Client already exists" });
-        } else if (!clientid) {    
-            return res.status(400).json({ message: "failed", data: "Please select a client" });
-        } else if (clientid.length < 3) {
-        try {
-            const newClient = await Clients.create({ clientname: clientid, priority });
-            client = newClient._id;  // Ensure `client` is assigned here
-        } catch (err) {
-            console.error("Error creating client:", err);
-            return res.status(400).json({ message: "bad-request", data: "Server error! Contact support." });
+
+        if(clientExists){
+            client = clientExists._id
+            // return res.status(400).json({ message: "failed", data: "Client already exists" });
+        } else {    
+            const createClient = await Clients.create({ clientname: clientid, priority: "Priority 3" })
+            client = createClient._id
         }
-        } else {
-            return res.status(400).json({ message: "failed", data: "Invalid client selection" });
-        }
-    }
+    } 
     
 
     try {
