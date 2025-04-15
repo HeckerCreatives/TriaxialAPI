@@ -241,6 +241,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                             .slice(0, 12) // Take the first 12 objects
                             .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
 
+
                             return {
                             componentid: item._id,
                             jobnumber: item.jobnumber,
@@ -258,9 +259,9 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                             lumpsum: {
                                 invoiced: (item.invoice.percentage / 100) * item.estimatedbudget,
                                 remaining: item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget),
-                                subconts: item.subconts * -1 || 0,
-                                catchupinv: (item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve,
-                                wip: ((item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve) + totalFirstThree) * -1    
+                                subconts: item.subconts  || 0,
+                                catchupinv: (item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalvalue,
+                                wip: ((item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalvalue) + totalFirstThree)    
                             },
                             rates: {
                                 invoiced: item.estimatedbudget * totalvalue,
@@ -531,48 +532,50 @@ exports.saveprojectinvoicevalue = async (req, res) => {
 
     try {
         const finalDate = new Date(date);
-        finalDate.setDate(2);  // Set the day to 1 to focus only on the month and year
-
-        // Format the finalDate as "MM-YYYY"
+        finalDate.setDate(2);  // Set the day to 2 to focus only on the month and year
         const formattedDate = finalDate.toISOString().slice(0, 7); // "YYYY-MM" format
 
-        
-        const jobcomponent = await Jobcomponents.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid) })
-        .then(data => data)
-        .catch(err => {
-            console.log(`There's a problem encountered while getting jobcomponent. Error: ${err}`)
-            return res.status(400).json({ message: "bad-request", data: "There's a problem encountered with the server! Please contact customer support for more details."})
-        })
-
+        // Validate jobcomponent
+        const jobcomponent = await Jobcomponents.findById(jobcomponentid);
         if (!jobcomponent) {
-            return res.status(400).json({ message: "bad-request", data: "Job component not found!" })
+            return res.status(400).json({ 
+                message: "bad-request", 
+                data: "Job component not found!" 
+            });
         }
 
-        // get all the projected invoice values for the jobcomponent
+        // Find or create projected invoice
+        let projectedInvoice = await Projectedinvoice.findOne({ 
+            jobcomponent: new mongoose.Types.ObjectId(jobcomponentid) 
+        });
 
-        const projectedInvoice = await Projectedinvoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid) })
-        .then(data => data)
-        .catch(err => {
-            console.log(`There's a problem encountered while getting projected invoice. Error: ${err}`)
-            return res.status(400).json({ message: "bad-request", data: "There's a problem encountered with the server! Please contact customer support for more details."})
-        })
+        if (!projectedInvoice) {
+            // Create new projected invoice if none exists
+            projectedInvoice = await Projectedinvoice.create({
+                jobcomponent: new mongoose.Types.ObjectId(jobcomponentid),
+                values: []
+            });
+        }
 
-        // sum all the projected invoice values for the jobcomponent
-
-        const sumProjectedValues = projectedInvoice.values.reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
-
+        // Calculate total projected values
+        const sumProjectedValues = projectedInvoice.values.reduce((acc, obj) => acc + (obj.amount || 0), 0);
         const totalProjectedValues = sumProjectedValues + amount;
 
         if (totalProjectedValues > jobcomponent.estimatedbudget) {
-            return res.status(400).json({ message: "bad-request", data: "Projected invoice value exceeds the estimated budget!" })
+            return res.status(400).json({ 
+                message: "bad-request", 
+                data: "Projected invoice value exceeds the estimated budget!" 
+            });
         }
 
-
-        // Find and update the document in the projectedinvoices collection
+        // Update or add new value
         const result = await Projectedinvoice.findOneAndUpdate(
             {
                 jobcomponent: new mongoose.Types.ObjectId(jobcomponentid),
-                "values.date": { $gte: new Date(`${formattedDate}-01T00:00:00.000Z`), $lt: new Date(`${formattedDate}-01T00:00:00.000Z`).setMonth(finalDate.getMonth() + 1) }
+                "values.date": { 
+                    $gte: new Date(`${formattedDate}-01T00:00:00.000Z`), 
+                    $lt: new Date(finalDate.getFullYear(), finalDate.getMonth() + 1, 1) 
+                }
             },
             { $set: { "values.$.amount": amount } },
             { new: true }
@@ -587,14 +590,15 @@ exports.saveprojectinvoicevalue = async (req, res) => {
             );
         }
 
-
         return res.json({ message: "success" });
     } catch (error) {
-        console.error(`There's a problem saving the project invoice value for ${jobcomponentid}. Error: ${error}`);
-        return res.status(500).json({ message: "bad-request", data: "There's a problem with the server. Please contact customer support for more details" });
+        console.error(`Error saving project invoice value: ${error}`);
+        return res.status(500).json({ 
+            message: "bad-request", 
+            data: "There's a problem with the server. Please contact customer support for more details" 
+        });
     }
 };
-
 exports.savesubconstvalue = async (req, res) => {
     const { id } = req.user;
     const { jobcomponentid, subconts } = req.body;
@@ -617,6 +621,8 @@ exports.savesubconstvalue = async (req, res) => {
 
         // const subconts = await Subconts.find({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid) })
         // .then(data => data)
+
+        console.log(subconts)
 
         
         const findsubconts = await Subconts.findOneAndUpdate({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid)}, { $set: { value: parseInt(subconts) }})
