@@ -1,6 +1,7 @@
 const { default: mongoose } = require("mongoose")
 const Users = require("../models/Users")
 const Userdetails = require("../models/Userdetails")
+const Clients = require("../models/Clients")
 
 exports.serverinit = async () => {
     
@@ -43,6 +44,24 @@ exports.serverinit = async () => {
 
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
         });
+    }
+
+    const triaxialclient = await Clients.findOne({clientname: "Trixial Consulting - Admin", priority: "Priority 3"})
+    .then(data => data)
+    .catch(err => {
+        console.log(`There's a problem getting the triaxial client data for init. Error ${err}`)
+
+        return
+    })
+
+    if (!triaxialclient){
+        await Clients.create({clientname: "Trixial Consulting - Admin", priority: "Priority 3"})
+        .catch(err => {
+            console.log(`There's a problem creating triaxial client. Error ${err}`)
+
+            return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
+        })
+        console.log("Triaxial Client Created")
     }
 
     console.log("DONE SERVER INITIALIZATION")

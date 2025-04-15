@@ -238,12 +238,31 @@ exports.createvariationjobcomponent = async (req, res) => {
                 jobManagerIds.add(jobManager._id);
             }
 
+            
+
+
+            const employeeIds = members.map(m => m.employeeid).filter(id => id);
+
+            // Lookup employee details
+            const employeeDetails = await Userdetails.find({
+                owner: { $in: employeeIds.map(id => new mongoose.Types.ObjectId(id)) }
+            });
+
+            // Create a map of employee IDs to full names
+            const employeeNameMap = employeeDetails.reduce((map, employee) => {
+                map[employee.owner.toString()] = `${employee.firstname} ${employee.lastname}`;
+                return map;
+            }, {});
+
+            // Update the emailDetails push
             emailDetails.push({
                 jobcomponent,
-                jobmanager: jobManager ? jobManager.fullname : "Unknown Manager",
+                jobmanager: jobManager ? `${jobManager.firstname} ${jobManager.lastname}` : "Unknown Manager",
                 budgettype,
                 estimatedbudget,
-                members: members.map(m => `Employee: ${m.employeeid}, Role: ${m.role}`).join(", ")
+                members: members.map(m => 
+                    `Employee: ${employeeNameMap[m.employeeid] || 'Unknown'}, Role: ${m.role}`
+                ).join(", ")
             });
         }
 
@@ -334,13 +353,19 @@ exports.editjobcomponentdetails = async (req, res) => {
         ]));
 
         // Construct email content
+        // Get job manager details first
+        const jobManagerDetails = await Userdetails.findOne({ owner: new mongoose.Types.ObjectId(jobmanagerid) });
+        if (!jobManagerDetails) {
+            return res.status(404).json({ message: "failed", data: "Job manager details not found" });
+        }
+
         const emailContent = `
         Good Day,
         
         The job component "${jobName}" has been updated with new details:
         
-        Project Name:            ${projectdata.name}
-        New Job Manager:         ${jobmanagerid} 
+        Project Name:            ${projectdata.projectname}
+        New Job Manager:         ${jobManagerDetails.firstname} ${jobManagerDetails.lastname}
         
         Note: This is an auto-generated message.
         `;
@@ -503,6 +528,7 @@ exports.editalljobcomponentdetails = async (req, res) => {
     } 
 
     let project 
+    let client
 
 
     try {
@@ -510,6 +536,19 @@ exports.editalljobcomponentdetails = async (req, res) => {
         const jobcomponent = await Jobcomponents.findById(jobcomponentid);
         if (!jobcomponent) {
             return res.status(404).json({ message: "failed", data: "Job component not found" });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(clientid)) {
+            // check if clientname is existing
+            const clientExists = await Clients.findOne({ clientname: clientid });
+    
+            if(clientExists){
+                client = clientExists._id
+                // return res.status(400).json({ message: "failed", data: "Client already exists" });
+            } else {    
+                const createClient = await Clients.create({ clientname: clientid, priority: "Priority 3" })
+                client = createClient._id
+            }
         }
 
         if(!mongoose.Types.ObjectId.isValid(projectid)){
@@ -532,7 +571,7 @@ exports.editalljobcomponentdetails = async (req, res) => {
                     team: data.team,
                     jobno: jobno,
                     projectname: projectid,
-                    client: new mongoose.Types.ObjectId('67c194c2849fe5b1c1e3b755'),
+                    client: new mongoose.Types.ObjectId(client),
                     invoiced: 0,
                     status: "On-going",
                     startdate: data.startdate,
@@ -542,12 +581,13 @@ exports.editalljobcomponentdetails = async (req, res) => {
                 project = createProject._id
             }
         }
+
         const jobName = jobcomponent.jobcomponent;
 
         // Update job component details
         await Jobcomponents.findByIdAndUpdate(jobcomponentid, {
             project: new mongoose.Types.ObjectId(project),
-            client: new mongoose.Types.ObjectId('67c194c2849fe5b1c1e3b755'),
+            client: new mongoose.Types.ObjectId(client),
             jobmanager: jobmanagerid,
             budgettype: budgettype,
             estimatedbudget: budget,
@@ -626,14 +666,29 @@ exports.editalljobcomponentdetails = async (req, res) => {
             return map;
         }, {});
         // Construct email content
+        // Fetch project details
+        const projectData = await Projects.findById(new mongoose.Types.ObjectId(project))
+            .catch(err => {
+                console.error("Error fetching project details:", err);
+                return null;
+            });
+
+        // Fetch job manager details
+        const jobManager = await Userdetails.findOne({ owner: new mongoose.Types.ObjectId(jobmanagerid) })
+            .catch(err => {
+                console.error("Error fetching job manager details:", err); 
+                return null;
+            });
+
+        // Construct email content
         const emailContent = `
         Hello Team,
-        
+
         The job component "${jobName}" has been updated with the following details:
-        
-        Project ID: ${projectid}
-        Job Manager ID: ${jobmanagerid}
-        
+
+        Project Name: ${projectData?.projectname || 'N/A'}
+        Job Manager: ${jobManager?.firstname} ${jobManager?.lastname || 'N/A'}
+
         Updated Members:
         ${members
             .map(
@@ -643,11 +698,11 @@ exports.editalljobcomponentdetails = async (req, res) => {
         Role: ${member.role || 'N/A'}`
             )
             .join("\n\n")}
-        
+
         If you have any questions or concerns, please reach out.
-        
+
         Thank you!
-        
+
         Best Regards,
         ${email}`;
 
@@ -1036,12 +1091,20 @@ exports.editstatushours = async (req, res) => {
         }
 
         await jobComponent.save();
+        // Look up user details first
+        const userDetails = await Userdetails.findOne({ owner: new mongoose.Types.ObjectId(employeeid) });
+        if (!userDetails) {
+            return res.status(404).json({ message: "failed", data: "Employee details not found" });
+        }
+
+        const fullName = `${userDetails.firstname} ${userDetails.lastname}`;
+
         const emailContent = `
         Hello Team,
 
         The job component "${jobComponent.jobcomponent}" has been updated.
 
-        Employee: ${employeeid}
+        Employee: ${fullName}
         Date: ${new Date(date).toDateString()}
         Status: ${(status || []).join(", ")}
         Hours: ${hours !== null ? hours : "Cleared"}
@@ -1177,11 +1240,19 @@ exports.editMultipleStatusHours = async (req, res) => {
         await jobComponent.save();
 
         // Prepare email content
+        // Look up user details first
+        const userDetails = await Userdetails.findOne({ owner: new mongoose.Types.ObjectId(employeeid) });
+        if (!userDetails) {
+            return res.status(404).json({ message: "failed", data: "Employee details not found" });
+        }
+
+        const fullName = `${userDetails.firstname} ${userDetails.lastname}`;
+
         const emailContent = `Hello Team,
 
         The job component "${jobComponent.jobcomponent}" has been updated.
 
-        Employee: ${employeeid}
+        Employee: ${fullName}
         Updates:
         ${updates
             .map(
