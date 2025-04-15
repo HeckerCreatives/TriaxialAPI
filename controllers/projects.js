@@ -278,7 +278,7 @@ exports.listprojects = async (req, res) => {
 
 exports.listprojectsuperadmin = async (req, res) => {
     const { id, email } = req.user;
-    const { page, limit, searchproject } = req.query;
+    const { page, limit, searchproject, filter } = req.query;
 
     // Set pagination options
     const pageOptions = {
@@ -288,11 +288,18 @@ exports.listprojectsuperadmin = async (req, res) => {
 
     // Search filter
     let matchStage = {};
+    let filterStage = {}
     if (searchproject) {
         matchStage["projectname"] = {
             $regex: searchproject, $options: 'i'
         };
     }
+
+    // filter is teamid
+    if (filter) {
+        filterStage["team"] = new mongoose.Types.ObjectId(filter);
+    }
+
 
     const projectlist = await Projects.aggregate([
         { $match: matchStage },
@@ -305,6 +312,7 @@ exports.listprojectsuperadmin = async (req, res) => {
                 as: 'teamData'
             }
         },
+        { $match: filterStage },
         { $unwind: { path: '$teamData', preserveNullAndEmptyArrays: true } },
         {
             $lookup: {
