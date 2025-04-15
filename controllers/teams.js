@@ -89,123 +89,124 @@ exports.listteam = async (req, res) => {
             { $skip: pageOptions.page * pageOptions.limit },
             { $limit: pageOptions.limit },
             {
-                $lookup: {
-                    from: 'users',
-                    localField: 'manager',
-                    foreignField: '_id',
-                    as: 'managerData',
-                },
+            $lookup: {
+                from: 'users',
+                localField: 'manager',
+                foreignField: '_id',
+                as: 'managerData',
+            },
             },
             { $unwind: { path: '$managerData', preserveNullAndEmptyArrays: true } },
             {
-                $lookup: {
-                    from: 'userdetails',  
-                    localField: 'managerData._id',
-                    foreignField: 'owner',
-                    as: 'managerDetails',
-                },
+            $lookup: {
+                from: 'userdetails',  
+                localField: 'managerData._id',
+                foreignField: 'owner',
+                as: 'managerDetails',
+            },
             },
             { $unwind: { path: '$managerDetails', preserveNullAndEmptyArrays: true } },
             {
-                $lookup: {
-                    from: 'users',
-                    localField: 'teamleader', 
-                    foreignField: '_id',
-                    as: 'teamleaderData',
-                },
+            $lookup: {
+                from: 'users',
+                localField: 'teamleader', 
+                foreignField: '_id',
+                as: 'teamleaderData',
+            },
             },
             { $unwind: { path: '$teamleaderData', preserveNullAndEmptyArrays: true } },
             {
-                $lookup: {
-                    from: 'userdetails',
-                    localField: 'teamleaderData._id',
-                    foreignField: 'owner', 
-                    as: 'teamleaderDetails',
-                },
+            $lookup: {
+                from: 'userdetails',
+                localField: 'teamleaderData._id',
+                foreignField: 'owner', 
+                as: 'teamleaderDetails',
+            },
             },
             { $unwind: { path: '$teamleaderDetails', preserveNullAndEmptyArrays: true } },
             {
-                $lookup: {
-                    from: 'projects',
-                    localField: '_id',
-                    foreignField: 'team',
-                    as: 'projects',
-                },
+            $lookup: {
+                from: 'projects',
+                localField: '_id',
+                foreignField: 'team',
+                as: 'projects',
+            },
             },
             {
-                $lookup: {
-                    from: 'clients',
-                    localField: 'projects.client',
-                    foreignField: '_id',
-                    as: 'clientDetails',
-                },
+            $lookup: {
+                from: 'clients',
+                localField: 'projects.client',
+                foreignField: '_id',
+                as: 'clientDetails',
+            },
             },
             {
-                $lookup: {
-                    from: 'jobcomponents',
-                    let: { projectIds: '$projects._id' },
+            $lookup: {
+                from: 'jobcomponents',
+                let: { projectIds: '$projects._id' },
+                pipeline: [
+                {
+                    $match: {
+                    $expr: { $in: ['$project', '$$projectIds'] },
+                    status: { $in: ["", null, "unarchived", "On-going"] }
+                    }
+                },
+                {
+                    $lookup: {
+                    from: 'invoices',
+                    let: { jobComponentId: '$_id' },
                     pipeline: [
                         {
-                            $match: {
-                                $expr: { $in: ['$project', '$$projectIds'] }
-                            }
-                        },
-                        {
-                            $lookup: {
-                                from: 'invoices',
-                                let: { jobComponentId: '$_id' },
-                                pipeline: [
-                                    {
-                                        $match: {
-                                            $expr: {
-                                                $and: [
-                                                    { $eq: ['$jobcomponent', '$$jobComponentId'] },
-                                                    { $eq: ['$status', 'Approved'] }
-                                                ]
-                                            }
-                                        }
-                                    }
-                                ],
-                                as: 'invoices'
-                            }
-                        },
-                        {
-                            $group: {
-                                _id: null,
-                                totalWip: { $sum: { $sum: '$invoices.invoiceamount' } }
+                        $match: {
+                            $expr: {
+                            $and: [
+                                { $eq: ['$jobcomponent', '$$jobComponentId'] },
+                                { $eq: ['$status', 'Approved'] }
+                            ]
                             }
                         }
+                        }
                     ],
-                    as: 'wipData'
+                    as: 'invoices'
+                    }
                 }
+                ],
+                as: 'jobComponents'
+            }
             },
             {
-                $project: {
-                    _id: 1,
-                    teamname: 1,
-                    index: 1,
-                    manager: {
-                        $concat: [
-                            { $ifNull: ['$managerDetails.firstname', ''] },
-                            ' ',
-                            { $ifNull: ['$managerDetails.lastname', ''] },
-                        ],
-                    },
-                    teamleader: {
-                        $concat: [
-                            { $ifNull: ['$teamleaderDetails.firstname', ''] },
-                            ' ',
-                            { $ifNull: ['$teamleaderDetails.lastname', ''] },
-                        ],
-                    },
-                    clients: {
-                        $setUnion: ['$clientDetails.clientname']
-                    },
-                    projectCount: { $size: '$projects' },
-                    wip: { 
-                        $ifNull: [{ $arrayElemAt: ['$wipData.totalWip', 0] }, 0]
-                    },
+            $project: {
+                _id: 1,
+                teamname: 1,
+                index: 1,
+                manager: {
+                $concat: [
+                    { $ifNull: ['$managerDetails.firstname', ''] },
+                    ' ',
+                    { $ifNull: ['$managerDetails.lastname', ''] },
+                ],
                 },
+                teamleader: {
+                $concat: [
+                    { $ifNull: ['$teamleaderDetails.firstname', ''] },
+                    ' ',
+                    { $ifNull: ['$teamleaderDetails.lastname', ''] },
+                ],
+                },
+                clients: {
+                $setUnion: ['$clientDetails.clientname']
+                },
+                projectCount: { $size: '$jobComponents' },
+                wip: {
+                $sum: {
+                    $map: {
+                    input: '$jobComponents',
+                    as: 'jc',
+                    in: { $sum: '$$jc.invoices.invoiceamount' }
+                    }
+                }
+                },
+            },
             },
         ]);
 

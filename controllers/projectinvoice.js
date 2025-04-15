@@ -536,6 +536,37 @@ exports.saveprojectinvoicevalue = async (req, res) => {
         // Format the finalDate as "MM-YYYY"
         const formattedDate = finalDate.toISOString().slice(0, 7); // "YYYY-MM" format
 
+        
+        const jobcomponent = await Jobcomponents.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid) })
+        .then(data => data)
+        .catch(err => {
+            console.log(`There's a problem encountered while getting jobcomponent. Error: ${err}`)
+            return res.status(400).json({ message: "bad-request", data: "There's a problem encountered with the server! Please contact customer support for more details."})
+        })
+
+        if (!jobcomponent) {
+            return res.status(400).json({ message: "bad-request", data: "Job component not found!" })
+        }
+
+        // get all the projected invoice values for the jobcomponent
+
+        const projectedInvoice = await Projectedinvoice.findOne({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid) })
+        .then(data => data)
+        .catch(err => {
+            console.log(`There's a problem encountered while getting projected invoice. Error: ${err}`)
+            return res.status(400).json({ message: "bad-request", data: "There's a problem encountered with the server! Please contact customer support for more details."})
+        })
+
+        // sum all the projected invoice values for the jobcomponent
+
+        const sumProjectedValues = projectedInvoice.values.reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
+
+        const totalProjectedValues = sumProjectedValues + amount;
+
+        if (totalProjectedValues > jobcomponent.estimatedbudget) {
+            return res.status(400).json({ message: "bad-request", data: "Projected invoice value exceeds the estimated budget!" })
+        }
+
 
         // Find and update the document in the projectedinvoices collection
         const result = await Projectedinvoice.findOneAndUpdate(
@@ -569,6 +600,24 @@ exports.savesubconstvalue = async (req, res) => {
     const { jobcomponentid, subconts } = req.body;
 
     try {
+        // // get jobcomponent estimated budget
+
+        // const jobcomponent = await Jobcomponents.findOne({ _id: new mongoose.Types.ObjectId(jobcomponentid) })
+        // .then(data => data)
+        // .catch(err => {
+        //     console.log(`There's a problem encountered while getting jobcomponent. Error: ${err}`)
+        //     return res.status(400).json({ message: "bad-request", data: "There's a problem encountered with the server! Please contact customer support for more details."})
+        // })
+
+        // if (!jobcomponent) {
+        //     return res.status(400).json({ message: "bad-request", data: "Job component not found!" })
+        // }
+
+        // // get all subconts for the jobcomponent
+
+        // const subconts = await Subconts.find({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid) })
+        // .then(data => data)
+
         
         const findsubconts = await Subconts.findOneAndUpdate({ jobcomponent: new mongoose.Types.ObjectId(jobcomponentid)}, { $set: { value: parseInt(subconts) }})
         .then(data => data)
