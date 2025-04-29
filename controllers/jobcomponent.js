@@ -35,6 +35,7 @@ exports.createjobcomponent = async (req, res) => {
         startdate = moment(start, 'M/D/YYYY').toDate();
         end = moment(start, 'M/D/YYYY').add(1, 'years').toDate();
     }
+    
     let jobmanagerz
     let client;
     if (!mongoose.Types.ObjectId.isValid(clientid)) {
@@ -3386,10 +3387,12 @@ exports.yourworkload = async (req, res) => {
 
         // Extract all dates and unique members
         result.forEach(job => {
-            // Restructure member data
-            const members = job.members.map(member => {
-            // First map the basic member data
-            const mappedMember = {
+            // Filter and map only members matching req.user.id
+            const members = job.members
+            .filter(member => member.employee.employeeid.toString() === id)
+            .map(member => {
+                // Map the basic member data
+                const mappedMember = {
                 employee: member.employee,
                 role: member.role,
                 notes: member.notes,
@@ -3398,12 +3401,12 @@ exports.yourworkload = async (req, res) => {
                 wellnessDates: member.wellnessDates,
                 eventDates: member.eventDates,
                 wfhDates: member.wfhDates
-            };
+                };
 
-            // If there are leave dates, process them
-            if (Array.isArray(member.leaveDates)) {
+                // If there are leave dates, process them
+                if (Array.isArray(member.leaveDates)) {
                 member.leaveDates.forEach(leave => {
-                // Only process approved leaves
+                    // Only process approved leaves
                     const startDate = moment(leave.leavestart);
                     const endDate = moment(leave.leaveend);
 
@@ -3444,29 +3447,30 @@ exports.yourworkload = async (req, res) => {
                         }
                     }
                     }
-                
                 });
-            }
+                }
 
-            return mappedMember;
+                return mappedMember;
             });
 
-            // Push members into the yourworkload array
+            // Only push job data if there are matching members
+            if (members.length > 0) {
             data.data.yourworkload.push({
-            _id: job._id,
-            jobmanager: job.jobmanager,
-            componentid: job.componentid,
-            clientid: job.clientid,
-            clientname: job.clientname,
-            clientpriority: job.clientpriority,
-            teamid: job.teamid,
-            teamname: job.teamname,
-            teammembers: job.teammembers,
-            projectname: job.projectname,
-            jobno: job.jobno,
-            jobcomponent: job.jobcomponent,
-            members
+                _id: job._id,
+                jobmanager: job.jobmanager,
+                componentid: job.componentid,
+                clientid: job.clientid,
+                clientname: job.clientname,
+                clientpriority: job.clientpriority,
+                teamid: job.teamid,
+                teamname: job.teamname,
+                teammembers: job.teammembers,
+                projectname: job.projectname,
+                jobno: job.jobno,
+                jobcomponent: job.jobcomponent,
+                members
             });
+            }
         });
 
         return res.json({ message: 'success', data: data.data });
@@ -5295,73 +5299,75 @@ exports.individualworkload = async (req, res) => {
             }
         };
 
-        // Extract all dates and unique members
         result.forEach(job => {
-            // Restructure member data
-            const members = job.members.map(member => {
-                // First map the basic member data
+            // Filter and map only members matching req.user.id
+            const members = job.members
+            .filter(member => member.employee.employeeid.toString() === employeeid.toString())
+            .map(member => {
+                // Map the basic member data
                 const mappedMember = {
-                    employee: member.employee,
-                    role: member.role,
-                    notes: member.notes,
-                    dates: member.dates ? [...member.dates] : [], // Create a copy of dates array
-                    leaveDates: member.leaveDates,
-                    wellnessDates: member.wellnessDates,
-                    eventDates: member.eventDates,
-                    wfhDates: member.wfhDates
+                employee: member.employee,
+                role: member.role,
+                notes: member.notes,
+                dates: member.dates ? [...member.dates] : [], // Create a copy of dates array
+                leaveDates: member.leaveDates,
+                wellnessDates: member.wellnessDates,
+                eventDates: member.eventDates,
+                wfhDates: member.wfhDates
                 };
 
                 // If there are leave dates, process them
                 if (Array.isArray(member.leaveDates)) {
-                    member.leaveDates.forEach(leave => {
-                        // Only process approved leaves
-                        const startDate = moment(leave.leavestart);
-                        const endDate = moment(leave.leaveend);
+                member.leaveDates.forEach(leave => {
+                    // Only process approved leaves
+                    const startDate = moment(leave.leavestart);
+                    const endDate = moment(leave.leaveend);
 
-                        let remainingWorkHours = leave.workinghoursduringleave || 0;
+                    let remainingWorkHours = leave.workinghoursduringleave || 0;
 
-                        for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
-                            if (date.day() !== 0 && date.day() !== 6) { // Skip weekends
-                                const dateStr = date.format('YYYY-MM-DD');
-                                
-                                const existingDateIndex = mappedMember.dates.findIndex(d => 
-                                    moment(d.date).format('YYYY-MM-DD') === dateStr
-                                );
+                    for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+                    if (date.day() !== 0 && date.day() !== 6) { // Skip weekends
+                        const dateStr = date.format('YYYY-MM-DD');
+                        
+                        const existingDateIndex = mappedMember.dates.findIndex(d => 
+                        moment(d.date).format('YYYY-MM-DD') === dateStr
+                        );
 
-                                const standardHours = 7.6;
-                                let hoursForThisDay = standardHours;
+                        const standardHours = 7.6;
+                        let hoursForThisDay = standardHours;
 
-                                // If there are remaining work hours, allocate them to this day
-                                if (remainingWorkHours > 0) {
-                                    if (remainingWorkHours >= standardHours) {
-                                        hoursForThisDay = 0; // Full day's hours are work hours
-                                        remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                                    } else {
-                                        hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                                        remainingWorkHours = 0;
-                                    }
-                                }
-
-                                if (existingDateIndex >= 0) {
-                                    // Update existing date entry
-                                    mappedMember.dates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
-                                } else {
-                                    // Add new date entry
-                                    mappedMember.dates.push({
-                                        date: date.toDate(),
-                                        hours: Number(hoursForThisDay.toFixed(2)),
-                                        status: ['Leave']
-                                    });
-                                }
-                            }
+                        // If there are remaining work hours, allocate them to this day
+                        if (remainingWorkHours > 0) {
+                        if (remainingWorkHours >= standardHours) {
+                            hoursForThisDay = 0; // Full day's hours are work hours
+                            remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+                        } else {
+                            hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+                            remainingWorkHours = 0;
                         }
-                    });
+                        }
+
+                        if (existingDateIndex >= 0) {
+                        // Update existing date entry
+                        mappedMember.dates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
+                        } else {
+                        // Add new date entry
+                        mappedMember.dates.push({
+                            date: date.toDate(),
+                            hours: Number(hoursForThisDay.toFixed(2)),
+                            status: ['Leave']
+                        });
+                        }
+                    }
+                    }
+                });
                 }
 
                 return mappedMember;
             });
 
-            // Push members into the yourworkload array
+            // Only push job data if there are matching members
+            if (members.length > 0) {
             data.data.yourworkload.push({
                 _id: job._id,
                 jobmanager: job.jobmanager,
@@ -5377,6 +5383,7 @@ exports.individualworkload = async (req, res) => {
                 jobcomponent: job.jobcomponent,
                 members
             });
+            }
         });
 
         return res.json({ message: 'success', data: data.data });
