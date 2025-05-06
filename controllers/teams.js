@@ -133,7 +133,6 @@ exports.listteam = async (req, res) => {
                     as: 'projects',
                 },
             },
-
             {
                 $lookup: {
                     from: 'clients',
@@ -149,8 +148,17 @@ exports.listteam = async (req, res) => {
                     pipeline: [
                         {
                             $match: {
-                                $expr: { $in: ['$project', '$$projectIds'] },
-                                status: { $in: ["", null, "unarchived", "On-going"] } 
+                                $and: [
+                                    { $expr: { $in: ['$project', '$$projectIds'] } },
+                                    {
+                                        $or: [
+                                            { status: { $in: ['unarchived', 'On-going'] } },
+                                            { status: { $exists: false } },
+                                            { status: '' },
+                                            { status: null }
+                                        ]
+                                    }
+                                ]
                             },
                         },
                         {
@@ -248,8 +256,8 @@ exports.listteam = async (req, res) => {
                     jobComponentCount: { $size: '$jobComponents' }, // Include job component count
                     projectIds: '$projects._id', // Include project IDs
                     jobComponentIds: '$jobComponents._id', // Include job component IDs
-                    // wip: 1, // Include the total WIP in the output
-                    wip: {
+                    wip: 1,
+                    totalProjected: {
                         $sum: {
                             $map: {
                                 input: '$jobComponents',
@@ -279,6 +287,7 @@ exports.listteam = async (req, res) => {
                 },
             },
         ]);
+
 
         const totalTeams = await Teams.countDocuments(matchStage);
 
