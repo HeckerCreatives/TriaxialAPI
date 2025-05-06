@@ -248,8 +248,8 @@ exports.listteam = async (req, res) => {
                     jobComponentCount: { $size: '$jobComponents' }, // Include job component count
                     projectIds: '$projects._id', // Include project IDs
                     jobComponentIds: '$jobComponents._id', // Include job component IDs
-                    wip: 1, // Include the total WIP in the output
-                    totalProjected: {
+                    // wip: 1, // Include the total WIP in the output
+                    wip: {
                         $sum: {
                             $map: {
                                 input: '$jobComponents',
