@@ -28,13 +28,17 @@ exports.createjobcomponent = async (req, res) => {
     let startdate 
     let end
 
-    if(!moment(start, 'YYYY-MM-DD', true).isValid()) {
-        startdate = moment(start, 'YYYY-MM-DD').toDate();
-        end = moment(start, 'YYYY-MM-DD').add(1, 'years').toDate();
+    let parsedDate;
+    if (moment(start, 'YYYY-MM-DD', true).isValid()) {
+        parsedDate = moment(start, 'YYYY-MM-DD');
+    } else if (moment(start, 'M/D/YYYY', true).isValid()) {
+        parsedDate = moment(start, 'M/D/YYYY');
     } else {
-        startdate = moment(start, 'M/D/YYYY').toDate();
-        end = moment(start, 'M/D/YYYY').add(1, 'years').toDate();
+        return res.status(400).json({ message: "failed", data: "Invalid date format. Use YYYY-MM-DD or M/D/YYYY" });
     }
+    
+    startdate = parsedDate.toDate();
+    end = parsedDate.clone().add(1, 'years').toDate();
     
     let jobmanagerz
     let client;
@@ -887,6 +891,12 @@ exports.completejobcomponent = async (req, res) => {
             console.log(`There's a problem with getting the project details for email content details in create invoice. Error: ${err}`)
             return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details"})
         })
+
+        // update project status to "archived"
+
+        project.status = "archived"
+        await project.save()
+
         const client = await Clients.findOne({ _id: new mongoose.Types.ObjectId(project.client) })
         .catch(err => {
             console.log(`There's a problem with getting the client details for email content details in create invoice. Error: ${err}`)
@@ -2118,12 +2128,7 @@ exports.listjobcomponent = async (req, res) => {
                                             { $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }
                                         ]
                                     },
-                                    initials: {
-                                        $concat: [
-                                            { $substr: [{ $ifNull: [{ $arrayElemAt: ['$userDetails.firstname', 0] }, ''] }, 0, 1] },
-                                            { $substr: [{ $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }, 0, 1] }
-                                        ]
-                                    }
+                                    initials: '$userDetails.initial'
                                 },
                                 else: { _id: null, fullname: "N/A", initials: "NA" }
                             }
@@ -2559,7 +2564,12 @@ exports.listteamjobcomponent = async (req, res) => {
                                             { $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }
                                         ]
                                     },
-                                    initials: '$userDetails.initial'
+                                    initials: {
+                                        $concat: [
+                                            { $substr: [{ $ifNull: [{ $arrayElemAt: ['$userDetails.firstname', 0] }, ''] }, 0, 1] },
+                                            { $substr: [{ $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }, 0, 1] }
+                                        ]
+                                    }
                                 },
                                 else: { _id: null, fullname: "N/A", initials: "NA" }
                             }
@@ -2695,7 +2705,12 @@ exports.listteamjobcomponent = async (req, res) => {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
                             fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
-                            initials: '$jobManagerDeets.initial',
+                            initials: {
+                            $concat: [
+                                { $substr: ['$jobManagerDeets.firstname', 0, 1] }, 
+                                { $substr: ['$jobManagerDeets.lastname', 0, 1] }  
+                            ]
+                        },
 
                             isManager: '$isManager',
                             isJobManager: { $eq: ['$jobmanager', new mongoose.Types.ObjectId(id)] }
@@ -3255,7 +3270,12 @@ exports.yourworkload = async (req, res) => {
                         employee: {
                             employeeid: '$members.employee',
                             fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
-                            initials: '$userDetails.initial'
+                            initials: { 
+                                $concat: [
+                                    { $substr: ['$userDetails.firstname', 0, 1] }, 
+                                    { $substr: ['$userDetails.lastname', 0, 1] }
+                                ]
+                            }
                         },
                     },                 
                     'members.leaveDates': {
@@ -3355,8 +3375,7 @@ exports.yourworkload = async (req, res) => {
 
         while (currentDate <= endOfRange) {
             const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-            console.log(dayOfWeek, currentDate)
-            if (dayOfWeek > 1 && dayOfWeek <= 6) { // Only add weekdays (1-5)
+            if (dayOfWeek !== 6 && dayOfWeek !== 0) { // Only add weekdays (1-5)
                 dateList.push(new Date(currentDate).toISOString().split('T')[0]); // Format as YYYY-MM-DD
             }
         
@@ -4416,7 +4435,10 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             return res.status(400).json({ message: 'failed', data: 'Valid Team ID is required.' });
         }
 
-        const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
+        const referenceDate = filterDate 
+            ? moment.tz(new Date(filterDate), "Australia/Sydney") 
+            : moment.tz("Australia/Sydney");
+
         const startOfWeek = referenceDate.startOf("isoWeek").toDate();
         const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
 
@@ -5161,7 +5183,12 @@ exports.individualworkload = async (req, res) => {
                         employee: {
                             employeeid: '$members.employee',
                             fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
-                            initials: '$userDetails.initial'
+                            initials: { 
+                                $concat: [
+                                    { $substr: ['$userDetails.firstname', 0, 1] }, 
+                                    { $substr: ['$userDetails.lastname', 0, 1] }
+                                ]
+                            }
                         },
                     },
                     
@@ -5262,7 +5289,7 @@ exports.individualworkload = async (req, res) => {
 
         while (currentDate <= endOfRange) {
             const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-            if (dayOfWeek > 1 && dayOfWeek <= 6) { // Only add weekdays (1-5)
+            if (dayOfWeek !== 6 && dayOfWeek !== 0) { // Only add weekdays (1-5)
                 dateList.push(new Date(currentDate).toISOString().split('T')[0]); // Format as YYYY-MM-DD
             }
         

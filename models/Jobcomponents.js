@@ -23,7 +23,8 @@ const JobcomponentSchema = new mongoose.Schema(
             type: String
         },
         status: {
-            type: String
+            type: String,
+            default: "On-going"
         },
         comments: {
             type: String
