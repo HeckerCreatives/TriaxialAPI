@@ -2559,12 +2559,7 @@ exports.listteamjobcomponent = async (req, res) => {
                                             { $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }
                                         ]
                                     },
-                                    initials: {
-                                        $concat: [
-                                            { $substr: [{ $ifNull: [{ $arrayElemAt: ['$userDetails.firstname', 0] }, ''] }, 0, 1] },
-                                            { $substr: [{ $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }, 0, 1] }
-                                        ]
-                                    }
+                                    initials: '$userDetails.initial'
                                 },
                                 else: { _id: null, fullname: "N/A", initials: "NA" }
                             }
@@ -2700,12 +2695,7 @@ exports.listteamjobcomponent = async (req, res) => {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
                             fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
-                            initials: {
-                            $concat: [
-                                { $substr: ['$jobManagerDeets.firstname', 0, 1] }, 
-                                { $substr: ['$jobManagerDeets.lastname', 0, 1] }  
-                            ]
-                        },
+                            initials: '$jobManagerDeets.initial',
 
                             isManager: '$isManager',
                             isJobManager: { $eq: ['$jobmanager', new mongoose.Types.ObjectId(id)] }
@@ -3265,12 +3255,7 @@ exports.yourworkload = async (req, res) => {
                         employee: {
                             employeeid: '$members.employee',
                             fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
-                            initials: { 
-                                $concat: [
-                                    { $substr: ['$userDetails.firstname', 0, 1] }, 
-                                    { $substr: ['$userDetails.lastname', 0, 1] }
-                                ]
-                            }
+                            initials: '$userDetails.initial'
                         },
                     },                 
                     'members.leaveDates': {
@@ -3370,7 +3355,8 @@ exports.yourworkload = async (req, res) => {
 
         while (currentDate <= endOfRange) {
             const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-            if (dayOfWeek !== 6 && dayOfWeek !== 0) { // Only add weekdays (1-5)
+            console.log(dayOfWeek, currentDate)
+            if (dayOfWeek > 1 && dayOfWeek <= 6) { // Only add weekdays (1-5)
                 dateList.push(new Date(currentDate).toISOString().split('T')[0]); // Format as YYYY-MM-DD
             }
         
@@ -4430,10 +4416,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             return res.status(400).json({ message: 'failed', data: 'Valid Team ID is required.' });
         }
 
-        const referenceDate = filterDate 
-            ? moment.tz(new Date(filterDate), "Australia/Sydney") 
-            : moment.tz("Australia/Sydney");
-
+        const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
         const startOfWeek = referenceDate.startOf("isoWeek").toDate();
         const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
 
@@ -5178,12 +5161,7 @@ exports.individualworkload = async (req, res) => {
                         employee: {
                             employeeid: '$members.employee',
                             fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
-                            initials: { 
-                                $concat: [
-                                    { $substr: ['$userDetails.firstname', 0, 1] }, 
-                                    { $substr: ['$userDetails.lastname', 0, 1] }
-                                ]
-                            }
+                            initials: '$userDetails.initial'
                         },
                     },
                     
@@ -5284,7 +5262,7 @@ exports.individualworkload = async (req, res) => {
 
         while (currentDate <= endOfRange) {
             const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-            if (dayOfWeek !== 6 && dayOfWeek !== 0) { // Only add weekdays (1-5)
+            if (dayOfWeek > 1 && dayOfWeek <= 6) { // Only add weekdays (1-5)
                 dateList.push(new Date(currentDate).toISOString().split('T')[0]); // Format as YYYY-MM-DD
             }
         
