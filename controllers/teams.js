@@ -56,6 +56,7 @@ exports.createteam = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
     })
 
+    if (checkindex){
     checkindex.index = highestIndex + 1
     await checkindex.save()
     .catch(err => {
@@ -63,6 +64,7 @@ exports.createteam = async (req, res) => {
 
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
     })
+    }
 
     
 
