@@ -206,8 +206,9 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     subconts: "$subconts.value" || 0,
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
-                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
-                    },
+                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
+                        initials: "$jobManagerDeets.initial",
+                     },
                     projectname: '$projectDetails.projectname',
                     estimatedbudget: '$estimatedbudget',
                     alldates: '$allDates',
@@ -456,7 +457,8 @@ exports.listcomponentprojectinvoicealluser = async (req, res) => {
                     subconts: "$subconts.value" || 0,
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
-                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
+                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
+                        initials: "$jobManagerDeets.initial",
                     },
                     projectname: '$projectDetails.projectname',
                     estimatedbudget: '$estimatedbudget',
@@ -960,7 +962,8 @@ exports.listcomponentprojectinvoicesa = async (req, res) => {
                     subconts: "$subconts.value" || 0,
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
-                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
+                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
+                        initials: "$jobManagerDeets.initial",
                     },
                     projectname: '$projectDetails.projectname',
                     estimatedbudget: '$estimatedbudget',
@@ -1123,7 +1126,8 @@ exports.listcomponenttotalinvoice = async (req, res) => {
                     clientname: '$clientDetails.clientname',
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
-                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
+                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
+                        initials: "$jobManagerDeets.initial",
                     },
                     estimatedbudget: '$estimatedbudget',
                     invoicesByMonth: 1
@@ -1284,7 +1288,8 @@ exports.listcomponentclienttotalinvoice = async (req, res) => {
                     clientname: '$clientDetails.clientname',
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
-                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
+                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
+                        initials: "$jobManagerDeets.initial",
                     },
                     estimatedbudget: '$estimatedbudget',
                     invoicesByMonth: 1
