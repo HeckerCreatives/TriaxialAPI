@@ -3320,7 +3320,8 @@ exports.yourworkload = async (req, res) => {
                 
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
-                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
+                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
+                        initials: '$jobManagerDeets.initial',
                     },
                     jobcomponent: '$jobcomponent',
                     members: 1
@@ -5229,7 +5230,8 @@ exports.individualworkload = async (req, res) => {
                 
                     jobmanager: {
                         employeeid: '$jobManagerDetails._id',
-                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] }
+                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
+                        initials: '$jobManagerDeets.initial'
                     },
                     jobcomponent: '$jobcomponent',
                     members: 1

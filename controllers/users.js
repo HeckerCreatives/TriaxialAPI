@@ -108,36 +108,50 @@ exports.createemployee = async (req, res) => {
     const withSpecialCharRegex = /^[A-Za-z0-9@/[\]#]+$/;
     const nameRegex = /^[a-zA-Z .-]+$/;
     
-    if (!email){
-        return res.status(400).json({message: "failed", data: "Enter your email first!"})
-    } else if (!emailRegex.test(email)){
-        return res.status(400).json({message: "failed", data: "Please enter valid email!"})
-    } else if (!password){
-        return res.status(400).json({message: "failed", data: "Enter your password first!"})
-    } else if (password.length < 5 || password.length > 20){
-        return res.status(400).json({message: "failed", data: "Password minimum of 5 characters up to 20 characters"})
-    } else if (!withSpecialCharRegex.test(password)){
-        return res.status(400).json({message: "failed", data: "Only alphanumeric and selected special characters (@/[]#) only!"})
-    } else if (!resource){
-        return res.status(400).json({message: "failed", data: "Please select a resource"})
-    } else if (resource != "Civil" && resource != "Structural" && resource != "Drafter" && resource != "Hydraulic" && resource != "Remedial" && resource != "Admin"){
-        return res.status(400).json({message: "failed", data: "Please select a valid resource type"})
-    } else if (!nameRegex.test(firstname)){
-        return res.status(400).json({message: "failed", data: "Please enter a valid first name!"})
-    } else if (!nameRegex.test(lastname)){
-        return res.status(400).json({message: "failed", data: "Please enter a valid last name!"})
-    } else if (!nameRegex.test(initial)){
-        return res.status(400).json({message: "failed", data: "Please enter a valid initial!"})
-    } else if (firstname.length > 25){
-        return res.status(400).json({message: "failed", data: "First name should be less than 25 characters!"})
-    } else if (lastname.length > 15){
-        return res.status(400).json({message: "failed", data: "Last name should be less than 15 characters!"})
-    } else if (initial.length > 10){
-        return res.status(400).json({message: "failed", data: "Initial should be less than 10 characters!"})
-    } else if (contactnumber.length > 20){
-        return res.status(400).json({message: "failed", data: "Contact number should be less than 20 characters!"})
-    }
 
+    if (!email) return res.status(400).json({message: "failed", data: "Enter your email first!"})
+    if (!emailRegex.test(email)) return res.status(400).json({message: "failed", data: "Please enter valid email!"})
+    if (!password) return res.status(400).json({message: "failed", data: "Enter your password first!"})
+    if (password.length < 5 || password.length > 20) return res.status(400).json({message: "failed", data: "Password minimum of 5 characters up to 20 characters"})
+    if (!withSpecialCharRegex.test(password)) return res.status(400).json({message: "failed", data: "Only alphanumeric and selected special characters (@/[]#) only!"})
+    if (!resource) return res.status(400).json({message: "failed", data: "Please select a resource"})
+    if (resource != "Civil" && resource != "Structural" && resource != "Drafter" && resource != "Hydraulic" && resource != "Remedial" && resource != "Admin") return res.status(400).json({message: "failed", data: "Please select a valid resource type"})
+    if (!nameRegex.test(firstname)) return res.status(400).json({message: "failed", data: "Please enter a valid first name!"})
+    if (!nameRegex.test(lastname)) return res.status(400).json({message: "failed", data: "Please enter a valid last name!"})
+    if (!nameRegex.test(initial)) return res.status(400).json({message: "failed", data: "Please enter a valid initial!"})
+    if (firstname.length > 25) return res.status(400).json({message: "failed", data: "First name should be less than 25 characters!"})
+    if (lastname.length > 15) return res.status(400).json({message: "failed", data: "Last name should be less than 15 characters!"})
+    if (initial.length > 10) return res.status(400).json({message: "failed", data: "Initial should be less than 10 characters!"})
+    if (contactnumber.length > 20) return res.status(400).json({message: "failed", data: "Contact number should be less than 20 characters!"})
+    // if (!email){
+    //     return res.status(400).json({message: "failed", data: "Enter your email first!"})
+    // } else if (!emailRegex.test(email)){
+    //     return res.status(400).json({message: "failed", data: "Please enter valid email!"})
+    // } else if (!password){
+    //     return res.status(400).json({message: "failed", data: "Enter your password first!"})
+    // } else if (password.length < 5 || password.length > 20){
+    //     return res.status(400).json({message: "failed", data: "Password minimum of 5 characters up to 20 characters"})
+    // } else if (!withSpecialCharRegex.test(password)){
+    //     return res.status(400).json({message: "failed", data: "Only alphanumeric and selected special characters (@/[]#) only!"})
+    // } else if (!resource){
+    //     return res.status(400).json({message: "failed", data: "Please select a resource"})
+    // } else if (resource != "Civil" && resource != "Structural" && resource != "Drafter" && resource != "Hydraulic" && resource != "Remedial" && resource != "Admin"){
+    //     return res.status(400).json({message: "failed", data: "Please select a valid resource type"})
+    // } else if (!nameRegex.test(firstname)){
+    //     return res.status(400).json({message: "failed", data: "Please enter a valid first name!"})
+    // } else if (!nameRegex.test(lastname)){
+    //     return res.status(400).json({message: "failed", data: "Please enter a valid last name!"})
+    // } else if (!nameRegex.test(initial)){
+    //     return res.status(400).json({message: "failed", data: "Please enter a valid initial!"})
+    // } else if (firstname.length > 25){
+    //     return res.status(400).json({message: "failed", data: "First name should be less than 25 characters!"})
+    // } else if (lastname.length > 15){
+    //     return res.status(400).json({message: "failed", data: "Last name should be less than 15 characters!"})
+    // } else if (initial.length > 10){
+    //     return res.status(400).json({message: "failed", data: "Initial should be less than 10 characters!"})
+    // } else if (contactnumber.length > 20){
+    //     return res.status(400).json({message: "failed", data: "Contact number should be less than 20 characters!"})
+    // }
 
 
     const userlogin = await Users.findOne({email: { $regex: new RegExp('^' + email + '$', 'i') }})
