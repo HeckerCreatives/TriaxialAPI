@@ -1749,12 +1749,7 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                                             { $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }
                                         ]
                                     },
-                                    initials: {
-                                        $concat: [
-                                            { $substr: [{ $ifNull: [{ $arrayElemAt: ['$userDetails.firstname', 0] }, ''] }, 0, 1] },
-                                            { $substr: [{ $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }, 0, 1] }
-                                        ]
-                                    }
+                                    initials: '$userDetails.initial'
                                 },
                                 else: { _id: null, fullname: "N/A", initials: "NA" }
                             }
@@ -1876,12 +1871,7 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
                             fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
-                            initials: {
-                            $concat: [
-                                { $substr: ['$jobManagerDeets.firstname', 0, 1] }, 
-                                { $substr: ['$jobManagerDeets.lastname', 0, 1] }  
-                            ]
-                        },
+                            initials: '$jobManagerDeets.initial',
                             isManager: '$isManager',
                             isJobManager: { $eq: ['$jobmanager', new mongoose.Types.ObjectId(id)] }
                         }
@@ -2188,12 +2178,7 @@ exports.listjobcomponent = async (req, res) => {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
                             fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
-                            initials: {
-                            $concat: [
-                                { $substr: ['$jobManagerDeets.firstname', 0, 1] }, 
-                                { $substr: ['$jobManagerDeets.lastname', 0, 1] }  
-                            ]
-                        },
+                            initials: '$jobManagerDeets.initial',
                             isManager: '$isManager',
                             isJobManager: { $eq: ['$jobmanager', new mongoose.Types.ObjectId(id)] }
                         }
@@ -2564,12 +2549,7 @@ exports.listteamjobcomponent = async (req, res) => {
                                             { $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }
                                         ]
                                     },
-                                    initials: {
-                                        $concat: [
-                                            { $substr: [{ $ifNull: [{ $arrayElemAt: ['$userDetails.firstname', 0] }, ''] }, 0, 1] },
-                                            { $substr: [{ $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }, 0, 1] }
-                                        ]
-                                    }
+                                    initials: '$userDetails.initial'
                                 },
                                 else: { _id: null, fullname: "N/A", initials: "NA" }
                             }
@@ -2705,13 +2685,7 @@ exports.listteamjobcomponent = async (req, res) => {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
                             fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
-                            initials: {
-                            $concat: [
-                                { $substr: ['$jobManagerDeets.firstname', 0, 1] }, 
-                                { $substr: ['$jobManagerDeets.lastname', 0, 1] }  
-                            ]
-                        },
-
+                            initials: '$jobManagerDeets.initial',
                             isManager: '$isManager',
                             isJobManager: { $eq: ['$jobmanager', new mongoose.Types.ObjectId(id)] }
                         }
@@ -2934,12 +2908,7 @@ exports.viewduedatesgraph = async (req, res) => {
                                             { $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }
                                         ]
                                     },
-                                    initials: {
-                                        $concat: [
-                                            { $substr: [{ $ifNull: [{ $arrayElemAt: ['$userDetails.firstname', 0] }, ''] }, 0, 1] },
-                                            { $substr: [{ $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }, 0, 1] }
-                                        ]
-                                    }
+                                    initials: '$userDetails.initial'
                                 },
                                 else: { _id: null, fullname: "N/A", initials: "NA" }
                             }
@@ -2997,12 +2966,7 @@ exports.viewduedatesgraph = async (req, res) => {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
                             fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
-                            initials: {
-                            $concat: [
-                                { $substr: ['$jobManagerDeets.firstname', 0, 1] }, 
-                                { $substr: ['$jobManagerDeets.lastname', 0, 1] }  
-                            ]
-                        },
+                            initials: '$jobManagerDeets.initial',
                             isManager: '$isManager',
                             isJobManager: { $eq: ['$jobmanager', new mongoose.Types.ObjectId(id)] }
                         }
@@ -3270,12 +3234,7 @@ exports.yourworkload = async (req, res) => {
                         employee: {
                             employeeid: '$members.employee',
                             fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
-                            initials: { 
-                                $concat: [
-                                    { $substr: ['$userDetails.firstname', 0, 1] }, 
-                                    { $substr: ['$userDetails.lastname', 0, 1] }
-                                ]
-                            }
+                            initials: '$userDetails.initial'
                         },
                     },                 
                     'members.leaveDates': {
@@ -5183,12 +5142,7 @@ exports.individualworkload = async (req, res) => {
                         employee: {
                             employeeid: '$members.employee',
                             fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
-                            initials: { 
-                                $concat: [
-                                    { $substr: ['$userDetails.firstname', 0, 1] }, 
-                                    { $substr: ['$userDetails.lastname', 0, 1] }
-                                ]
-                            }
+                            initials: '$userDetails.initial',
                         },
                     },
                     
