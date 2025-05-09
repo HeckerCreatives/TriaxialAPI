@@ -42,7 +42,7 @@ exports.createteam = async (req, res) => {
         return res.status(400).json({message: "bad-request", data: "There's a problem with the server! Please contact customer support for more details."})
     })
 
-    const highestIndex = await Teams.getHighestIndex();
+    const highestIndex = await Teams.getHighestIndex() || 1;
     const memberusers = []
 
     members.forEach(tempdata => {
