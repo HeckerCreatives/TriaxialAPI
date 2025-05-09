@@ -3354,7 +3354,6 @@ exports.yourworkload = async (req, res) => {
         result.forEach(job => {
             // Filter and map only members matching req.user.id
             const members = job.members
-            .filter(member => member.employee.employeeid.toString() === id)
             .map(member => {
                 // Map the basic member data
                 const mappedMember = {
@@ -4954,11 +4953,6 @@ exports.individualworkload = async (req, res) => {
             },       
             
             { $unwind: { preserveNullAndEmptyArrays: true, path: "$members.dates" } },
-            // {
-            //     $match: {
-            //         "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
-            //     }
-            // },
             {
                 $lookup: {
                     from: 'users',
@@ -5263,7 +5257,6 @@ exports.individualworkload = async (req, res) => {
         result.forEach(job => {
             // Filter and map only members matching req.user.id
             const members = job.members
-            .filter(member => member.employee.employeeid.toString() === employeeid.toString())
             .map(member => {
                 // Map the basic member data
                 const mappedMember = {
