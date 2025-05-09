@@ -11,7 +11,7 @@ const e = require("express")
 exports.createteam = async (req, res) => {
     const {id, email} = req.user
 
-    const {teamname, directorpartner, associate, managerid, teamleader, members, index} = req.body
+    const {teamname, directorpartner, associate, managerid, teamleader, members, index = 1} = req.body
 
     if (!teamname){
         return res.status(400).json({message: "failed", data: "Please enter team name"})
