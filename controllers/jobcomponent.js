@@ -610,68 +610,25 @@ exports.editalljobcomponentdetails = async (req, res) => {
         const jobName = jobcomponent.jobcomponent;
 
         // Update job component details
-        await Jobcomponents.findByIdAndUpdate(jobcomponentid, {
+        await Jobcomponents.findByIdAndUpdate(
+            jobcomponentid,
+            {
             project: new mongoose.Types.ObjectId(project),
             client: new mongoose.Types.ObjectId(client),
             jobmanager: jobmanagerid,
             budgettype: budgettype,
             estimatedbudget: budget,
             adminnotes: adminnotes,
-            jobcomponent: jobcomponentname
-        });
-
-        // Ensure unique roles and update members
-        const employeeRoleMap = new Map();
-        for (const memberData of members) {
-            const { employee, role, notes } = memberData;
-
-            // Skip validation for null, undefined, or empty string employee
-            if (!employee || employee.trim() === '') {
-                continue;
-            }
-
-            // Convert employee to string for consistent comparison
-            const employeeKey = employee.toString();
-
-            if (employeeRoleMap.has(employeeKey)) {
-                return res.status(400).json({
-                    message: "failed",
-                    data: `Employee ${employeeKey} cannot have more than one role.`,
-                });
-            }
-
-            if ([...employeeRoleMap.values()].includes(role)) {
-                return res.status(400).json({
-                    message: "failed",
-                    data: `The role "${role}" has already been assigned to another member.`,
-                });
-            }
-
-            employeeRoleMap.set(employeeKey, role);
-
-            const memberIndex = jobcomponent.members.findIndex(
-                (m) => m.employee?.toString() === employeeKey
-            );
-
-            if (memberIndex !== -1) {
-                // Update existing member's details
-                jobcomponent.members[memberIndex].role = role;
-                jobcomponent.members[memberIndex].notes = notes || jobcomponent.members[memberIndex].notes;
-            } else {
-                // Add new member
-                if (jobcomponent.members.length >= 4) {
-                    jobcomponent.members.shift(); // Maintain a maximum of 4 members
-                }
-                jobcomponent.members.push({
-                    employee,
-                    role,
-                    notes: notes || "", // Allow null or empty notes
-                    dates: [], // Reset dates
-                });
-            }
-        }
-
-        await jobcomponent.save()
+            jobcomponent: jobcomponentname,
+            members: members.map(({ employee, role, notes }) => ({
+                employee,
+                role,
+                notes: notes || "",
+                dates: [],
+            })),
+            },
+            { new: true }
+        );
 
 
         // Filter out empty or invalid employee IDs
@@ -1059,13 +1016,13 @@ exports.archivejobcomponent = async (req, res) => {
 
 exports.editstatushours = async (req, res) => {
     const { id, email } = req.user;
-    const { jobcomponentid, employeeid, date, status, hours } = req.body;
+    const { jobcomponentid, role, employeeid, date, status, hours } = req.body;
 
     // Input validation
     if (!jobcomponentid) {
         return res.status(400).json({ message: "failed", data: "Please select a valid job component." });
     }
-    if (!employeeid) {
+    if (!employeeid || !role) {
         return res.status(400).json({ message: "failed", data: "Please select a valid employee." });
     }
     if (!date || isNaN(Date.parse(date))) {
@@ -1092,7 +1049,9 @@ exports.editstatushours = async (req, res) => {
 
         // Find the member corresponding to the employee
         const member = jobComponent.members.find(
-            (m) => (m.employee ? m.employee.toString() : "") === employeeid
+            (m) =>
+            (m.employee ? m.employee.toString() : "") === employeeid &&
+            (m.role ? m.role.toString() : "") === (role ? role.toString() : "")
         );
 
         if (!member) {
@@ -1549,7 +1508,7 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                 $addFields: {
                     isManager: {
                         $cond: {
-                            if: { $eq: [new mongoose.Types.ObjectId(id), '$teamDetails.manager'] },
+                            if: { $eq: [userObjectId, '$teamDetails.manager'] },
                             then: true,
                             else: false
                         }
@@ -2202,12 +2161,16 @@ exports.listjobcomponent = async (req, res) => {
 }
 
 exports.listteamjobcomponent = async (req, res) => {
-    const { id, email } = req.user;
+    const { id } = req.user;
     const { teamid, search, filterdate } = req.query;
 
     if(!mongoose.Types.ObjectId.isValid(teamid)) {
         return res.status(400).json({ message: "failed", data: "Invalid team ID" });
     }
+
+    // Use createFromHexString for string IDs (recommended by mongoose/bson)
+    const teamObjectId = mongoose.Types.ObjectId.createFromHexString(teamid);
+    const userObjectId = mongoose.Types.ObjectId.createFromHexString(id);
 
     const referenceDate = filterdate ? moment.tz(new Date(filterdate), "Australia/Sydney") : moment.tz("Australia/Sydney");
     const startOfWeek = referenceDate.isoWeekday(1).toDate(); // forced to monday
@@ -2245,7 +2208,7 @@ exports.listteamjobcomponent = async (req, res) => {
                     as: 'projectDetails'
                 }
             },
-            { $match: { 'projectDetails.team': new mongoose.Types.ObjectId(teamid)} },
+            { $match: { 'projectDetails.team': teamObjectId } },
             { $unwind: '$projectDetails' },
             {
                 $lookup: {
@@ -2549,7 +2512,7 @@ exports.listteamjobcomponent = async (req, res) => {
                                             { $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }
                                         ]
                                     },
-                                    initials: '$userDetails.initial'
+                                    initials: '$userDetails.initial',
                                 },
                                 else: { _id: null, fullname: "N/A", initials: "NA" }
                             }
@@ -2664,6 +2627,7 @@ exports.listteamjobcomponent = async (req, res) => {
                     }
                 }
             },
+            
             {
                 $group: {
                     _id: '$_id',
@@ -5133,7 +5097,6 @@ exports.individualworkload = async (req, res) => {
             {
                 $addFields: {
                     members: {
-                        role: '$members.role',
                         employee: {
                             employeeid: '$members.employee',
                             fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
