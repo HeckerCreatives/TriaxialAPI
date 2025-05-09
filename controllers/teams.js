@@ -242,6 +242,7 @@ exports.listteam = async (req, res) => {
                             { $ifNull: ['$managerDetails.lastname', ''] },
                         ],
                     },
+                    managerinitials: '$managerDetails.initial',
                     teamleader: {
                         $concat: [
                             { $ifNull: ['$teamleaderDetails.firstname', ''] },
@@ -249,6 +250,7 @@ exports.listteam = async (req, res) => {
                             { $ifNull: ['$teamleaderDetails.lastname', ''] },
                         ],
                     },
+                    teamleaderinitials: '$teamleaderDetails.initial',
                     clients: {
                         $setUnion: ['$clientDetails.clientname'],
                     },
