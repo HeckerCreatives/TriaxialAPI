@@ -11,8 +11,8 @@ router
     //  #region MANAGER
 
     .get("/managerlistcomponentprojectinvoice", protectalluser, listcomponentprojectinvoice)
-    .post("/managersaveprojectinvoicevalue", protectmanager, saveprojectinvoicevalue)
-    .post("/managersavesubconstvalue", protectmanager, savesubconstvalue)
+    .post("/managersaveprojectinvoicevalue", protectalluser, saveprojectinvoicevalue)
+    .post("/managersavesubconstvalue", protectalluser, savesubconstvalue)
 
     //  #endregion
 
