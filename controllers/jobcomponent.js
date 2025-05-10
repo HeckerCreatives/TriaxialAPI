@@ -2985,7 +2985,7 @@ exports.yourworkload = async (req, res) => {
         if (!teams.length) {
             // Try to get userdetails anyway
         const leaveDates = (
-            await Leave.find({ owner: id }).lean()
+            await Leave.find({ owner: id, status: "Approved" }).lean()
         ).map(leave => ({
             ...leave,
             leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
@@ -3136,7 +3136,7 @@ exports.yourworkload = async (req, res) => {
         // Get leave, wfh, wellness, event data for the user
         // Only get the date fields and format them (except for leave, which is used for calculations)
         const leaveDates = (
-            await Leave.find({ owner: id }).lean()
+            await Leave.find({ owner: id, status: "Approved" }).lean()
         ).map(leave => ({
             ...leave,
             leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
@@ -4922,7 +4922,7 @@ exports.individualworkload = async (req, res) => {
             // Try to get userdetails anyway
 
         const leaveDates = (
-            await Leave.find({ owner: employeeid }).lean()
+            await Leave.find({ owner: employeeid, status: "Approved" }).lean()
         ).map(leave => ({
             ...leave,
             leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
@@ -5078,7 +5078,7 @@ exports.individualworkload = async (req, res) => {
         // Get leave, wfh, wellness, event data for the user
         // Only get the date fields and format them (except for leave, which is used for calculations)
         const leaveDates = (
-            await Leave.find({ owner: employeeid }).lean()
+            await Leave.find({ owner: employeeid, status: "Approved" }).lean()
         ).map(leave => ({
             ...leave,
             leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
