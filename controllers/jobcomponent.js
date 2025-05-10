@@ -4654,7 +4654,28 @@ exports.individualworkload = async (req, res) => {
         const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
 
         // Find all teams the user is a member of
-        const teams = await Teams.find({ members: new mongoose.Types.ObjectId(employeeid) }).lean();
+        let teams;
+        if (!employeeid) {
+            teams = await Teams.find({
+                $or: [
+                    { members: { $exists: true, $not: { $size: 0 } } },
+                    { manager: { $exists: true, $ne: null } },
+                    { directorpartner: { $exists: true, $ne: null } },
+                    { associate: { $exists: true, $ne: null } },
+                    { teamleader: { $exists: true, $ne: null } }
+                ]
+            }).lean();
+        } else {
+            teams = await Teams.find({
+                $or: [
+                    { members: new mongoose.Types.ObjectId(employeeid) },
+                    { manager: new mongoose.Types.ObjectId(employeeid) },
+                    { directorpartner: new mongoose.Types.ObjectId(employeeid) },
+                    { associate: new mongoose.Types.ObjectId(employeeid) },
+                    { teamleader: new mongoose.Types.ObjectId(employeeid) }
+                ]
+            }).lean();
+        }
 
         // Build alldates (weekdays only)
         const dateList = [];
@@ -4711,16 +4732,20 @@ exports.individualworkload = async (req, res) => {
 
         // Find all job components for these projects where the user is a member
         const projectIds = projects.map(p => p._id);
-        const jobComponents = await Jobcomponents.find({
+        // --- FIX: Only filter by employeeid if provided, else skip filter (for "all" mode) ---
+        let jobComponentQuery = {
             project: { $in: projectIds },
-            members: { $elemMatch: { employee: new mongoose.Types.ObjectId(employeeid) } },
             status: { $in: ["completed", "", null, "On-going"] }
-        })
-        .populate([
-            { path: 'project', model: 'Projects' },
-            { path: 'jobmanager', model: 'Users' }
-        ])
-        .lean();
+        };
+        if (employeeid) {
+            jobComponentQuery.members = { $elemMatch: { employee: new mongoose.Types.ObjectId(employeeid) } };
+        }
+        const jobComponents = await Jobcomponents.find(jobComponentQuery)
+            .populate([
+                { path: 'project', model: 'Projects' },
+                { path: 'jobmanager', model: 'Users' }
+            ])
+            .lean();
 
         // Get all needed details for job managers, clients, teams, etc.
         const jobManagerIds = jobComponents.map(jc => jc.jobmanager?._id || jc.jobmanager).filter(Boolean);
@@ -4765,10 +4790,66 @@ exports.individualworkload = async (req, res) => {
                 return m ? ((m.firstname?.[0] || '') + (m.lastname?.[0] || '')) : '';
             });
 
-            // Only include the current user's member entry
-            const members = jc.members
-                .map(member => {
-                    // Dates: process leave overlays
+            // --- FIX: Only include the member entry for the requested employeeid ---
+            let members = [];
+            if (employeeid) {
+                members = jc.members
+                    .filter(member => member.employee?.toString() === employeeid)
+                    .map(member => {
+                        let mappedMember = {
+                            employee: member.employee,
+                            role: member.role,
+                            notes: member.notes,
+                            dates: member.dates ? [...member.dates] : [],
+                            leaveDates,
+                            wellnessDates,
+                            eventDates,
+                            wfhDates
+                        };
+
+                        // Overlay leave on dates
+                        if (Array.isArray(leaveDates)) {
+                            leaveDates.forEach(leave => {
+                                if (leave.status === "Approved") {
+                                    const startDate = moment(leave.leavestart);
+                                    const endDate = moment(leave.leaveend);
+                                    let remainingWorkHours = leave.workinghoursduringleave || 0;
+                                    for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+                                        if (date.day() !== 0 && date.day() !== 6) {
+                                            const dateStr = date.format('YYYY-MM-DD');
+                                            const existingDateIndex = mappedMember.dates.findIndex(d =>
+                                                moment(d.date).format('YYYY-MM-DD') === dateStr
+                                            );
+                                            const standardHours = 7.6;
+                                            let hoursForThisDay = standardHours;
+                                            if (remainingWorkHours > 0) {
+                                                if (remainingWorkHours >= standardHours) {
+                                                    hoursForThisDay = 0;
+                                                    remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+                                                } else {
+                                                    hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+                                                    remainingWorkHours = 0;
+                                                }
+                                            }
+                                            if (existingDateIndex >= 0) {
+                                                mappedMember.dates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
+                                            } else {
+                                                mappedMember.dates.push({
+                                                    date: date.toDate(),
+                                                    hours: Number(hoursForThisDay.toFixed(2)),
+                                                    status: ['Leave']
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        return mappedMember;
+                    });
+            } else {
+                // If no employeeid, include all members (for "all" mode)
+                members = jc.members.map(member => {
                     let mappedMember = {
                         employee: member.employee,
                         role: member.role,
@@ -4779,47 +4860,9 @@ exports.individualworkload = async (req, res) => {
                         eventDates,
                         wfhDates
                     };
-
-                    // Overlay leave on dates
-                    if (Array.isArray(leaveDates)) {
-                        leaveDates.forEach(leave => {
-                            if (leave.status === "Approved") {
-                                const startDate = moment(leave.leavestart);
-                                const endDate = moment(leave.leaveend);
-                                let remainingWorkHours = leave.workinghoursduringleave || 0;
-                                for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
-                                    if (date.day() !== 0 && date.day() !== 6) {
-                                        const dateStr = date.format('YYYY-MM-DD');
-                                        const existingDateIndex = mappedMember.dates.findIndex(d =>
-                                            moment(d.date).format('YYYY-MM-DD') === dateStr
-                                        );
-                                        const standardHours = 7.6;
-                                        let hoursForThisDay = standardHours;
-                                        if (remainingWorkHours > 0) {
-                                            if (remainingWorkHours >= standardHours) {
-                                                hoursForThisDay = 0;
-                                                remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                                            } else {
-                                                hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                                                remainingWorkHours = 0;
-                                            }
-                                        }
-                                        if (existingDateIndex >= 0) {
-                                            mappedMember.dates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
-                                        } else {
-                                            mappedMember.dates.push({
-                                                date: date.toDate(),
-                                                hours: Number(hoursForThisDay.toFixed(2)),
-                                                status: ['Leave']
-                                            });
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
                     return mappedMember;
                 });
+            }
 
             return {
                 _id: jc._id,
