@@ -3160,7 +3160,6 @@ exports.yourworkload = async (req, res) => {
 
         // If no job components, still return members info for the user
         let membersArr = [];
-        if (!yourworkload.length) {
             const userDetails = await Userdetails.findOne({ owner: id }).lean();
             if (userDetails) {
                 membersArr.push({
@@ -3176,7 +3175,6 @@ exports.yourworkload = async (req, res) => {
                     wfhDates
                 });
             }
-        }
 
         return res.json({
             message: 'success',
@@ -4889,7 +4887,6 @@ exports.individualworkload = async (req, res) => {
 
         // If no job components, still return members info for the user
         let membersArr = [];
-        if (!yourworkload.length) {
             const userDetails = await Userdetails.findOne({ owner: employeeid }).lean();
             if (userDetails) {
                 membersArr.push({
@@ -4905,7 +4902,6 @@ exports.individualworkload = async (req, res) => {
                     wfhDates
                 });
             }
-        }
 
         return res.json({
             message: 'success',
