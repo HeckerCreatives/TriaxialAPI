@@ -237,17 +237,12 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     list: result.map(item => {
                         // Calculate totals for the first 3 and first 12 objects in projectedValues
                         const totalFirstThree = item.projectedValues
-                            .slice(0, 3) // Take the first 3 objects
-                            .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
-            
-                        const totalFirstTwelve = item.projectedValues
-                            .slice(0, 12) // Take the first 12 objects
+                            .slice(0, 2) // Take the first 3 objects
                             .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
 
                         const totalvalue = item.projectedValues
                             .slice(0, 12) // Take the first 12 objects
                             .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
-
 
                             return {
                             componentid: item._id,
@@ -576,25 +571,22 @@ exports.saveprojectinvoicevalue = async (req, res) => {
             });
         }
 
-        // Update or add new value
-        const result = await Projectedinvoice.findOneAndUpdate(
-            {
-                jobcomponent: new mongoose.Types.ObjectId(jobcomponentid),
-                "values.date": { 
-                    $gte: new Date(`${formattedDate}-01T00:00:00.000Z`), 
-                    $lt: new Date(finalDate.getFullYear(), finalDate.getMonth() + 1, 1) 
-                }
-            },
-            { $set: { "values.$.amount": amount } },
-            { new: true }
+        const result = projectedInvoice.values.find(
+            (obj) => obj.date.toISOString().slice(0, 7) === formattedDate
         );
-
         if (!result) {
             // If no existing date found, add a new entry
             await Projectedinvoice.findOneAndUpdate(
                 { jobcomponent: new mongoose.Types.ObjectId(jobcomponentid) },
                 { $push: { values: { date: finalDate, amount } } },
                 { upsert: true, new: true }
+            );
+        } else {
+            // If date already exists, update the amount
+            await Projectedinvoice.findOneAndUpdate(
+                { jobcomponent: new mongoose.Types.ObjectId(jobcomponentid), "values.date": finalDate },
+                { $set: { "values.$.amount": amount } },
+                { new: true }
             );
         }
 
