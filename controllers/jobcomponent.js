@@ -3058,11 +3058,33 @@ exports.yourworkload = async (req, res) => {
         allTeamMemberDetails.forEach(m => { allTeamMemberDetailsMap[m.owner.toString()] = m; });
 
         // Get leave, wfh, wellness, event data for the user
-        const leaveDates = await Leave.find({ owner: id }).lean();
-        const wfhDates = await Workfromhome.find({ owner: id }).lean();
-        const wellnessDates = await Wellnessday.find({ owner: id }).lean();
-        // For events, get all events for all teams user is in
-        const eventDates = await Events.find({ teams: { $in: teamIds } }).lean();
+        // Only get the date fields and format them (except for leave, which is used for calculations)
+        const leaveDates = (
+            await Leave.find({ owner: id }).lean()
+        ).map(leave => ({
+            ...leave,
+            leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
+            leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
+        }));
+
+        const wfhDates = (
+            await Workfromhome.find({ owner: id }).select("requestdate requestend -_id").lean()
+        ).map(wfh => ({
+            requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
+            requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
+        }));
+
+        const wellnessDates = (
+            await Wellnessday.find({ owner: id }).select("requestdate -_id").lean()
+        ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
+
+        // For events, get all events for all teams user is in, only dates
+        const eventDates = (
+            await Events.find({ teams: { $in: teamIds } }).select("startdate enddate -_id").lean()
+        ).map(ev => ({
+            startdate: ev.startdate ? moment(ev.startdate).format('YYYY-MM-DD') : null,
+            enddate: ev.enddate ? moment(ev.enddate).format('YYYY-MM-DD') : null
+        }));
 
         // Build yourworkload array
         const yourworkload = jobComponents.map(jc => {
@@ -3075,7 +3097,7 @@ exports.yourworkload = async (req, res) => {
             // Team members initials
             const teammembers = (team.members || []).map(mid => {
                 const m = allTeamMemberDetailsMap[mid.toString()];
-                return m ? ((m.firstname?.[0] || '') + (m.lastname?.[0] || '')) : '';
+                return m ? (m.initial || '') : '';
             });
 
             // Only include the current user's member entry
@@ -3087,11 +3109,24 @@ exports.yourworkload = async (req, res) => {
                         employee: member.employee,
                         role: member.role,
                         notes: member.notes,
-                        dates: member.dates ? [...member.dates] : [],
+                        dates: (member.dates ? member.dates.map(d => ({
+                            ...d,
+                            date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
+                        })) : []),
                         leaveDates,
                         wellnessDates,
                         eventDates,
-                        wfhDates
+                        wfhDates: wfhDates
+                            ? wfhDates.map(wfh => ({
+                                ...wfh,
+                                requestdate: wfh.requestdate
+                                    ? moment(wfh.requestdate).format('YYYY-MM-DD')
+                                    : wfh.requestdate,
+                                requestend: wfh.requestend
+                                    ? moment(wfh.requestend).format('YYYY-MM-DD')
+                                    : wfh.requestend
+                            }))
+                            : []
                     };
 
                     // Overlay leave on dates
@@ -4768,11 +4803,33 @@ exports.individualworkload = async (req, res) => {
         allTeamMemberDetails.forEach(m => { allTeamMemberDetailsMap[m.owner.toString()] = m; });
 
         // Get leave, wfh, wellness, event data for the user
-        const leaveDates = await Leave.find({ owner: employeeid }).lean();
-        const wfhDates = await Workfromhome.find({ owner: employeeid }).lean();
-        const wellnessDates = await Wellnessday.find({ owner: employeeid }).lean();
-        // For events, get all events for all teams user is in
-        const eventDates = await Events.find({ teams: { $in: teamIds } }).lean();
+        // Only get the date fields and format them (except for leave, which is used for calculations)
+        const leaveDates = (
+            await Leave.find({ owner: employeeid }).lean()
+        ).map(leave => ({
+            ...leave,
+            leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
+            leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
+        }));
+
+        const wfhDates = (
+            await Workfromhome.find({ owner: employeeid }).select("requestdate requestend -_id").lean()
+        ).map(wfh => ({
+            requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
+            requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
+        }));
+
+        const wellnessDates = (
+            await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
+        ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
+
+        // For events, get all events for all teams user is in, only dates
+        const eventDates = (
+            await Events.find({ teams: { $in: teamIds } }).select("startdate enddate -_id").lean()
+        ).map(ev => ({
+            startdate: ev.startdate ? moment(ev.startdate).format('YYYY-MM-DD') : null,
+            enddate: ev.enddate ? moment(ev.enddate).format('YYYY-MM-DD') : null
+        }));
 
         // Build yourworkload array
         const yourworkload = jobComponents.map(jc => {
@@ -4785,82 +4842,78 @@ exports.individualworkload = async (req, res) => {
             // Team members initials
             const teammembers = (team.members || []).map(mid => {
                 const m = allTeamMemberDetailsMap[mid.toString()];
-                return m ? ((m.firstname?.[0] || '') + (m.lastname?.[0] || '')) : '';
+                return m ? (m.initial || '') : '';
             });
 
-            // --- FIX: Only include the member entry for the requested employeeid ---
-            let members = [];
-            if (employeeid) {
-                members = jc.members
-                    .filter(member => member.employee?.toString() === employeeid)
-                    .map(member => {
-                        let mappedMember = {
-                            employee: member.employee,
-                            role: member.role,
-                            notes: member.notes,
-                            dates: member.dates ? [...member.dates] : [],
-                            leaveDates,
-                            wellnessDates,
-                            eventDates,
-                            wfhDates
-                        };
-
-                        // Overlay leave on dates
-                        if (Array.isArray(leaveDates)) {
-                            leaveDates.forEach(leave => {
-                                if (leave.status === "Approved") {
-                                    const startDate = moment(leave.leavestart);
-                                    const endDate = moment(leave.leaveend);
-                                    let remainingWorkHours = leave.workinghoursduringleave || 0;
-                                    for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
-                                        if (date.day() !== 0 && date.day() !== 6) {
-                                            const dateStr = date.format('YYYY-MM-DD');
-                                            const existingDateIndex = mappedMember.dates.findIndex(d =>
-                                                moment(d.date).format('YYYY-MM-DD') === dateStr
-                                            );
-                                            const standardHours = 7.6;
-                                            let hoursForThisDay = standardHours;
-                                            if (remainingWorkHours > 0) {
-                                                if (remainingWorkHours >= standardHours) {
-                                                    hoursForThisDay = 0;
-                                                    remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                                                } else {
-                                                    hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                                                    remainingWorkHours = 0;
-                                                }
-                                            }
-                                            if (existingDateIndex >= 0) {
-                                                mappedMember.dates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
-                                            } else {
-                                                mappedMember.dates.push({
-                                                    date: date.toDate(),
-                                                    hours: Number(hoursForThisDay.toFixed(2)),
-                                                    status: ['Leave']
-                                                });
-                                            }
-                                        }
-                                    }
-                                }
-                            });
-                        }
-                        return mappedMember;
-                    });
-            } else {
-                // If no employeeid, include all members (for "all" mode)
-                members = jc.members.map(member => {
+            // Only include the current user's member entry
+            const members = jc.members
+                .filter(m => m.employee?.toString() === (employeeid || id))
+                .map(member => {
+                    // Dates: process leave overlays
                     let mappedMember = {
                         employee: member.employee,
                         role: member.role,
                         notes: member.notes,
-                        dates: member.dates ? [...member.dates] : [],
+                        dates: (member.dates ? member.dates.map(d => ({
+                            ...d,
+                            date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
+                        })) : []),
                         leaveDates,
                         wellnessDates,
                         eventDates,
-                        wfhDates
+                        wfhDates: wfhDates
+                            ? wfhDates.map(wfh => ({
+                                ...wfh,
+                                requestdate: wfh.requestdate
+                                    ? moment(wfh.requestdate).format('YYYY-MM-DD')
+                                    : wfh.requestdate,
+                                requestend: wfh.requestend
+                                    ? moment(wfh.requestend).format('YYYY-MM-DD')
+                                    : wfh.requestend
+                            }))
+                            : []
                     };
+
+                    // Overlay leave on dates
+                    if (Array.isArray(leaveDates)) {
+                        leaveDates.forEach(leave => {
+                            if (leave.status === "Approved") {
+                                const startDate = moment(leave.leavestart);
+                                const endDate = moment(leave.leaveend);
+                                let remainingWorkHours = leave.workinghoursduringleave || 0;
+                                for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+                                    if (date.day() !== 0 && date.day() !== 6) {
+                                        const dateStr = date.format('YYYY-MM-DD');
+                                        const existingDateIndex = mappedMember.dates.findIndex(d =>
+                                            moment(d.date).format('YYYY-MM-DD') === dateStr
+                                        );
+                                        const standardHours = 7.6;
+                                        let hoursForThisDay = standardHours;
+                                        if (remainingWorkHours > 0) {
+                                            if (remainingWorkHours >= standardHours) {
+                                                hoursForThisDay = 0;
+                                                remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+                                            } else {
+                                                hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+                                                remainingWorkHours = 0;
+                                            }
+                                        }
+                                        if (existingDateIndex >= 0) {
+                                            mappedMember.dates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
+                                        } else {
+                                            mappedMember.dates.push({
+                                                date: date.toDate(),
+                                                hours: Number(hoursForThisDay.toFixed(2)),
+                                                status: ['Leave']
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
                     return mappedMember;
                 });
-            }
 
             return {
                 _id: jc._id,
@@ -4887,21 +4940,21 @@ exports.individualworkload = async (req, res) => {
 
         // If no job components, still return members info for the user
         let membersArr = [];
-            const userDetails = await Userdetails.findOne({ owner: employeeid }).lean();
-            if (userDetails) {
-                membersArr.push({
-                    employee: {
-                        employeeid: [userDetails.owner?.toString()],
-                        fullname: `${userDetails.firstname} ${userDetails.lastname}`,
-                        initials: userDetails.initial
-                    },
-                    role: userDetails.role || "",
-                    leaveDates,
-                    wellnessDates,
-                    eventDates,
-                    wfhDates
-                });
-            }
+        const userDetails = await Userdetails.findOne({ owner: employeeid || id }).lean();
+        if (userDetails) {
+            membersArr.push({
+                employee: {
+                    employeeid: [userDetails.owner?.toString()],
+                    fullname: `${userDetails.firstname} ${userDetails.lastname}`,
+                    initials: userDetails.initial
+                },
+                role: userDetails.role || "",
+                leaveDates,
+                wellnessDates,
+                eventDates,
+                wfhDates
+            });
+        }
 
         return res.json({
             message: 'success',
