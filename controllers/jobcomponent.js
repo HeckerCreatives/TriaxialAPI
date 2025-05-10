@@ -3204,74 +3204,107 @@ exports.yourworkload = async (req, res) => {
             // Find all jobComponents for this user (if any)
             let userDates = [];
             jobComponents.forEach(jc => {
-            jc.members
-                .forEach(member => {
-                if (Array.isArray(member.dates)) {
-                    userDates = userDates.concat(
-                    member.dates.map(d => ({
-                        ...d,
-                        date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
-                    }))
-                    );
-                }
+                jc.members.forEach(member => {
+                    if (Array.isArray(member.dates)) {
+                        userDates = userDates.concat(
+                            member.dates.map(d => ({
+                                ...d,
+                                date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
+                            }))
+                        );
+                    }
                 });
             });
 
-            // Overlay leave on userDates
-            if (Array.isArray(leaveDates)) {
-            leaveDates.forEach(leave => {
-                if (leave.status === "Approved") {
-                const startDate = moment(leave.leavestart);
-                const endDate = moment(leave.leaveend);
-                let remainingWorkHours = leave.workinghoursduringleave || 0;
-                for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
-                    if (date.day() !== 0 && date.day() !== 6) {
-                    const dateStr = date.format('YYYY-MM-DD');
-                    const existingDateIndex = userDates.findIndex(d =>
-                        moment(d.date).format('YYYY-MM-DD') === dateStr
-                    );
-                    let standardHours = 7.6;
-
-                    if (leave.wellnessdaycycle === true) {
-                        standardHours = 8.44;
-                    }
-                    let hoursForThisDay = standardHours;
-                    if (remainingWorkHours > 0) {
-                        if (remainingWorkHours >= standardHours) {
-                        hoursForThisDay = 0;
-                        remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                        } else {
-                        hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                        remainingWorkHours = 0;
+            // If userDates is empty but leaveDates exist, generate leave entries
+            if (userDates.length === 0 && Array.isArray(leaveDates)) {
+                leaveDates.forEach(leave => {
+                    if (leave.status === "Approved") {
+                        const startDate = moment(leave.leavestart);
+                        const endDate = moment(leave.leaveend);
+                        let remainingWorkHours = leave.workinghoursduringleave || 0;
+                        for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+                            if (date.day() !== 0 && date.day() !== 6) {
+                                let standardHours = 7.6;
+                                if (leave.wellnessdaycycle === true) {
+                                    standardHours = 8.44;
+                                }
+                                let hoursForThisDay = standardHours;
+                                if (remainingWorkHours > 0) {
+                                    if (remainingWorkHours >= standardHours) {
+                                        hoursForThisDay = 0;
+                                        remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+                                    } else {
+                                        hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+                                        remainingWorkHours = 0;
+                                    }
+                                }
+                                userDates.push({
+                                    date: date.format('YYYY-MM-DD'),
+                                    hours: Number(hoursForThisDay.toFixed(2)),
+                                    status: ['Leave']
+                                });
+                            }
                         }
                     }
-                    if (existingDateIndex >= 0) {
-                        userDates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
-                    } else {
-                        userDates.push({
-                        date: date.toDate(),
-                        hours: Number(hoursForThisDay.toFixed(2)),
-                        status: ['Leave']
-                        });
-                    }
-                    }
+                });
+            } else {
+                // Overlay leave on userDates
+                if (Array.isArray(leaveDates)) {
+                    leaveDates.forEach(leave => {
+                        if (leave.status === "Approved") {
+                            const startDate = moment(leave.leavestart);
+                            const endDate = moment(leave.leaveend);
+                            let remainingWorkHours = leave.workinghoursduringleave || 0;
+                            for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+                                if (date.day() !== 0 && date.day() !== 6) {
+                                    const dateStr = date.format('YYYY-MM-DD');
+                                    const existingDateIndex = userDates.findIndex(d =>
+                                        moment(d.date).format('YYYY-MM-DD') === dateStr
+                                    );
+                                    let standardHours = 7.6;
+
+                                    if (leave.wellnessdaycycle === true) {
+                                        standardHours = 8.44;
+                                    }
+                                    let hoursForThisDay = standardHours;
+                                    if (remainingWorkHours > 0) {
+                                        if (remainingWorkHours >= standardHours) {
+                                            hoursForThisDay = 0;
+                                            remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+                                        } else {
+                                            hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+                                            remainingWorkHours = 0;
+                                        }
+                                    }
+                                    if (existingDateIndex >= 0) {
+                                        userDates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
+                                    } else {
+                                        userDates.push({
+                                            date: date.format('YYYY-MM-DD'),
+                                            hours: Number(hoursForThisDay.toFixed(2)),
+                                            status: ['Leave']
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    });
                 }
-                }
-            });
             }
 
             membersArr.push({
-            employee: {
-                employeeid: [userDetails.owner?.toString()],
-                fullname: `${userDetails.firstname} ${userDetails.lastname}`,
-                initials: userDetails.initial
-            },
-            role: userDetails.role || "",
-            leaveDates,
-            wellnessDates,
-            eventDates,
-            wfhDates,
-            dates: userDates
+                employee: {
+                    employeeid: [userDetails.owner?.toString()],
+                    fullname: `${userDetails.firstname} ${userDetails.lastname}`,
+                    initials: userDetails.initial
+                },
+                role: userDetails.role || "",
+                leaveDates,
+                wellnessDates,
+                eventDates,
+                wfhDates,
+                dates: userDates
             });
         }
 
