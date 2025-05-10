@@ -3142,7 +3142,11 @@ exports.yourworkload = async (req, res) => {
                                         const existingDateIndex = mappedMember.dates.findIndex(d =>
                                             moment(d.date).format('YYYY-MM-DD') === dateStr
                                         );
-                                        const standardHours = 7.6;
+                                       let standardHours = 7.6;
+
+                                        if(leave.wellnessdaycycle === true) {
+                                            standardHours = 8.44
+                                        }                                          
                                         let hoursForThisDay = standardHours;
                                         if (remainingWorkHours > 0) {
                                             if (remainingWorkHours >= standardHours) {
@@ -4088,7 +4092,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                                                 if (date && date.date) {
                                                     const formattedDate = moment(date.date).format('YYYY-MM-DD');
                                                     let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
-        
+
                                                     if (!dateEntry) {
                                                         dateEntry = {
                                                             date: formattedDate,
@@ -4125,8 +4129,12 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                                     const formattedDate = day.format('YYYY-MM-DD');
                                     let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
 
-                                    const standardHours = 7.6;
-                                    let hoursForThisDay = standardHours;
+                                       let standardHours = 7.6;
+
+                                        if(leave.wellnessdaycycle === true) {
+                                            standardHours = 8.44
+                                        }                                    
+                                        let hoursForThisDay = standardHours;
 
                                     // If there are remaining work hours, allocate them to this day
                                     if (remainingWorkHours > 0) {
@@ -4343,7 +4351,11 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                     const formattedDate = day.format('YYYY-MM-DD');
                     let dateEntry = dates.find(d => d.date === formattedDate);
 
-                    const standardHours = 7.6;
+                                       let standardHours = 7.6;
+
+                                        if(leave.wellnessdaycycle === true) {
+                                            standardHours = 8.44
+                                        }  
                     let hoursForThisDay = standardHours;
 
                     // If there are remaining work hours, allocate them to this day
@@ -4887,7 +4899,11 @@ exports.individualworkload = async (req, res) => {
                                         const existingDateIndex = mappedMember.dates.findIndex(d =>
                                             moment(d.date).format('YYYY-MM-DD') === dateStr
                                         );
-                                        const standardHours = 7.6;
+                                        let standardHours = 7.6;
+
+                                        if(leave.wellnessdaycycle === true) {
+                                            standardHours = 8.44
+                                        }
                                         let hoursForThisDay = standardHours;
                                         if (remainingWorkHours > 0) {
                                             if (remainingWorkHours >= standardHours) {

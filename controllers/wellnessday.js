@@ -14,7 +14,14 @@ exports.wellnessdayrequest = async (req, res) => {
 
     const {requestdate, firstfriday} = req.body
 
-    const request = new Date(requestdate)
+    // Parse the requestdate string in "DD/MM/YY" format
+    let request;
+    if (typeof requestdate === "string" && /^\d{2}\/\d{2}\/\d{2}$/.test(requestdate)) {
+        // Use moment to parse "DD/MM/YY" as UTC to avoid timezone issues
+        request = moment.utc(requestdate, "DD/MM/YY").toDate();
+    } else {
+        request = new Date(requestdate);
+    }
     // const activeCycle = await Wellnessdayevent.aggregate([
     //     {
     //         $match: {
