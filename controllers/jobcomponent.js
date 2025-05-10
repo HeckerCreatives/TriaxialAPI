@@ -2968,6 +2968,7 @@ exports.yourworkload = async (req, res) => {
 
         // Find all teams the user is a member of
         const teams = await Teams.find({ members: new mongoose.Types.ObjectId(id) }).lean();
+        const userDetails = await Userdetails.findOne({ owner: employeeid || id }).lean();
 
         // Build alldates (weekdays only)
         const dateList = [];
@@ -3274,7 +3275,6 @@ exports.yourworkload = async (req, res) => {
 
         // Only return data for the logged-in user
         let membersArr = [];
-        const userDetails = await Userdetails.findOne({ owner: id }).lean();
         if (userDetails) {
 
             let userDates = [];
@@ -4905,6 +4905,7 @@ exports.individualworkload = async (req, res) => {
                 ]
             }).lean();
         }
+        const userDetails = await Userdetails.findOne({ owner: employeeid || id }).lean();
 
         // Build alldates (weekdays only)
         const dateList = [];
@@ -5216,7 +5217,6 @@ exports.individualworkload = async (req, res) => {
 
         // If no job components, still return members info for the user
         let membersArr = [];
-        const userDetails = await Userdetails.findOne({ owner: employeeid || id }).lean();
         if (userDetails) {
             // Find all jobComponents for this user (if any)
             let userDates = [];
