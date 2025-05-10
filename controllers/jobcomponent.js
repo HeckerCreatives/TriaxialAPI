@@ -3190,11 +3190,10 @@ exports.yourworkload = async (req, res) => {
                     as: 'eventData'
                 }
             },
-            { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },        
             {
                 $addFields: {
                     members: {
-                        role: '$members.role',
                         employee: {
                             employeeid: '$members.employee',
                             fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
