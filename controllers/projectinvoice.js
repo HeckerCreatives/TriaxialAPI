@@ -263,7 +263,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                                 remaining: item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget),
                                 subconts: item.subconts  || 0,
                                 catchupinv: (item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalvalue,
-                                wip: ((item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalvalue) + totalFirstThree)    
+                                wip: Math.max(((item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalvalue) + totalFirstThree), 0)
                             },
                             rates: {
                                 invoiced: item.estimatedbudget * totalvalue,
@@ -478,7 +478,7 @@ exports.listcomponentprojectinvoicealluser = async (req, res) => {
                     list: result.map(item => {
                         // Calculate totals for the first 3 and first 12 objects in projectedValues
                         const totalFirstThree = item.projectedValues
-                            .slice(0, 3) // Take the first 3 objects
+                            .slice(0, 2) // Take the first 3 objects
                             .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
             
                         const totalFirstTwelve = item.projectedValues
@@ -506,8 +506,7 @@ exports.listcomponentprojectinvoicealluser = async (req, res) => {
                                 remaining: item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget),
                                 subconts: item.subconts || 0,
                                 catchupinv: (item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve,
-                                wip: (item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve) + totalFirstThree    
-                            },
+                                wip: Math.max(((item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalvalue) + totalFirstThree), 0)                            },
                             rates: {
                                 invoiced: item.estimatedbudget * totalvalue,
                                 wip: totalFirstThree,
