@@ -10,6 +10,10 @@ const Teams = require("../models/Teams");
 const Invoice = require("../models/invoice");
 const Userdetails = require("../models/Userdetails");
 const { formatCurrency } = require("../utils/currency");
+const Leave = require("../models/leave");
+const Workfromhome = require("../models/wfh");
+const Wellnessday = require("../models/wellnessday");
+const Events = require("../models/events");
 
 //  #region MANAGER
 exports.createjobcomponent = async (req, res) => {
@@ -2954,458 +2958,240 @@ exports.viewduedatesgraph = async (req, res) => {
 
 
 exports.yourworkload = async (req, res) => {
-    const { id, email } = req.user;
-    const { filterDate } = req.query; // Assuming the filter date is passed as a query parameter
+    const { id } = req.user;
+    const { filterDate } = req.query;
     try {
         // Use filterDate if provided; otherwise, default to today
         const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
         const startOfWeek = referenceDate.startOf("isoWeek").toDate();
         const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
-    
 
-        const result = await Jobcomponents.aggregate([
-            {
-                $match: {
-                    members: {
-                        $elemMatch: { 
-                            employee: new mongoose.Types.ObjectId(id),
-                        }
-                    }
-                }
-            },
-            { 
-                $match: { 
-                    status: { $in: ["completed", "", null, "On-going"] } 
-                }
-            },
-            {
-                $lookup: {
-                    from: 'projects',
-                    localField: 'project',
-                    foreignField: '_id',
-                    as: 'projectDetails'
-                }
-            },
-            { $unwind: '$projectDetails' },
-            {
-                $match: {
-                    $or: [
-                        // Case 1: Project starts within the 2-week range and ends after the start of the range
-                        { 
-                            $and: [
-                                { 'projectDetails.startdate': { $lte: endOfRange } },
-                                { 'projectDetails.deadlinedate': { $gte: startOfWeek } }
-                            ]
-                        },
-                        // Case 2: Project ends within the 2-week range and starts before the end of the range
-                        {
-                            $and: [
-                                { 'projectDetails.startdate': { $lte: endOfRange } },
-                                { 'projectDetails.deadlinedate': { $gte: startOfWeek } }
-                            ]
-                        }
-                    ]
-                }
-            },       
-            
-            { $unwind: { preserveNullAndEmptyArrays: true, path: "$members.dates" } },
-            // {
-            //     $match: {
-            //         "members.dates.date": { $gte: startOfWeek, $lte: endOfRange }
-            //     }
-            // },
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: 'jobmanager',
-                    foreignField: '_id',
-                    as: 'jobManagerDetails'
-                }
-            },
-            { $unwind: '$jobManagerDetails' },
-            {
-                $lookup:{
-                    from: "clients",
-                    localField: "projectDetails.client",
-                    foreignField: "_id",
-                    as: "clientDetails"
-                }
-            },
-            { $unwind: '$clientDetails'},
-            {
-                $lookup: {
-                    from: 'userdetails',
-                    localField: 'jobManagerDetails._id',
-                    foreignField: 'owner',
-                    as: 'jobManagerDeets'
-                }
-            },
-            { $unwind: '$jobManagerDeets' },
-            {
-                $lookup: {
-                    from: 'teams',
-                    localField: 'projectDetails.team',
-                    foreignField: '_id',
-                    as: 'teamDetails'
-                }
-            },
-            { $unwind: { path: '$teamDetails', preserveNullAndEmptyArrays: true } },
-            {
-                $lookup: {
-                   from: "userdetails",
-                  localField: "teamDetails.members",
-                  foreignField: "owner",
-                  as: "memberDetails"
-                }
-              },
-              
-              {
-                $addFields: {
-                  userDetails: { "$ifNull": ["$userDetails", []] }
-                }
-              },
-            {
-                $addFields: {
-                    isManager: {
-                        $cond: {
-                            if: { $eq: [new mongoose.Types.ObjectId(id), '$teamDetails.manager'] },
-                            then: true,
-                            else: false
-                        }
-                    }
-                }
-            },
-            {
-                $addFields: {
-                    members: {
-                        $filter: {
-                            input: '$members',
-                            as: 'member',
-                            cond: { $eq: ['$$member.employee', new mongoose.Types.ObjectId(id)] }
-                        }
-                    }
-                }
-            },
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: 'members.employee',
-                    foreignField: '_id',
-                    as: 'employeeDetails'
-                }
-            },
-            { $unwind: '$employeeDetails' },
-            {
-                $lookup: {
-                    from: 'userdetails',
-                    localField: 'employeeDetails._id',
-                    foreignField: 'owner',
-                    as: 'userDetails'
-                }
-            },
-            {
-                $lookup: {
-                    from: 'leaves',
-                    let: { employeeId: new mongoose.Types.ObjectId(id) },
-                    pipeline: [
-                        { 
-                            $match: { 
-                                $expr: { 
-                                    $eq: ['$owner', new mongoose.Types.ObjectId(id)],
-                                    $eq: ['$status', 'Approved'] 
-                                } 
-                            }
-                        },
-                        {
-                            $project: {
-                                _id: 0,
-                                leavedates: {
-                                    leavestart: "$leavestart",
-                                    leaveend: "$leaveend",
-                                    workinghoursduringleave: "$workinghoursduringleave", 
-                                }
-                            }
-                        }
-                    ],
-                    as: 'leaveData'
-                }
-            },
-            {
-                $lookup: {
-                    from: 'workfromhomes',
-                    let: { employeeId: new mongoose.Types.ObjectId(id) },
-                    pipeline: [
-                        { 
-                            $match: { 
-                                $expr: { 
-                                    $eq: ['$owner', new mongoose.Types.ObjectId(id)] 
-                                } 
-                            }
-                        },
-                        {
-                            $project: {
-                                _id: 0,
-                                requestdates: {
-                                    requeststart: "$requestdate",
-                                    requestend: "$requestend"
-                                }
-                            }
-                        }
-                    ],
-                    as: 'wfhData'
-                }
-            },
-            {
-                $lookup: {
-                    from: 'wellnessdays',
-                    let: { employeeId: new mongoose.Types.ObjectId(id) },
-                    pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', new mongoose.Types.ObjectId(id)] } } },
-                        {
-                            $project: {
-                                _id: 0,
-                                wellnessdates: "$requestdate"
-                            }
-                        }
-                    ],
-                    as: 'wellnessData'
-                }
-            },
-            {
-                $lookup: {
-                    from: 'events',
-                    let: { teamId: '$teamDetails._id' },
-                    pipeline: [
-                        { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
-                        {
-                            $project: {
-                                _id: 0,
-                                eventdates: {
-                                    startdate: "$startdate",
-                                    enddate: "$enddate"
-                                }
-                            }
-                        }
-                    ],
-                    as: 'eventData'
-                }
-            },
-            { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },        
-            {
-                $addFields: {
-                    members: {
-                        employee: {
-                            employeeid: '$members.employee',
-                            fullname: { $concat: ['$userDetails.firstname', ' ', '$userDetails.lastname'] },
-                            initials: '$userDetails.initial'
-                        },
-                    },                 
-                    'members.leaveDates': {
-                        $filter: {
-                            input: '$leaveData.leavedates',
-                            as: 'leave',
-                            cond: {
-                                $and: [
-                                    { $lte: ['$$leave.leavestart', '$projectDetails.deadlinedate'] }
-                                ]
-                            }
-                        }
-                    },
-                    'members.wellnessDates': {
-                        $filter: {
-                            input: '$wellnessData.wellnessdates',
-                            as: 'wellness',
-                            cond: {
-                                $and: [
-                                    { $gte: ['$$wellness', '$projectDetails.startdate'] },
-                                    { $lte: ['$$wellness', '$projectDetails.deadlinedate'] }
-                                ]
-                            }
-                        }
-                    },
-                    'members.eventDates': {
-                        $filter: {
-                            input: '$eventData.eventdates',
-                            as: 'event',
-                            cond: {
-                                $and: [
-                                    { $lte: ['$$event.startdate', '$projectDetails.deadlinedate'] }
-                                ]
-                            }
-                        }
-                    },
-                   'members.wfhDates': {
-                        $filter: {
-                            input: '$wfhData.requestdates',
-                            as: 'wfh',
-                            cond: {
-                                $and: [
-                                    { $lte: ['$$wfh.requeststart', '$projectDetails.deadlinedate'] }
-                                ]
-                            }
-                        }
-                    }
-                }
-            },            
-            {
-                $project: {
-                    componentid: '$_id',
-                    teamid: '$teamDetails._id',
-                    teamname: '$teamDetails.teamname',
-                    projectname: '$projectDetails.projectname',
-                    clientname: "$clientDetails.clientname",
-                    clientpriority: "$clientDetails.priority",
-                    clientid: "$clientDetails._id",
-                    jobno: '$projectDetails.jobno',
-                    "teammembers": {
-                        "$map": {
-                          "input": "$memberDetails",
-                          "as": "member",
-                          "in": {
-                            "$concat": [
-                              { 
-                                "$ifNull": [
-                                  { "$substrCP": ["$$member.firstname", 0, 1] },
-                                  ""
-                                ]
-                              },
-                              { 
-                                "$ifNull": [
-                                  { "$substrCP": ["$$member.lastname", 0, 1] },
-                                  ""
-                                ]
-                              }
-                            ]
-                          }
-                        }
-                      },
-             
-                
-                    jobmanager: {
-                        employeeid: '$jobManagerDetails._id',
-                        fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
-                        initials: '$jobManagerDeets.initial',
-                    },
-                    jobcomponent: '$jobcomponent',
-                    members: 1
-                }
-            }
-        ]);
+        // Find all teams the user is a member of
+        const teams = await Teams.find({ members: new mongoose.Types.ObjectId(id) }).lean();
 
-
+        // Build alldates (weekdays only)
         const dateList = [];
         let currentDate = new Date(startOfWeek);
-
         while (currentDate <= endOfRange) {
-            const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-            if (dayOfWeek !== 6 && dayOfWeek !== 0) { // Only add weekdays (1-5)
-                dateList.push(new Date(currentDate).toISOString().split('T')[0]); // Format as YYYY-MM-DD
+            const dayOfWeek = currentDate.getDay();
+            if (dayOfWeek !== 6 && dayOfWeek !== 0) {
+                dateList.push(new Date(currentDate).toISOString().split('T')[0]);
             }
-        
-            currentDate.setDate(currentDate.getDate() + 1); // Move to the next day
+            currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        // Assuming response.data is the current array of job data you received
-        const data = {
-            data: {
-                alldates: dateList ,
-                yourworkload: []
-            }
-        };
+        // If no teams, return empty structure
+        if (!teams.length) {
+            // Try to get userdetails anyway
+            const userDetails = await Userdetails.findOne({ owner: id }).lean();
+            const leaveDates = await Leave.find({ owner: id }).lean();
+            const wellnessDates = await Wellnessday.find({ owner: id }).lean();
+            const wfhDates = await Workfromhome.find({ owner: id }).lean();
+            const eventDates = await Events.find({ teams: { $in: [] } }).lean();
 
-        // Extract all dates and unique members
-        result.forEach(job => {
-            // Filter and map only members matching req.user.id
-            const members = job.members
-            .map(member => {
-                // Map the basic member data
-                const mappedMember = {
-                employee: member.employee,
-                role: member.role,
-                notes: member.notes,
-                dates: member.dates ? [...member.dates] : [], // Create a copy of dates array
-                leaveDates: member.leaveDates,
-                wellnessDates: member.wellnessDates,
-                eventDates: member.eventDates,
-                wfhDates: member.wfhDates
-                };
-
-                // If there are leave dates, process them
-                if (Array.isArray(member.leaveDates)) {
-                member.leaveDates.forEach(leave => {
-                    // Only process approved leaves
-                    const startDate = moment(leave.leavestart);
-                    const endDate = moment(leave.leaveend);
-
-                    let remainingWorkHours = leave.workinghoursduringleave || 0;
-
-                    for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
-                    if (date.day() !== 0 && date.day() !== 6) { // Skip weekends
-                        const dateStr = date.format('YYYY-MM-DD');
-                        
-                        const existingDateIndex = mappedMember.dates.findIndex(d => 
-                        moment(d.date).format('YYYY-MM-DD') === dateStr
-                        );
-
-                        const standardHours = 7.6;
-                        let hoursForThisDay = standardHours;
-
-                        // If there are remaining work hours, allocate them to this day
-                        if (remainingWorkHours > 0) {
-                        if (remainingWorkHours >= standardHours) {
-                            hoursForThisDay = 0; // Full day's hours are work hours
-                            remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                        } else {
-                            hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                            remainingWorkHours = 0;
-                        }
-                        }
-
-                        if (existingDateIndex >= 0) {
-                        // Update existing date entry
-                        mappedMember.dates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
-                        } else {
-                        // Add new date entry
-                        mappedMember.dates.push({
-                            date: date.toDate(),
-                            hours: Number(hoursForThisDay.toFixed(2)),
-                            status: ['Leave']
-                        });
-                        }
-                    }
-                    }
-                });
+            return res.json({
+                message: 'success',
+                data: {
+                    alldates: dateList,
+                    yourworkload: [],
+                    members: userDetails ? [{
+                        employee: {
+                            employeeid: [userDetails.owner?.toString()],
+                            fullname: `${userDetails.firstname} ${userDetails.lastname}`,
+                            initials: userDetails.initial
+                        },
+                        role: userDetails.role || "",
+                        leaveDates,
+                        wellnessDates,
+                        eventDates,
+                        wfhDates
+                    }] : []
                 }
+            });
+        }
 
-                return mappedMember;
+        // Prepare all team IDs
+        const teamIds = teams.map(team => team._id);
+
+        // Find all projects for these teams within the date range
+        const projects = await Projects.find({
+            team: { $in: teamIds },
+            $or: [
+                { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } },
+                { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } }
+            ]
+        }).lean();
+
+        // Find all job components for these projects where the user is a member
+        const projectIds = projects.map(p => p._id);
+        const jobComponents = await Jobcomponents.find({
+            project: { $in: projectIds },
+            members: { $elemMatch: { employee: new mongoose.Types.ObjectId(id) } },
+            status: { $in: ["completed", "", null, "On-going"] }
+        })
+        .populate([
+            { path: 'project', model: 'Projects' },
+            { path: 'jobmanager', model: 'Users' }
+        ])
+        .lean();
+
+        // Get all needed details for job managers, clients, teams, etc.
+        const jobManagerIds = jobComponents.map(jc => jc.jobmanager?._id || jc.jobmanager).filter(Boolean);
+        const clientIds = projects.map(p => p.client).filter(Boolean);
+        const teamDetailsMap = {};
+        teams.forEach(team => { teamDetailsMap[team._id.toString()] = team; });
+
+        // Get userdetails for job managers
+        const jobManagerDetails = await Userdetails.find({ owner: { $in: jobManagerIds } }).lean();
+        const jobManagerDetailsMap = {};
+        jobManagerDetails.forEach(jm => { jobManagerDetailsMap[jm.owner.toString()] = jm; });
+
+        // Get client details
+        const clientDetails = await Clients.find({ _id: { $in: clientIds } }).lean();
+        const clientDetailsMap = {};
+        clientDetails.forEach(c => { clientDetailsMap[c._id.toString()] = c; });
+
+        // Get team member details for initials
+        const allTeamMemberIds = [].concat(...teams.map(t => t.members));
+        const allTeamMemberDetails = await Userdetails.find({ owner: { $in: allTeamMemberIds } }).lean();
+        const allTeamMemberDetailsMap = {};
+        allTeamMemberDetails.forEach(m => { allTeamMemberDetailsMap[m.owner.toString()] = m; });
+
+        // Get leave, wfh, wellness, event data for the user
+        const leaveDates = await Leave.find({ owner: id }).lean();
+        const wfhDates = await Workfromhome.find({ owner: id }).lean();
+        const wellnessDates = await Wellnessday.find({ owner: id }).lean();
+        // For events, get all events for all teams user is in
+        const eventDates = await Events.find({ teams: { $in: teamIds } }).lean();
+
+        // Build yourworkload array
+        const yourworkload = jobComponents.map(jc => {
+            const project = jc.project || {};
+            const team = teamDetailsMap[project.team?.toString()] || {};
+            const jobmanager = jc.jobmanager;
+            const jobmanagerDeets = jobManagerDetailsMap[jobmanager?._id?.toString() || jobmanager?.toString()] || {};
+            const client = clientDetailsMap[project.client?.toString()] || {};
+
+            // Team members initials
+            const teammembers = (team.members || []).map(mid => {
+                const m = allTeamMemberDetailsMap[mid.toString()];
+                return m ? ((m.firstname?.[0] || '') + (m.lastname?.[0] || '')) : '';
             });
 
-            // Only push job data if there are matching members
-            if (members.length > 0) {
-            data.data.yourworkload.push({
-                _id: job._id,
-                jobmanager: job.jobmanager,
-                componentid: job.componentid,
-                clientid: job.clientid,
-                clientname: job.clientname,
-                clientpriority: job.clientpriority,
-                teamid: job.teamid,
-                teamname: job.teamname,
-                teammembers: job.teammembers,
-                projectname: job.projectname,
-                jobno: job.jobno,
-                jobcomponent: job.jobcomponent,
+            // Only include the current user's member entry
+            const members = jc.members
+                .filter(m => m.employee?.toString() === id)
+                .map(member => {
+                    // Dates: process leave overlays
+                    let mappedMember = {
+                        employee: member.employee,
+                        role: member.role,
+                        notes: member.notes,
+                        dates: member.dates ? [...member.dates] : [],
+                        leaveDates,
+                        wellnessDates,
+                        eventDates,
+                        wfhDates
+                    };
+
+                    // Overlay leave on dates
+                    if (Array.isArray(leaveDates)) {
+                        leaveDates.forEach(leave => {
+                            if (leave.status === "Approved") {
+                                const startDate = moment(leave.leavestart);
+                                const endDate = moment(leave.leaveend);
+                                let remainingWorkHours = leave.workinghoursduringleave || 0;
+                                for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+                                    if (date.day() !== 0 && date.day() !== 6) {
+                                        const dateStr = date.format('YYYY-MM-DD');
+                                        const existingDateIndex = mappedMember.dates.findIndex(d =>
+                                            moment(d.date).format('YYYY-MM-DD') === dateStr
+                                        );
+                                        const standardHours = 7.6;
+                                        let hoursForThisDay = standardHours;
+                                        if (remainingWorkHours > 0) {
+                                            if (remainingWorkHours >= standardHours) {
+                                                hoursForThisDay = 0;
+                                                remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+                                            } else {
+                                                hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+                                                remainingWorkHours = 0;
+                                            }
+                                        }
+                                        if (existingDateIndex >= 0) {
+                                            mappedMember.dates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
+                                        } else {
+                                            mappedMember.dates.push({
+                                                date: date.toDate(),
+                                                hours: Number(hoursForThisDay.toFixed(2)),
+                                                status: ['Leave']
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    return mappedMember;
+                });
+
+            return {
+                _id: jc._id,
+                jobmanager: {
+                    employeeid: jobmanager?._id || jobmanager,
+                    fullname: jobmanagerDeets.firstname && jobmanagerDeets.lastname
+                        ? `${jobmanagerDeets.firstname} ${jobmanagerDeets.lastname}`
+                        : '',
+                    initials: jobmanagerDeets.initial || ''
+                },
+                componentid: jc._id,
+                clientid: client._id,
+                clientname: client.clientname,
+                clientpriority: client.priority,
+                teamid: team._id,
+                teamname: team.teamname,
+                teammembers,
+                projectname: project.projectname,
+                jobno: project.jobno,
+                jobcomponent: jc.jobcomponent,
                 members
-            });
-            }
+            };
         });
 
-        return res.json({ message: 'success', data: data.data });
+        // If no job components, still return members info for the user
+        let membersArr = [];
+        if (!yourworkload.length) {
+            const userDetails = await Userdetails.findOne({ owner: id }).lean();
+            if (userDetails) {
+                membersArr.push({
+                    employee: {
+                        employeeid: [userDetails.owner?.toString()],
+                        fullname: `${userDetails.firstname} ${userDetails.lastname}`,
+                        initials: userDetails.initial
+                    },
+                    role: userDetails.role || "",
+                    leaveDates,
+                    wellnessDates,
+                    eventDates,
+                    wfhDates
+                });
+            }
+        }
+
+        return res.json({
+            message: 'success',
+            data: {
+                alldates: dateList,
+                yourworkload,
+                members: membersArr
+            }
+        });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ message: 'Error processing request', error: err.message });
     }
-}
+};
+
 
 exports.editjobmanagercomponents = async (req, res) => {
     const { id, email } = req.user;
