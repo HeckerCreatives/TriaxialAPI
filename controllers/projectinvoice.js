@@ -262,7 +262,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                                 invoiced: (item.invoice.percentage / 100) * item.estimatedbudget,
                                 remaining: item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget),
                                 subconts: item.subconts  || 0,
-                                catchupinv: (item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalvalue,
+                                catchupinv: Math.max((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve, 0),
                                 wip: Math.max(((item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalvalue) + totalFirstThree), 0)
                             },
                             rates: {
@@ -505,7 +505,7 @@ exports.listcomponentprojectinvoicealluser = async (req, res) => {
                                 invoiced: (item.invoice.percentage / 100) * item.estimatedbudget,
                                 remaining: item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget),
                                 subconts: item.subconts || 0,
-                                catchupinv: (item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve,
+                                catchupinv: Math.max((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalFirstTwelve, 0),
                                 wip: Math.max(((item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalvalue) + totalFirstThree), 0)                            },
                             rates: {
                                 invoiced: item.estimatedbudget * totalvalue,
