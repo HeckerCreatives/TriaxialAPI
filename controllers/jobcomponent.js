@@ -2968,7 +2968,7 @@ exports.yourworkload = async (req, res) => {
 
         // Find all teams the user is a member of
         const teams = await Teams.find({ members: new mongoose.Types.ObjectId(id) }).lean();
-        const userDetails = await Userdetails.findOne({ owner: employeeid || id }).lean();
+        const userDetails = await Userdetails.findOne({ owner: id }).lean();
 
         // Build alldates (weekdays only)
         const dateList = [];
@@ -4905,7 +4905,7 @@ exports.individualworkload = async (req, res) => {
                 ]
             }).lean();
         }
-        const userDetails = await Userdetails.findOne({ owner: employeeid || id }).lean();
+        const userDetails = await Userdetails.findOne({ owner: employeeid }).lean();
 
         // Build alldates (weekdays only)
         const dateList = [];
