@@ -3002,14 +3002,7 @@ exports.yourworkload = async (req, res) => {
             await Wellnessday.find({ owner: id }).select("requestdate -_id").lean()
         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
 
-        // For events, get all events for all teams user is in, only dates
-        const eventDates = (
-            await Events.find({ teams: { $in: teamIds } }).select("startdate enddate -_id").lean()
-        ).map(ev => ({
-            startdate: ev.startdate ? moment(ev.startdate).format('YYYY-MM-DD') : null,
-            enddate: ev.enddate ? moment(ev.enddate).format('YYYY-MM-DD') : null
-        }));
-            // Build alldates (weekdays only)
+   // Build alldates (weekdays only)
             const dateList = [];
             let currentDate = new Date(startOfWeek);
             while (currentDate <= endOfRange) {
@@ -3077,7 +3070,6 @@ exports.yourworkload = async (req, res) => {
                 role: userDetails.role || "",
                 leaveDates,
                 wellnessDates,
-                eventDates,
                 wfhDates,
                 dates: userDates
             });
@@ -4947,15 +4939,6 @@ exports.individualworkload = async (req, res) => {
             await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
 
-        // For events, get all events for all teams user is in, only dates
-        const eventDates = (
-            await Events.find({ teams: { $in: teamIds } }).select("startdate enddate -_id").lean()
-        ).map(ev => ({
-            startdate: ev.startdate ? moment(ev.startdate).format('YYYY-MM-DD') : null,
-            enddate: ev.enddate ? moment(ev.enddate).format('YYYY-MM-DD') : null
-        }));
-
-
             // Build alldates (weekdays only)
             const dateList = [];
             let currentDate = new Date(startOfWeek);
@@ -5023,8 +5006,7 @@ exports.individualworkload = async (req, res) => {
                 },
                 role: userDetails.role || "",
                 leaveDates,
-                wellnessDates,
-                eventDates,
+                wellnessDates,               
                 wfhDates,
                 dates: userDates
             });
