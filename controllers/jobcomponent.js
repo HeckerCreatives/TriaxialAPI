@@ -2983,13 +2983,32 @@ exports.yourworkload = async (req, res) => {
         // If no teams, return empty structure
         if (!teams.length) {
             // Try to get userdetails anyway
+        const leaveDates = (
+            await Leave.find({ owner: id }).lean()
+        ).map(leave => ({
+            ...leave,
+            leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
+            leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
+        }));
 
-            const userDetails = await Userdetails.findOne({ owner: id }).lean();
-            const leaveDates = await Leave.find({ owner: id }).lean();
-            const wellnessDates = await Wellnessday.find({ owner: id }).lean();
-            const wfhDates = await Workfromhome.find({ owner: id }).lean();
-            const eventDates = await Events.find({ teams: { $in: [] } }).lean();
+        const wfhDates = (
+            await Workfromhome.find({ owner: id }).select("requestdate requestend -_id").lean()
+        ).map(wfh => ({
+            requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
+            requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
+        }));
 
+        const wellnessDates = (
+            await Wellnessday.find({ owner: id }).select("requestdate -_id").lean()
+        ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
+
+        // For events, get all events for all teams user is in, only dates
+        const eventDates = (
+            await Events.find({ teams: { $in: teamIds } }).select("startdate enddate -_id").lean()
+        ).map(ev => ({
+            startdate: ev.startdate ? moment(ev.startdate).format('YYYY-MM-DD') : null,
+            enddate: ev.enddate ? moment(ev.enddate).format('YYYY-MM-DD') : null
+        }));
             // Build alldates (weekdays only)
             const dateList = [];
             let currentDate = new Date(startOfWeek);
@@ -4909,11 +4928,33 @@ exports.individualworkload = async (req, res) => {
      if (!teams.length) {
             // Try to get userdetails anyway
 
-            const userDetails = await Userdetails.findOne({ owner: employeeid }).lean();
-            const leaveDates = await Leave.find({ owner: employeeid }).lean();
-            const wellnessDates = await Wellnessday.find({ owner: employeeid }).lean();
-            const wfhDates = await Workfromhome.find({ owner: employeeid }).lean();
-            const eventDates = await Events.find({ teams: { $in: [] } }).lean();
+        const leaveDates = (
+            await Leave.find({ owner: employeeid }).lean()
+        ).map(leave => ({
+            ...leave,
+            leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
+            leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
+        }));
+
+        const wfhDates = (
+            await Workfromhome.find({ owner: employeeid }).select("requestdate requestend -_id").lean()
+        ).map(wfh => ({
+            requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
+            requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
+        }));
+
+        const wellnessDates = (
+            await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
+        ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
+
+        // For events, get all events for all teams user is in, only dates
+        const eventDates = (
+            await Events.find({ teams: { $in: teamIds } }).select("startdate enddate -_id").lean()
+        ).map(ev => ({
+            startdate: ev.startdate ? moment(ev.startdate).format('YYYY-MM-DD') : null,
+            enddate: ev.enddate ? moment(ev.enddate).format('YYYY-MM-DD') : null
+        }));
+
 
             // Build alldates (weekdays only)
             const dateList = [];
