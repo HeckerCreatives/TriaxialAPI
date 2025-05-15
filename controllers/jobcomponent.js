@@ -1723,7 +1723,8 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                                 as: "leave",
                                 cond: {
                                     $and: [
-                                        { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] }
+                                        { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] },
+                                        { $eq: ["$$leave.status", "Approved"] }
                                     ]
                                 }
                             }
@@ -1735,7 +1736,8 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                                 cond: {
                                     $and: [
                                         { $gte: ["$$wellness", "$projectDetails.startdate"] },
-                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] }
+                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] },
+                                        { $eq: ["$$wellness.status", "Approved"] }
                                     ]
                                 }
                             }
@@ -1946,8 +1948,11 @@ exports.listjobcomponent = async (req, res) => {
                     pipeline: [
                         { 
                             $match: { 
-                                $expr: { 
-                                    $eq: ['$owner', '$$employeeId'] 
+                                $expr: {
+                                    $and: [ 
+                                    { $eq: ['$owner', '$$employeeId'] },
+                                    { $eq: ['$status', 'Approved'] }
+                                    ]
                                 } 
                             }
                         },
@@ -1969,8 +1974,17 @@ exports.listjobcomponent = async (req, res) => {
                     from: 'wellnessdays',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
-                        {
+                    { 
+                        $match: { 
+                            $expr: { 
+                                $and: [
+                                    { $eq: ['$owner', '$$employeeId'] },
+                                    { $eq: ['$status', 'Approved'] }
+                                ]
+                            } 
+                        } 
+                    },                        
+                    {
                             $project: {
                                 _id: 0,
                                 wellnessdates: "$requestdate"
@@ -2309,7 +2323,16 @@ exports.listteamjobcomponent = async (req, res) => {
                     from: 'wellnessdays',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        { 
+                        $match: { 
+                            $expr: { 
+                                $and: [
+                                    { $eq: ['$owner', '$$employeeId'] },
+                                    { $eq: ['$status', 'Approved'] }
+                                ]
+                            } 
+                        }
+                     },
                         {
                             $project: {
                                 _id: 0,
@@ -2325,7 +2348,16 @@ exports.listteamjobcomponent = async (req, res) => {
                     from: 'workfromhomes',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        {
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ['$owner', '$$employeeId'] },
+                                        { $eq: ['$status', 'Approved'] }
+                                    ]
+                                } 
+                            }    
+                        },
                         {
                             $project: {
                                 _id: 0,
@@ -2527,7 +2559,8 @@ exports.listteamjobcomponent = async (req, res) => {
                                 as: "leave",
                                 cond: {
                                     $and: [
-                                        { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] }
+                                        { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] },
+                                        { $eq: ["$$leave.status", "Approved"] }
                                     ]
                                 }
                             }
@@ -2538,7 +2571,8 @@ exports.listteamjobcomponent = async (req, res) => {
                                 as: "wellness",
                                 cond: {
                                     $and: [
-                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] }
+                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] },
+                                        { $eq: ["$$wellness.status", "Approved"] }
                                     ]
                                 }
                             }
@@ -2550,7 +2584,8 @@ exports.listteamjobcomponent = async (req, res) => {
                                 as: "wfh",
                                 cond: {
                                     $and: [
-                                        { $lte: ["$$wfh", "$projectDetails.deadlinedate"] }
+                                        { $lte: ["$$wfh", "$projectDetails.deadlinedate"] },
+                                        { $eq: ["$$wfh.status", "Approved"] }
                                     ]
                                 }
                             }
@@ -2774,7 +2809,8 @@ exports.viewduedatesgraph = async (req, res) => {
                         { 
                             $match: { 
                                 $expr: { 
-                                    $eq: ['$owner', '$$employeeId'] 
+                                    $eq: ['$owner', '$$employeeId'],
+                                    $eq: ['$status', 'Approved'] 
                                 } 
                             }
                         },
@@ -2796,7 +2832,7 @@ exports.viewduedatesgraph = async (req, res) => {
                     from: 'wellnessdays',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'], $eq: ['$status', 'Approved'] } } },
                         {
                             $project: {
                                 _id: 0,
@@ -2887,7 +2923,8 @@ exports.viewduedatesgraph = async (req, res) => {
                                 as: "leave",
                                 cond: {
                                     $and: [
-                                        { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] }
+                                        { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] },
+                                        { $eq: ["$$leave.status", "Approved"] }
                                     ]
                                 }
                             }
@@ -2899,7 +2936,8 @@ exports.viewduedatesgraph = async (req, res) => {
                                 cond: {
                                     $and: [
                                         { $gte: ["$$wellness", "$projectDetails.startdate"] },
-                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] }
+                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] },
+                                        { $eq: ["$$wellness.status", "Approved"] }
                                     ]
                                 }
                             }
@@ -2993,14 +3031,14 @@ exports.yourworkload = async (req, res) => {
         }));
 
         const wfhDates = (
-            await Workfromhome.find({ owner: id }).select("requestdate requestend -_id").lean()
+            await Workfromhome.find({ owner: id, status: "Approved" }).select("requestdate requestend -_id").lean()
         ).map(wfh => ({
             requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
             requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
         }));
 
         const wellnessDates = (
-            await Wellnessday.find({ owner: id }).select("requestdate -_id").lean()
+            await Wellnessday.find({ owner: id, status: "Approved" }).select("requestdate -_id").lean()
         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
 
    // Build alldates (weekdays only)
@@ -3144,14 +3182,14 @@ exports.yourworkload = async (req, res) => {
         }));
 
         const wfhDates = (
-            await Workfromhome.find({ owner: id }).select("requestdate requestend -_id").lean()
+            await Workfromhome.find({ owner: id, status: "Approved" }).select("requestdate requestend -_id").lean()
         ).map(wfh => ({
             requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
             requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
         }));
 
         const wellnessDates = (
-            await Wellnessday.find({ owner: id }).select("requestdate -_id").lean()
+            await Wellnessday.find({ owner: id, status: "Approved" }).select("requestdate -_id").lean()
         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
 
         // For events, get all events for all teams user is in, only dates
@@ -3614,7 +3652,8 @@ exports.getjobcomponentdashboard = async (req, res) => {
                         { 
                             $match: { 
                                 $expr: { 
-                                    $eq: ['$owner', '$$employeeId'] 
+                                    $eq: ['$owner', '$$employeeId'],
+                                    $eq: ['$status', 'Approved'] 
                                 } 
                             }
                         },
@@ -3636,7 +3675,7 @@ exports.getjobcomponentdashboard = async (req, res) => {
                     from: 'wellnessdays',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'], $eq: ['$status', "Approved"] } } },
                         {
                             $project: {
                                 _id: 0,
@@ -4145,12 +4184,23 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                 }
             },
             {
-                $lookup: {
-                    from: 'workfromhomes',
-                    localField: 'memberDetails.owner',
-                    foreignField: 'owner',
-                    as: 'wfhData'
+            $lookup: {
+                from: 'workfromhomes',
+                let: { employeeId: '$memberDetails.owner' },
+                pipeline: [
+                {
+                    $match: {
+                    $expr: {
+                        $and: [
+                        { $eq: ['$owner', '$$employeeId'] },
+                        { $eq: ['$status', 'Approved'] }
+                        ]
+                    }
+                    }
                 }
+                ],
+                as: 'wfhData'
+            }
             },
             {
                 $lookup: {
@@ -4414,24 +4464,57 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             {
                 $lookup: {
                     from: 'leaves',
-                    localField: 'memberDetails.owner',
-                    foreignField: 'owner',
+                    let: { employeeId: '$memberDetails.owner' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ['$owner', '$$employeeId'] },
+                                        { $eq: ['$status', 'Approved'] }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
                     as: 'leaveData'
                 }
             },
             {
-                $lookup: {
-                    from: 'workfromhomes',
-                    localField: 'memberDetails.owner',
-                    foreignField: 'owner',
-                    as: 'wfhData'
+            $lookup: {
+                from: 'workfromhomes',
+                let: { employeeId: '$memberDetails.owner' },
+                pipeline: [
+                {
+                    $match: {
+                    $expr: {
+                        $and: [
+                        { $eq: ['$owner', '$$employeeId'] },
+                        { $eq: ['$status', 'Approved'] }
+                        ]
+                    }
+                    }
                 }
+                ],
+                as: 'wfhData'
+            }
             },
             {
                 $lookup: {
                     from: 'wellnessdays',
-                    localField: 'memberDetails.owner',
-                    foreignField: 'owner',
+                    let: { employeeId: '$memberDetails.owner' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ['$owner', '$$employeeId'] },
+                                        { $eq: ['$status', 'Approved'] }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
                     as: 'wellnessData'
                 }
             },
@@ -4663,7 +4746,8 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                         { 
                             $match: { 
                                 $expr: { 
-                                    $eq: ['$owner', '$$employeeId'] 
+                                    $eq: ['$owner', '$$employeeId'],
+                                    $eq: ['$status', 'Approved'] 
                                 } 
                             }
                         },
@@ -4685,7 +4769,7 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                     from: 'wellnessdays',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'], $eq: ['$status', "Approved"] } } },
                         {
                             $project: {
                                 _id: 0,
@@ -4930,14 +5014,14 @@ exports.individualworkload = async (req, res) => {
         }));
 
         const wfhDates = (
-            await Workfromhome.find({ owner: employeeid }).select("requestdate requestend -_id").lean()
+            await Workfromhome.find({ owner: employeeid, status: "Approved" }).select("requestdate requestend -_id").lean()
         ).map(wfh => ({
             requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
             requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
         }));
 
         const wellnessDates = (
-            await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
+            await Wellnessday.find({ owner: employeeid, status: "Approved" }).select("requestdate -_id").lean()
         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
 
             // Build alldates (weekdays only)
@@ -5086,14 +5170,14 @@ exports.individualworkload = async (req, res) => {
         }));
 
         const wfhDates = (
-            await Workfromhome.find({ owner: employeeid }).select("requestdate requestend -_id").lean()
+            await Workfromhome.find({ owner: employeeid, status: "Approved" }).select("requestdate requestend -_id").lean()
         ).map(wfh => ({
             requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
             requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
         }));
 
         const wellnessDates = (
-            await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
+            await Wellnessday.find({ owner: employeeid, status: "Approved" }).select("requestdate -_id").lean()
         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
 
         // For events, get all events for all teams user is in, only dates
