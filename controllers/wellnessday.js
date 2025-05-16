@@ -446,24 +446,12 @@ exports.wellnessdaylistrequest = async (req, res) => {
             }
         },
         {
-            $lookup: {
-                from: 'wellnessdayevents',
-                localField: 'firstdayofwellnessdaycyle',
-                foreignField: '_id',
-                as: 'firstdayofwellnessdaycyle'
-            }
-        },
-        {
-            $unwind: '$firstdayofwellnessdaycyle'
-        },
-        {
             // Format the output to include only the relevant information
             $project: {
                 _id: 0,
                 wellnessdayId: '$_id',
                 requestdate: 1,
                 status: 1,
-                firstdayofwellnessdaycyle: "$firstdayofwellnessdaycyle",
                 wdrequesttimestamp: '$createdAt',
                 // Full name of the user
                 userFullName: {
@@ -483,6 +471,7 @@ exports.wellnessdaylistrequest = async (req, res) => {
         { $skip: pageOptions.page * pageOptions.limit }, // Skip for pagination
         { $limit: pageOptions.limit } // Limit for pagination
     ]);
+
 
     const totallistcount = await Wellnessday.aggregate([
         {
@@ -514,7 +503,7 @@ exports.wellnessdaylistrequest = async (req, res) => {
     }
 
     wellnessDayData.forEach(tempdata => {
-        const {wellnessdayId, requestdate, wdrequesttimestamp, firstdayofwellnessdaycyle, userFullName, reportingManagerFullName, status} = tempdata
+        const {wellnessdayId, requestdate, wdrequesttimestamp, userFullName, reportingManagerFullName, status} = tempdata
 
         data.requestlist.push({
             requestid: wellnessdayId,
@@ -522,7 +511,6 @@ exports.wellnessdaylistrequest = async (req, res) => {
             user: userFullName,
             requestdate: requestdate,
             status: status,
-            firstdayofwellnessdaycyle: firstdayofwellnessdaycyle.cyclestart,
             wdrequesttimestamp: wdrequesttimestamp
         })
     })

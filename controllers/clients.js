@@ -254,7 +254,7 @@ exports.clientlistall = async (req, res) => {
     }
 
     const clients = await Clients.find(matchStage)
-  
+    .sort({ clientname: 1 })
     .then(data => data)
     .catch(err => {
         console.log(`There's a problem getting clients list. Error ${err}`)

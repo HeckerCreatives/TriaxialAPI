@@ -1067,7 +1067,12 @@ exports.editstatushours = async (req, res) => {
             (d) => new Date(d.date).toDateString() === new Date(date).toDateString()
         );
 
-        if (dateIndex !== -1) {
+        if (hours === 0) {
+            // Remove the date entry if hours is 0
+            if (dateIndex !== -1) {
+                member.dates.splice(dateIndex, 1);
+            }
+        } else if (dateIndex !== -1) {
             // Update existing date entry
             if (status !== undefined) member.dates[dateIndex].status = status || [];
             if (hours !== undefined) member.dates[dateIndex].hours = hours;
@@ -1085,6 +1090,7 @@ exports.editstatushours = async (req, res) => {
         }
 
         await jobComponent.save();
+
         // Look up user details first
         const userDetails = await Userdetails.findOne({ owner: new mongoose.Types.ObjectId(employeeid) });
         if (!userDetails) {
@@ -1101,7 +1107,7 @@ exports.editstatushours = async (req, res) => {
         Employee: ${fullName}
         Date: ${new Date(date).toDateString()}
         Status: ${(status || []).join(", ")}
-        Hours: ${hours !== null ? hours : "Cleared"}
+        Hours: ${hours === 0 ? "Removed" : hours !== null ? hours : "Cleared"}
 
         Please review the changes if necessary.
 
@@ -2536,6 +2542,19 @@ exports.listteamjobcomponent = async (req, res) => {
               {
                 $addFields: {
                     members: {
+                        vars: {
+                            sortedRole: {
+                                $switch: {
+                                    branches: [
+                                        { case: { $eq: ["$members.role", "Engr."] }, then: 1 },
+                                        { case: { $eq: ["$members.role", "Engr. Revr."] }, then: 2 },
+                                        { case: { $eq: ["$members.role", "Drft."] }, then: 3 },
+                                        { case: { $eq: ["$members.role", "Drft. Revr"] }, then: 4 }
+                                    ],
+                                    default: 5
+                                }
+                            }
+                        },                        
                         employee: {
                             $cond: {
                                 if: { $gt: [{ $size: "$employeeDetails" }, 0] },
@@ -2666,7 +2685,11 @@ exports.listteamjobcomponent = async (req, res) => {
                     }
                 }
             },
-            
+            {
+                $sort: {
+                    'members.sortedRole': 1,
+                }
+            },
             {
                 $group: {
                     _id: '$_id',

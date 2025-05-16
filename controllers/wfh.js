@@ -534,7 +534,7 @@ exports.approvewfhrequestadmin = async (req, res) => {
 
 exports.listwfhrequestmanager = async (req, res) => {
     const { id, email } = req.user;
-    const { page, limit, statusfilter = 'Approved', fullnamefilter } = req.query;
+    const { page, limit, statusfilter = 'Pending', fullnamefilter } = req.query;
 
     if (!statusfilter){
         return res.status(400).json({message: "failed", data: "Please select a status filter first!"})
@@ -580,9 +580,9 @@ exports.listwfhrequestmanager = async (req, res) => {
             }
         },
         { $unwind: '$userDetails' }, // Flatten the `userDetails` array
-        {
-            $match: matchConditions // Apply the dynamic match conditions
-        },
+        // {
+        //     $match: matchConditions // Apply the dynamic match conditions
+        // },
         {
             $lookup: {
                 from: 'userdetails',
