@@ -2800,9 +2800,7 @@ exports.listteamjobcomponent = async (req, res) => {
                                 _id: 0,
                                 leavedates: {
                                     leavestart: "$leavestart",
-                                    leaveend: "$leaveend",
-                                    wellnessdaycycle: "$wellnessdaycycle",
-                                    workinghoursduringleave: "$workinghoursduringleave"
+                                    leaveend: "$leaveend"
                                 }
                             }
                         }
@@ -3121,12 +3119,7 @@ exports.listteamjobcomponent = async (req, res) => {
                                                                                                         $cond: {
                                                                                                             if: { $gte: ["$$workingHoursDuringLeave", "$$standardHours"] },
                                                                                                             then: 0,
-                                                                                                            else: { 
-                                                                                                                $round: [
-                                                                                                                    { $subtract: ["$$standardHours", "$$workingHoursDuringLeave"] },
-                                                                                                                    1
-                                                                                                                ]
-                                                                                                            }                                                                                                      
+                                                                                                            else: { $subtract: ["$$standardHours", "$$workingHoursDuringLeave"] }
                                                                                                         }
                                                                                                     },
                                                                                                     else: "$$standardHours"
@@ -3135,15 +3128,6 @@ exports.listteamjobcomponent = async (req, res) => {
                                                                                             else: "$$standardHours"
                                                                                         }
                                                                                     },
-                                                                                    leavewellnessday: { $eq: ["$$wellnessDayCycle", true] },
-                                                                                    workinghoursduringleave: {
-                                                                                        $cond: {
-                                                                                            if: "$$isFirstDay",
-                                                                                            then: "$$workingHoursDuringLeave",
-                                                                                            else: 0
-                                                                                        }
-                                                                                    },
-                                                                                    isLeave: true,
                                                                                     status: ["Leave"]
                                                                                 }
                                                                             }
