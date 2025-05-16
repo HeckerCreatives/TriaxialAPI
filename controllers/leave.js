@@ -242,6 +242,7 @@ exports.requestleave = async (req, res) => {
         owner: new mongoose.Types.ObjectId(id),
         leavestart: { $lte: endDate },
         leaveend: { $gte: startDate },
+        status: { $in: ["Pending", "Approved"] }
     })
     .catch(err => {
         console.log(`There's a problem with checking leave request for ${id} ${email}. Error: ${err}`)
