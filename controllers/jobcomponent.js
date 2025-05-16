@@ -2468,7 +2468,6 @@ exports.listjobcomponent = async (req, res) => {
                             $expr: { 
                                 $and: [
                                     { $eq: ['$owner', '$$employeeId'] },
-                                    { $eq: ['$status', 'Approved'] }
                                 ]
                             } 
                         } 
@@ -3264,7 +3263,7 @@ exports.viewduedatesgraph = async (req, res) => {
                     from: 'wellnessdays',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'], $eq: ['$status', 'Approved'] } } },
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
                         {
                             $project: {
                                 _id: 0,
@@ -4107,7 +4106,7 @@ exports.getjobcomponentdashboard = async (req, res) => {
                     from: 'wellnessdays',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'], $eq: ['$status', "Approved"] } } },
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
                         {
                             $project: {
                                 _id: 0,
@@ -5043,7 +5042,6 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             });
             }
 
-            console.log("Employee Data:", employeeData);
             // Add job component data (if exists)
             teamData.jobComponentsData.forEach(job => {
             if (job.members) {
@@ -5168,7 +5166,7 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
                     from: 'wellnessdays',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
-                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'], $eq: ['$status', "Approved"] } } },
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
                         {
                             $project: {
                                 _id: 0,
