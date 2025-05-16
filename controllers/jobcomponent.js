@@ -1464,19 +1464,455 @@ exports.listJobComponentNamesByTeam = async (req, res) => {
         return res.status(500).json({ message: "Error processing request", error: err.message });
     }
 };
+// exports.listarchivedteamjobcomponent = async (req, res) => {
+//     const { id, email } = req.user;
+//     const { teamid } = req.query;
+
+//     try {
+
+//         const now = moment().tz("Australia/Sydney");
+//         const today = now.startOf('day').toDate();
+//         const startDate = moment.tz(today, "Australia/Sydney").startOf('day').toDate();
+//         const endDate = moment.tz(today, "Australia/Sydney").endOf('day').toDate();
+
+
+//         const result = await Jobcomponents.aggregate([
+//             {
+//                 $lookup: {
+//                     from: 'projects',
+//                     localField: 'project',
+//                     foreignField: '_id',
+//                     as: 'projectDetails'
+//                 }
+//             },
+//             { $match: { 'projectDetails.team': new mongoose.Types.ObjectId(teamid)} },
+//             { $match: { status: "archived" } },
+//             { $unwind: '$projectDetails' },
+//             {
+//                 $lookup: {
+//                     from: 'users',
+//                     localField: 'jobmanager',
+//                     foreignField: '_id',
+//                     as: 'jobManagerDetails'
+//                 }
+//             },
+//             { $unwind: '$jobManagerDetails' },
+//             {
+//                 $lookup: {
+//                     from: 'userdetails',
+//                     localField: 'jobManagerDetails._id',
+//                     foreignField: 'owner',
+//                     as: 'jobManagerDeets'
+//                 }
+//             },
+//             { $unwind: '$jobManagerDeets' },
+//             {
+//                 $lookup: {
+//                     from: 'teams',
+//                     localField: 'projectDetails.team',
+//                     foreignField: '_id',
+//                     as: 'teamDetails'
+//                 }
+//             },
+//             { $unwind: { path: '$teamDetails', preserveNullAndEmptyArrays: true } },
+//             {
+//                 $addFields: {
+//                     isManager: {
+//                         $cond: {
+//                             if: { $eq: [userObjectId, '$teamDetails.manager'] },
+//                             then: true,
+//                             else: false
+//                         }
+//                     }
+//                 }
+//             },
+//             { $unwind: '$members' },
+//             {
+//                 $lookup: {
+//                     from: 'users',
+//                     localField: 'members.employee',
+//                     foreignField: '_id',
+//                     as: 'employeeDetails'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'userdetails',
+//                     localField: 'employeeDetails._id',
+//                     foreignField: 'owner',
+//                     as: 'userDetails'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'leaves',
+//                     let: { employeeId: '$members.employee' },
+//                     pipeline: [
+//                         { 
+//                             $match: { 
+//                                 $expr: { 
+//                                     $eq: ['$owner', '$$employeeId'] 
+//                                 } 
+//                             }
+//                         },
+//                         {
+//                             $project: {
+//                                 _id: 0,
+//                                 leavedates: {
+//                                     leavestart: "$leavestart",
+//                                     leaveend: "$leaveend"
+//                                 }
+//                             }
+//                         }
+//                     ],
+//                     as: 'leaveData'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'wellnessdays',
+//                     let: { employeeId: '$members.employee' },
+//                     pipeline: [
+//                         { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+//                         {
+//                             $project: {
+//                                 _id: 0,
+//                                 wellnessdates: "$requestdate"
+//                             }
+//                         }
+//                     ],
+//                     as: 'wellnessData'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'events',
+//                     let: { teamId: '$teamDetails._id' },
+//                     pipeline: [
+//                         { $match: { $expr: { $in: ['$$teamId', '$teams'] } } },
+//                         {
+//                             $project: {
+//                                 _id: 0,
+//                                 eventdates: {
+//                                     startdate: "$startdate",
+//                                     enddate: "$enddate"
+//                                 }
+//                             }
+//                         }
+//                     ],
+//                     as: 'eventData'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'invoices',
+//                     let: { jobComponentId: "$_id" },
+//                     pipeline: [
+//                         { 
+//                             $match: { 
+//                                 $expr: { 
+//                                     $and: [
+//                                         { $eq: ["$jobcomponent", "$$jobComponentId"] },
+//                                         { $eq: ["$status", "Approved"] }
+//                                     ]
+//                                 } 
+//                             } 
+//                         },
+//                         { $sort: { createdAt: -1 } },
+//                         { $limit: 1 }
+//                     ],
+//                     as: 'latestInvoice'
+//                 }
+//             },   
+//             {
+//                 $unwind: { path: "$latestInvoice", preserveNullAndEmptyArrays: true }
+//             },
+//             {
+//                 $addFields: {
+//                     invoiceDetails: {
+//                         percentage: { $ifNull: ["$latestInvoice.newinvoice", 0] },
+//                         amount: { $ifNull: ["$latestInvoice.invoiceamount", 0] }
+//                     }
+//                 }
+//             },
+//               {
+//                 $addFields: {
+//                     allDates: {
+//                         $let: {
+//                             vars: {
+//                                 startDate: {
+//                                     $dateToString: {
+//                                         date: "$projectDetails.startdate",
+//                                         timezone: "Australia/Sydney",
+//                                         format: "%Y-%m-%d"
+//                                     }
+//                                 },
+//                                 endDate: {
+//                                     $dateToString: {
+//                                         date: "$projectDetails.deadlinedate",
+//                                         timezone: "Australia/Sydney",
+//                                         format: "%Y-%m-%d"
+//                                     }
+//                                 }
+//                             },
+//                             in: {
+//                                 $filter: {
+//                                     input: {
+//                                         $map: {
+//                                             input: {
+//                                                 $range: [
+//                                                     0,
+//                                                     {
+//                                                         $add: [
+//                                                             {
+//                                                                 $divide: [
+//                                                                     {
+//                                                                         $subtract: [
+//                                                                             { $dateFromString: { dateString: "$$endDate", timezone: "Australia/Sydney" } },
+//                                                                             { $dateFromString: { dateString: "$$startDate", timezone: "Australia/Sydney" } }
+//                                                                         ]
+//                                                                     },
+//                                                                     86400000
+//                                                                 ]
+//                                                             },
+//                                                             1
+//                                                         ]
+//                                                     }
+//                                                 ]
+//                                             },
+//                                             as: "daysFromStart",
+//                                             in: {
+//                                                 $dateAdd: {
+//                                                     startDate: { $dateFromString: { dateString: "$$startDate", timezone: "Australia/Sydney" } },
+//                                                     unit: "day",
+//                                                     amount: "$$daysFromStart",
+//                                                     timezone: "Australia/Sydney"
+//                                                 }
+//                                             }
+//                                         }
+//                                     },
+//                                     as: "date",
+//                                     cond: {
+//                                         $and: [
+//                                             { $ne: [{ "$dayOfWeek": "$$date" }, 6] },
+//                                             { $ne: [{ "$dayOfWeek": "$$date" }, 7] }
+//                                         ]
+//                                     }
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 }
+//             },
+//             {
+//                 $addFields: {
+//                     members: {
+//                         employee: {
+//                             $cond: {
+//                                 if: { $gt: [{ $size: "$employeeDetails" }, 0] },
+//                                 then: {
+//                                     _id: { $arrayElemAt: ['$employeeDetails._id', 0] },
+//                                     fullname: {
+//                                         $concat: [
+//                                             { $ifNull: [{ $arrayElemAt: ['$userDetails.firstname', 0] }, ''] },
+//                                             ' ',
+//                                             { $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }
+//                                         ]
+//                                     },
+//                                     initials: '$userDetails.initial'
+//                                 },
+//                                 else: { _id: null, fullname: "N/A", initials: "NA" }
+//                             }
+//                         },
+//                         leaveDates: {
+//                             $filter: {
+//                                 input: "$leaveData.leavedates",
+//                                 as: "leave",
+//                                 cond: {
+//                                     $and: [
+//                                         { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] },
+//                                         { $eq: ["$$leave.status", "Approved"] }
+//                                     ]
+//                                 }
+//                             }
+//                         },
+//                         wellnessDates: {
+//                             $filter: {
+//                                 input: "$wellnessData.wellnessdates",
+//                                 as: "wellness",
+//                                 cond: {
+//                                     $and: [
+//                                         { $gte: ["$$wellness", "$projectDetails.startdate"] },
+//                                         { $lte: ["$$wellness", "$projectDetails.deadlinedate"] },
+//                                         { $eq: ["$$wellness.status", "Approved"] }
+//                                     ]
+//                                 }
+//                             }
+//                         },
+//                         eventDates: {
+//                             $filter: {
+//                                 input: "$eventData.eventdates",
+//                                 as: "event",
+//                                 cond: {
+//                                     $and: [
+//                                         { $lte: ["$$event.startdate", "$projectDetails.deadlinedate"] }
+//                                     ]
+//                                 }
+//                             }    
+//                         },
+//                         dates: {
+//                             $let: {
+//                                 vars: {
+//                                     existingDates: "$members.dates",
+//                                     leaveDates: "$leaveData.leavedates"
+//                                 },
+//                                 in: {
+//                                     $reduce: {
+//                                         input: "$$leaveDates",
+//                                         initialValue: "$$existingDates",
+//                                         in: {
+//                                             $let: {
+//                                                 vars: {
+//                                                     startDate: "$$this.leavestart",
+//                                                     endDate: "$$this.leaveend"
+//                                                 },
+//                                                 in: {
+//                                                     $concatArrays: [
+//                                                         "$$value",
+//                                                         {
+//                                                             $map: {
+//                                                                 input: {
+//                                                                     $range: [
+//                                                                         0,
+//                                                                         {
+//                                                                             $add: [
+//                                                                                 {
+//                                                                                     $divide: [
+//                                                                                         { $subtract: [
+//                                                                                             { $toDate: "$$endDate" }, 
+//                                                                                             { $toDate: "$$startDate" }
+//                                                                                         ]},
+//                                                                                         86400000
+//                                                                                     ]
+//                                                                                 },
+//                                                                                 1
+//                                                                             ]
+//                                                                         }
+//                                                                     ]
+//                                                                 },
+//                                                                 as: "dayOffset",
+//                                                                 in: {
+//                                                                     date: {
+//                                                                         $dateAdd: {
+//                                                                             startDate: { $toDate: "$$startDate" },
+//                                                                             unit: "day",
+//                                                                             amount: "$$dayOffset"
+//                                                                         }
+//                                                                     },
+//                                                                     hours: 7.6,
+//                                                                     status: ["Leave"]
+//                                                                 }
+//                                                             }
+//                                                         }
+//                                                     ]
+//                                                 }
+//                                             }
+//                                         }
+//                                     }
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 }
+//             },
+//             {
+//                 $group: {
+//                     _id: '$_id',
+//                     componentid: { $first: '$_id' },
+//                     teamname: { $first: '$teamDetails.teamname' },
+//                     projectend: { $first: '$projectDetails.deadlinedate'}, 
+//                     projectname: { $first: { projectid: '$projectDetails._id', name: '$projectDetails.projectname', status: '$projectDetails.status' } },
+//                     clientname: { $first: { clientid: '', name: 'Client Name' } },
+//                     jobno: { $first: '$projectDetails.jobno' },
+//                     budgettype: { $first: '$budgettype' },
+//                     estimatedbudget: { $first: '$estimatedbudget' },
+//                     status: { $first: '$status' }, 
+//                     invoice: { $first: '$invoiceDetails' }, // Use updated invoiceDetails field
+//                     comments: { $first: '$comments' },
+//                     jobmanager: {
+//                         $first: {
+//                             employeeid: '$jobManagerDetails._id',
+//                             fullname: { $concat: ['$jobManagerDeets.firstname', ' ', '$jobManagerDeets.lastname'] },
+//                             initials: '$jobManagerDeets.initial',
+//                             isManager: '$isManager',
+//                             isJobManager: { $eq: ['$jobmanager', new mongoose.Types.ObjectId(id)] }
+//                         }
+//                     },
+//                     jobcomponent: { $first: '$jobcomponent' },
+//                     allDates: { $first: '$allDates' },
+//                     members: { $push: '$members' }
+//                 }
+//             },
+//             {
+//                 $sort: { createdAt: 1 }
+//             }
+//         ]);
+        
+//         const formattedResult = result.map(item => ({
+//             ...item,
+//             allDates: item.allDates.map(date => 
+//                 moment(date).tz("Australia/Sydney").format('YYYY-MM-DD')
+//             )
+//         }));
+
+ 
+//         return res.json({ message: "success", data: formattedResult });
+//     } catch (err) {
+//         console.error(err);
+//         return res.status(500).json({ message: "Error processing request", error: err.message });
+//     }
+// }
+
 exports.listarchivedteamjobcomponent = async (req, res) => {
-    const { id, email } = req.user;
-    const { teamid } = req.query;
+      const { id } = req.user;
+    const { teamid, search, filterdate } = req.query;
+
+    if(!mongoose.Types.ObjectId.isValid(teamid)) {
+        return res.status(400).json({ message: "failed", data: "Invalid team ID" });
+    }
+
+    // Use createFromHexString for string IDs (recommended by mongoose/bson)
+    const teamObjectId = mongoose.Types.ObjectId.createFromHexString(teamid);
+    const userObjectId = mongoose.Types.ObjectId.createFromHexString(id);
+
+    const referenceDate = filterdate ? moment.tz(new Date(filterdate), "Australia/Sydney") : moment.tz("Australia/Sydney");
+    const startOfWeek = referenceDate.isoWeekday(1).toDate(); // forced to monday
+    const endOfRange = moment(startOfWeek).add(1, 'year').subtract(1, 'days').toDate();
+
+
+
+    let searchQuery = {};
+
+    if (search) {
+        searchQuery = {
+            $or: [
+            { 'projectDetails.projectname': { $regex: search, $options: 'i' } },
+            { 'projectDetails.jobno': { $regex: search, $options: 'i' } },
+            { 'clientDetails.clientname': { $regex: search, $options: 'i' } },
+            { 'jobManagerDeets.firstname': { $regex: search, $options: 'i' } },
+            { 'jobManagerDeets.lastname': { $regex: search, $options: 'i' } },
+            ]
+        };
+    }
 
     try {
 
-        const now = moment().tz("Australia/Sydney");
-        const today = now.startOf('day').toDate();
-        const startDate = moment.tz(today, "Australia/Sydney").startOf('day').toDate();
-        const endDate = moment.tz(today, "Australia/Sydney").endOf('day').toDate();
-
-
         const result = await Jobcomponents.aggregate([
+            { 
+                $match: { 
+                    status: { $in: ["", null, "archived",] } 
+                }
+            },
             {
                 $lookup: {
                     from: 'projects',
@@ -1485,9 +1921,17 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                     as: 'projectDetails'
                 }
             },
-            { $match: { 'projectDetails.team': new mongoose.Types.ObjectId(teamid)} },
-            { $match: { status: "archived" } },
+            { $match: { 'projectDetails.team': teamObjectId } },
             { $unwind: '$projectDetails' },
+            {
+                $lookup: {
+                    from: "clients",
+                    localField: "projectDetails.client",
+                    foreignField: "_id",
+                    as: "clientDetails"
+                }
+            },
+            { $unwind: '$clientDetails' },
             {
                 $lookup: {
                     from: 'users',
@@ -1506,6 +1950,7 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                 }
             },
             { $unwind: '$jobManagerDeets' },
+            ...(search ? [{ $match: searchQuery }] : []),
             {
                 $lookup: {
                     from: 'teams',
@@ -1519,7 +1964,7 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                 $addFields: {
                     isManager: {
                         $cond: {
-                            if: { $eq: [userObjectId, '$teamDetails.manager'] },
+                            if: { $eq: [new mongoose.Types.ObjectId(id), '$teamDetails.manager'] },
                             then: true,
                             else: false
                         }
@@ -1586,6 +2031,22 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
             },
             {
                 $lookup: {
+                    from: 'workfromhomes',
+                    let: { employeeId: '$members.employee' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
+                        {
+                            $project: {
+                                _id: 0,
+                                requeststart: "$requestdate"
+                            }
+                        }
+                    ],
+                    as: 'wfhData'
+                }
+            },
+            {
+                $lookup: {
                     from: 'events',
                     let: { teamId: '$teamDetails._id' },
                     pipeline: [
@@ -1628,74 +2089,83 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                 $unwind: { path: "$latestInvoice", preserveNullAndEmptyArrays: true }
             },
             {
+                $lookup: {
+                    from: 'invoices',
+                    let: { jobComponentId: "$_id" },
+                    pipeline: [
+                        { 
+                            $match: { 
+                                $expr: { 
+                                    $and: [
+                                        { $eq: ["$jobcomponent", "$$jobComponentId"] },
+                                        { $eq: ["$status", "Pending"] }
+                                    ]
+                                } 
+                            } 
+                        },
+                        { $sort: { createdAt: -1 } },
+                        { $limit: 1 }
+                    ],
+                    as: 'pendinginvoice'
+                }
+            },   
+            {
+                $unwind: { path: "$pendinginvoice", preserveNullAndEmptyArrays: true }
+            },
+            {
                 $addFields: {
                     invoiceDetails: {
                         percentage: { $ifNull: ["$latestInvoice.newinvoice", 0] },
-                        amount: { $ifNull: ["$latestInvoice.invoiceamount", 0] }
+                        amount: { $ifNull: ["$latestInvoice.invoiceamount", 0] },
+                        pendinginvoice: { $ifNull: ["$pendinginvoice.newinvoice", 0] },
+                        pendingamount: { $ifNull: ["$pendinginvoice.invoiceamount", 0] }
                     }
                 }
             },
-              {
-                $addFields: {
-                    allDates: {
-                        $let: {
-                            vars: {
-                                startDate: {
-                                    $dateToString: {
-                                        date: "$projectDetails.startdate",
-                                        timezone: "Australia/Sydney",
-                                        format: "%Y-%m-%d"
-                                    }
-                                },
-                                endDate: {
-                                    $dateToString: {
-                                        date: "$projectDetails.deadlinedate",
-                                        timezone: "Australia/Sydney",
-                                        format: "%Y-%m-%d"
-                                    }
-                                }
+            {
+                "$addFields": {
+                    "allDates": {
+                        "$let": {
+                            "vars": {
+                                "startDate": startOfWeek,
+                                "endDate": endOfRange
                             },
-                            in: {
-                                $filter: {
-                                    input: {
-                                        $map: {
-                                            input: {
-                                                $range: [
+                            "in": {
+                                "$filter": {
+                                    "input": {
+                                        "$map": {
+                                            "input": {
+                                                "$range": [
                                                     0,
                                                     {
-                                                        $add: [
+                                                        "$min": [
                                                             {
-                                                                $divide: [
-                                                                    {
-                                                                        $subtract: [
-                                                                            { $dateFromString: { dateString: "$$endDate", timezone: "Australia/Sydney" } },
-                                                                            { $dateFromString: { dateString: "$$startDate", timezone: "Australia/Sydney" } }
-                                                                        ]
-                                                                    },
-                                                                    86400000
-                                                                ]
+                                                                "$floor": {
+                                                                    "$divide": [
+                                                                        { "$subtract": ["$$endDate", "$$startDate"] },
+                                                                        86400000 // milliseconds in a day
+                                                                    ]
+                                                                }
                                                             },
-                                                            1
-                                                        ]
+                                                            365]
                                                     }
                                                 ]
                                             },
-                                            as: "daysFromStart",
-                                            in: {
-                                                $dateAdd: {
-                                                    startDate: { $dateFromString: { dateString: "$$startDate", timezone: "Australia/Sydney" } },
-                                                    unit: "day",
-                                                    amount: "$$daysFromStart",
-                                                    timezone: "Australia/Sydney"
+                                            "as": "daysFromStart",
+                                            "in": {
+                                                "$dateAdd": {
+                                                    "startDate": "$$startDate",
+                                                    "unit": "day",
+                                                    "amount": "$$daysFromStart"
                                                 }
                                             }
                                         }
                                     },
-                                    as: "date",
-                                    cond: {
-                                        $and: [
-                                            { $ne: [{ "$dayOfWeek": "$$date" }, 6] },
-                                            { $ne: [{ "$dayOfWeek": "$$date" }, 7] }
+                                    "as": "date",
+                                    "cond": {
+                                        "$and": [
+                                            { "$ne": [{ "$dayOfWeek": "$$date" }, 1] }, // Exclude Sunday
+                                            { "$ne": [{ "$dayOfWeek": "$$date" }, 7] }  // Exclude Saturday
                                         ]
                                     }
                                 }
@@ -1704,7 +2174,7 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                     }
                 }
             },
-            {
+              {
                 $addFields: {
                     members: {
                         employee: {
@@ -1719,7 +2189,7 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                                             { $ifNull: [{ $arrayElemAt: ['$userDetails.lastname', 0] }, ''] }
                                         ]
                                     },
-                                    initials: '$userDetails.initial'
+                                    initials: '$userDetails.initial',
                                 },
                                 else: { _id: null, fullname: "N/A", initials: "NA" }
                             }
@@ -1730,8 +2200,7 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                                 as: "leave",
                                 cond: {
                                     $and: [
-                                        { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] },
-                                        { $eq: ["$$leave.status", "Approved"] }
+                                        { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] }
                                     ]
                                 }
                             }
@@ -1742,9 +2211,19 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                                 as: "wellness",
                                 cond: {
                                     $and: [
-                                        { $gte: ["$$wellness", "$projectDetails.startdate"] },
-                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] },
-                                        { $eq: ["$$wellness.status", "Approved"] }
+                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] }
+                                    ]
+                                }
+                            }
+                        },
+                        wfhDates: 
+                        {
+                            $filter: {
+                                input: "$wfhData.requeststart",
+                                as: "wfh",
+                                cond: {
+                                    $and: [
+                                        { $lte: ["$$wfh", "$projectDetails.deadlinedate"] }
                                     ]
                                 }
                             }
@@ -1825,20 +2304,24 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                     }
                 }
             },
+            
             {
                 $group: {
                     _id: '$_id',
                     componentid: { $first: '$_id' },
                     teamname: { $first: '$teamDetails.teamname' },
+                    projectstart: { $first: '$projectDetails.startdate'}, 
                     projectend: { $first: '$projectDetails.deadlinedate'}, 
                     projectname: { $first: { projectid: '$projectDetails._id', name: '$projectDetails.projectname', status: '$projectDetails.status' } },
-                    clientname: { $first: { clientid: '', name: 'Client Name' } },
+                    clientname: { $first: { clientid: '$clientDetails._id', name: '$clientDetails.clientname', priority: '$clientDetails.priority' } },
                     jobno: { $first: '$projectDetails.jobno' },
                     budgettype: { $first: '$budgettype' },
                     estimatedbudget: { $first: '$estimatedbudget' },
                     status: { $first: '$status' }, 
-                    invoice: { $first: '$invoiceDetails' }, // Use updated invoiceDetails field
                     comments: { $first: '$comments' },
+                    adminnotes: { $first: '$adminnotes' },
+                    isVariation: { $first: '$isVariation'},
+                    invoice: { $first: '$invoiceDetails' }, // Use updated invoiceDetails field
                     jobmanager: {
                         $first: {
                             employeeid: '$jobManagerDetails._id',
@@ -1854,23 +2337,22 @@ exports.listarchivedteamjobcomponent = async (req, res) => {
                 }
             },
             {
-                $sort: { createdAt: 1 }
-            }
+                $sort: {
+                    'jobmanager.fullname': -1,
+                    'clientname.name': 1,
+                    'jobno': 1,
+                    'jobcomponent': 1,
+                }
+            },
         ]);
         
-        const formattedResult = result.map(item => ({
-            ...item,
-            allDates: item.allDates.map(date => 
-                moment(date).tz("Australia/Sydney").format('YYYY-MM-DD')
-            )
-        }));
-
  
-        return res.json({ message: "success", data: formattedResult });
+        return res.json({ message: "success", data: result });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ message: "Error processing request", error: err.message });
     }
+
 }
 exports.listjobcomponent = async (req, res) => {
     const { id, email } = req.user;

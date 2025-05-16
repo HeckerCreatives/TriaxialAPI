@@ -9,7 +9,7 @@ router
     .get("/teamdata", protectsuperadmin, teamdata)
     .get("/teamsearchlist", protectsuperadmin, teamsearchlist)
     .get("/listteam", protectsuperadmin, listteam)
-    .get("/listteammembers", protectsuperadmin, listteammembers)
+    .get("/listteammembers", protectalluser, listteammembers)
     .post("/createteam", protectsuperadmin, createteam)
     .post("/deleteteams", protectsuperadmin, deleteteams)
     .post("/editteam", protectsuperadmin, editteam)
