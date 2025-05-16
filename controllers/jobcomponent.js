@@ -3103,48 +3103,49 @@ exports.listteamjobcomponent = async (req, res) => {
                                                                                         }
                                                                                     }
                                                                                 },
-in: {
-    date: {
-        $dateAdd: {
-            startDate: { $toDate: "$$startDate" },
-            unit: "day",
-            amount: "$$dayOffset"
-        }
-    },
-    hours: {
-        $cond: {
-            if: "$$isFirstDay",
-            then: {
-                $cond: {
-                    if: { $gt: ["$$workingHoursDuringLeave", 0] },
-                    then: { 
-                        $cond: {
-                            if: { $gte: ["$$workingHoursDuringLeave", "$$standardHours"] },
-                            then: 0,
-                            else: { 
-                                $round: [
-                                    { $subtract: ["$$standardHours", "$$workingHoursDuringLeave"] },
-                                    1
-                                ]
-                            }                                                                                                      
-                        }
-                    },
-                    else: "$$standardHours"
-                }
-            },
-            else: "$$standardHours"
-        }
-    },
-    leavewellnessday: { $eq: ["$$wellnessDayCycle", true] },
-    workinghoursduringleave: {
-        $cond: {
-            if: "$$isFirstDay",
-            then: "$$workingHoursDuringLeave",
-            else: 0
-        }
-    },
-    status: ["Leave"]
-}
+                                                                                in: {
+                                                                                    date: {
+                                                                                        $dateAdd: {
+                                                                                            startDate: { $toDate: "$$startDate" },
+                                                                                            unit: "day",
+                                                                                            amount: "$$dayOffset"
+                                                                                        }
+                                                                                    },
+                                                                                    hours: {
+                                                                                        $cond: {
+                                                                                            if: "$$isFirstDay",
+                                                                                            then: {
+                                                                                                $cond: {
+                                                                                                    if: { $gt: ["$$workingHoursDuringLeave", 0] },
+                                                                                                    then: { 
+                                                                                                        $cond: {
+                                                                                                            if: { $gte: ["$$workingHoursDuringLeave", "$$standardHours"] },
+                                                                                                            then: 0,
+                                                                                                            else: { 
+                                                                                                                $round: [
+                                                                                                                    { $subtract: ["$$standardHours", "$$workingHoursDuringLeave"] },
+                                                                                                                    1
+                                                                                                                ]
+                                                                                                            }                                                                                                      
+                                                                                                        }
+                                                                                                    },
+                                                                                                    else: "$$standardHours"
+                                                                                                }
+                                                                                            },
+                                                                                            else: "$$standardHours"
+                                                                                        }
+                                                                                    },
+                                                                                    leavewellnessday: { $eq: ["$$wellnessDayCycle", true] },
+                                                                                    workinghoursduringleave: {
+                                                                                        $cond: {
+                                                                                            if: "$$isFirstDay",
+                                                                                            then: "$$workingHoursDuringLeave",
+                                                                                            else: 0
+                                                                                        }
+                                                                                    },
+                                                                                    isLeave: true,
+                                                                                    status: ["Leave"]
+                                                                                }
                                                                             }
                                                                         }
                                                                     }
