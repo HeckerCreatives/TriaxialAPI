@@ -236,22 +236,21 @@ exports.requestleave = async (req, res) => {
             });
         }
 
-        // check if there is a leave within the date range
+        const checkOverlappingLeave = await Leave.findOne({
+            owner: new mongoose.Types.ObjectId(id),
+            status: { $in: ["Pending", "Approved"] },
+            $and: [
+                { leavestart: { $lte: leaveend } },
+                { leaveend: { $gte: leavestart } }
+            ]
+        });
 
-    const checkleave = await Leave.findOne({
-        owner: new mongoose.Types.ObjectId(id),
-        leavestart: { $lte: endDate },
-        leaveend: { $gte: startDate },
-        status: { $in: ["Pending", "Approved"] }
-    })
-    .catch(err => {
-        console.log(`There's a problem with checking leave request for ${id} ${email}. Error: ${err}`)
-        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
-    })
-
-    if (checkleave){
-        return res.status(400).json({message: "failed", data: "You already have a leave request within the date range!"})
-    }
+        if (checkOverlappingLeave) {
+            return res.status(400).json({
+                message: "failed", 
+                data: "You already have a leave request that overlaps with these dates!"
+            });
+        }
 
     const createdLeave = await Leave.create({owner: new mongoose.Types.ObjectId(id), type: leavetype, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments, status: "Pending"})
     .catch(err => {
