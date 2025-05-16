@@ -236,6 +236,22 @@ exports.requestleave = async (req, res) => {
             });
         }
 
+        // check if there is a leave within the date range
+
+    const checkleave = await Leave.findOne({
+        owner: new mongoose.Types.ObjectId(id),
+        leavestart: { $lte: endDate },
+        leaveend: { $gte: startDate },
+    })
+    .catch(err => {
+        console.log(`There's a problem with checking leave request for ${id} ${email}. Error: ${err}`)
+        return res.status(400).json({message: "bad-request", data: "There's a problem with the server. Please contact customer support"})
+    })
+
+    if (checkleave){
+        return res.status(400).json({message: "failed", data: "You already have a leave request within the date range!"})
+    }
+
     const createdLeave = await Leave.create({owner: new mongoose.Types.ObjectId(id), type: leavetype, details: details, leavestart: leavestart, leaveend: leaveend, totalworkingdays: totalworkingdays, totalpublicholidays: totalpublicholidays, wellnessdaycycle: wellnessdaycycle, workinghoursonleave: workinghoursonleave, workinghoursduringleave: workinghoursduringleave, comments: comments, status: "Pending"})
     .catch(err => {
         console.log(`There's a problem creating leave request for ${id} ${email}. Error: ${err}`)
