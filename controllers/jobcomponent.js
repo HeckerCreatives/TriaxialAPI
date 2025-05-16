@@ -1140,13 +1140,13 @@ exports.editstatushours = async (req, res) => {
 };
 exports.editMultipleStatusHours = async (req, res) => {
     const { id, email } = req.user;
-    const { jobcomponentid, employeeid, updates } = req.body;
+    const { jobcomponentid, role, employeeid, updates } = req.body;
 
     // Input validation
     if (!jobcomponentid) {
         return res.status(400).json({ message: "failed", data: "Please select a valid job component." });
     }
-    if (!employeeid) {
+    if (!employeeid || !role) {
         return res.status(400).json({ message: "failed", data: "Please select a valid employee." });
     }
     if (!Array.isArray(updates) || updates.length === 0) {
@@ -1167,7 +1167,9 @@ exports.editMultipleStatusHours = async (req, res) => {
         }
         // Find the member corresponding to the employee
         const member = jobComponent.members.find(
-            (m) => (m.employee ? m.employee.toString() : "") === employeeid
+            (m) =>
+            (m.employee ? m.employee.toString() : "") === employeeid &&
+            (m.role ? m.role.toString() : "") === (role ? role.toString() : "")
         );
 
         if (!member) {
