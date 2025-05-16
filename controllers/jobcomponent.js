@@ -2800,7 +2800,9 @@ exports.listteamjobcomponent = async (req, res) => {
                                 _id: 0,
                                 leavedates: {
                                     leavestart: "$leavestart",
-                                    leaveend: "$leaveend"
+                                    leaveend: "$leaveend",
+                                    wellnessdaycycle: "$wellnessdaycycle",
+                                    workinghoursduringleave: "$workinghoursduringleave"
                                 }
                             }
                         }
@@ -3048,43 +3050,104 @@ exports.listteamjobcomponent = async (req, res) => {
                                             $let: {
                                                 vars: {
                                                     startDate: "$$this.leavestart",
-                                                    endDate: "$$this.leaveend"
+                                                    endDate: "$$this.leaveend",
+                                                    wellnessDayCycle: "$$this.wellnessdaycycle",
+                                                    workingHoursDuringLeave: { $ifNull: ["$$this.workinghoursduringleave", 0] }
                                                 },
                                                 in: {
                                                     $concatArrays: [
                                                         "$$value",
                                                         {
-                                                            $map: {
-                                                                input: {
-                                                                    $range: [
-                                                                        0,
-                                                                        {
-                                                                            $add: [
-                                                                                {
-                                                                                    $divide: [
-                                                                                        { $subtract: [
-                                                                                            { $toDate: "$$endDate" }, 
-                                                                                            { $toDate: "$$startDate" }
-                                                                                        ]},
-                                                                                        86400000
-                                                                                    ]
-                                                                                },
-                                                                                1
-                                                                            ]
-                                                                        }
-                                                                    ]
-                                                                },
-                                                                as: "dayOffset",
-                                                                in: {
-                                                                    date: {
-                                                                        $dateAdd: {
-                                                                            startDate: { $toDate: "$$startDate" },
-                                                                            unit: "day",
-                                                                            amount: "$$dayOffset"
-                                                                        }
+                                                            $let: {
+                                                                vars: {
+                                                                    dateRange: {
+                                                                        $range: [
+                                                                            0,
+                                                                            {
+                                                                                $add: [
+                                                                                    {
+                                                                                        $divide: [
+                                                                                            { $subtract: [
+                                                                                                { $toDate: "$$endDate" }, 
+                                                                                                { $toDate: "$$startDate" }
+                                                                                            ]},
+                                                                                            86400000
+                                                                                        ]
+                                                                                    },
+                                                                                    1
+                                                                                ]
+                                                                            }
+                                                                        ]
                                                                     },
-                                                                    hours: 7.6,
-                                                                    status: ["Leave"]
+                                                                    standardHours: {
+                                                                        $cond: { 
+                                                                            if: { $eq: ["$$wellnessDayCycle", true] }, 
+                                                                            then: 8.44, 
+                                                                            else: 7.6 
+                                                                        }
+                                                                    }
+                                                                },
+                                                                in: {
+                                                                    $map: {
+                                                                        input: "$$dateRange",
+                                                                        as: "dayOffset",
+                                                                        in: {
+                                                                            $let: {
+                                                                                vars: {
+                                                                                    isFirstDay: { $eq: ["$$dayOffset", 0] },
+                                                                                    remainingWorkHours: {
+                                                                                        $cond: {
+                                                                                            if: { $eq: ["$$dayOffset", 0] },
+                                                                                            then: "$$workingHoursDuringLeave",
+                                                                                            else: 0
+                                                                                        }
+                                                                                    }
+                                                                                },
+in: {
+    date: {
+        $dateAdd: {
+            startDate: { $toDate: "$$startDate" },
+            unit: "day",
+            amount: "$$dayOffset"
+        }
+    },
+    hours: {
+        $cond: {
+            if: "$$isFirstDay",
+            then: {
+                $cond: {
+                    if: { $gt: ["$$workingHoursDuringLeave", 0] },
+                    then: { 
+                        $cond: {
+                            if: { $gte: ["$$workingHoursDuringLeave", "$$standardHours"] },
+                            then: 0,
+                            else: { 
+                                $round: [
+                                    { $subtract: ["$$standardHours", "$$workingHoursDuringLeave"] },
+                                    1
+                                ]
+                            }                                                                                                      
+                        }
+                    },
+                    else: "$$standardHours"
+                }
+            },
+            else: "$$standardHours"
+        }
+    },
+    leavewellnessday: { $eq: ["$$wellnessDayCycle", true] },
+    workinghoursduringleave: {
+        $cond: {
+            if: "$$isFirstDay",
+            then: "$$workingHoursDuringLeave",
+            else: 0
+        }
+    },
+    status: ["Leave"]
+}
+                                                                            }
+                                                                        }
+                                                                    }
                                                                 }
                                                             }
                                                         }
@@ -5002,46 +5065,61 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             }));
 
             // Process leave data
-            if (Array.isArray(employeeData.leave)) {
-            employeeData.leave.forEach(leave => {
-                // Only process approved leaves
+          if (Array.isArray(employeeData.leave)) {
+                employeeData.leave.forEach(leave => {
+                    // Only process approved leaves
+                    if (leave.status === "Approved") {
+                        const leaveStart = moment(leave.leavestart);
+                        const leaveEnd = moment(leave.leaveend);
+                        
+                        // Store the original working hours during leave value
+                        let remainingWorkHours = leave.workinghoursduringleave || 0;
+                        let isFirstDay = true; // Flag to track first day of leave period
 
-                if (leave.status === "Approved") {
-                const leaveStart = moment(leave.leavestart);
-                const leaveEnd = moment(leave.leaveend);
+                        for (let day = moment(leaveStart); day <= moment(leaveEnd); day.add(1, 'days')) {
+                            if (day.day() !== 0 && day.day() !== 6) { // Skip weekends
+                                const formattedDate = day.format('YYYY-MM-DD');
+                                let dateEntry = dates.find(d => d.date === formattedDate);
 
-                let remainingWorkHours = leave.workinghoursduringleave || 0;
+                                let standardHours = 7.6;
+                                if (leave.wellnessdaycycle === true) {
+                                    standardHours = 8.44;
+                                }
+                                
+                                let hoursForThisDay = standardHours;
 
-                for (let day = moment(leaveStart); day <= moment(leaveEnd); day.add(1, 'days')) {
-                    if (day.day() !== 0 && day.day() !== 6) { // Skip weekends
-                    const formattedDate = day.format('YYYY-MM-DD');
-                    let dateEntry = dates.find(d => d.date === formattedDate);
+                                // If there are remaining work hours, allocate them to this day
+                                if (remainingWorkHours > 0) {
+                                    if (remainingWorkHours >= standardHours) {
+                                        hoursForThisDay = 0; // Full day's hours are work hours
+                                        remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+                                    } else {
+                                        hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+                                        remainingWorkHours = 0;
+                                    }
+                                }
 
-                                       let standardHours = 7.6;
-
-                                        if(leave.wellnessdaycycle === true) {
-                                            standardHours = 8.44
-                                        }  
-                    let hoursForThisDay = standardHours;
-
-                    // If there are remaining work hours, allocate them to this day
-                    if (remainingWorkHours > 0) {
-                        if (remainingWorkHours >= standardHours) {
-                        hoursForThisDay = 0; // Full day's hours are work hours
-                        remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                        } else {
-                        hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                        remainingWorkHours = 0;
+                                if (dateEntry) {
+                                    dateEntry.totalhoursofjobcomponents = Number(hoursForThisDay.toFixed(2));
+                                    
+                                    // Add working hours during leave information to the first day
+                                    if (isFirstDay && leave.workinghoursduringleave > 0) {
+                                        dateEntry.workinghoursduringleave = Number(leave.workinghoursduringleave);
+                                        
+                                        // Optionally, you can also include a status to indicate this
+                                        if (!dateEntry.status) dateEntry.status = [];
+                                        if (dateEntry.status.indexOf('PartialWork') === -1 && leave.workinghoursduringleave > 0) {
+                                            dateEntry.status.push('PartialWork');
+                                        }
+                                    }
+                                }
+                                
+                                // After processing first weekday, set flag to false
+                                isFirstDay = false;
+                            }
                         }
                     }
-
-                    if (dateEntry) {
-                        dateEntry.totalhoursofjobcomponents = Number(hoursForThisDay.toFixed(2));
-                    }
-                    }
-                }
-                }
-            });
+                });
             }
 
             // Add job component data (if exists)
