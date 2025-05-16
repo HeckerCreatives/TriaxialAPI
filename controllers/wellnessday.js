@@ -183,15 +183,6 @@ exports.requestlist = async (req, res) => {
             },
             {
                 $lookup: {
-                    from: 'wellnessdayevents',
-                    localField: 'firstdayofwellnessdaycyle',
-                    foreignField: '_id',
-                    as: 'cycleDetails'
-                }
-            },
-            { $unwind: '$cycleDetails' },
-            {
-                $lookup: {
                     from: 'userdetails',
                     localField: 'owner',
                     foreignField: 'owner',
@@ -219,7 +210,6 @@ exports.requestlist = async (req, res) => {
                     requestdate: 1,
                     status: 1,
                     createdAt: 1,
-                    cyclestart: '$cycleDetails.cyclestart',
                     userFullName: {
                         $concat: [
                             '$userDetails.firstname',
@@ -259,7 +249,6 @@ exports.requestlist = async (req, res) => {
                 user: item.userFullName,
                 requestdate: item.requestdate,
                 status: item.status,
-                firstdayofwellnessdaycycle: item.cyclestart
             }))
         };
 

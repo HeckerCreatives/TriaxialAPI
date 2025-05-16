@@ -14,6 +14,7 @@ const Leave = require("../models/leave");
 const Workfromhome = require("../models/wfh");
 const Wellnessday = require("../models/wellnessday");
 const Events = require("../models/events");
+const { changepositionemployee } = require("./users");
 
 //  #region MANAGER
 exports.createjobcomponent = async (req, res) => {
@@ -56,7 +57,7 @@ exports.createjobcomponent = async (req, res) => {
             } else {    
                 const createClient = await Clients.create({ 
                     clientname: clientid || 'Unknown Client', 
-                    priority: "Priority 3" 
+                    priority: "Others" 
                 });
                 client = createClient._id;
             }
@@ -2185,7 +2186,7 @@ exports.listjobcomponent = async (req, res) => {
 }
 
 exports.listteamjobcomponent = async (req, res) => {
-    const { id } = req.user;
+      const { id } = req.user;
     const { teamid, search, filterdate } = req.query;
 
     if(!mongoose.Types.ObjectId.isValid(teamid)) {
@@ -2329,16 +2330,7 @@ exports.listteamjobcomponent = async (req, res) => {
                     from: 'wellnessdays',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
-                        { 
-                        $match: { 
-                            $expr: { 
-                                $and: [
-                                    { $eq: ['$owner', '$$employeeId'] },
-                                    { $eq: ['$status', 'Approved'] }
-                                ]
-                            } 
-                        }
-                     },
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
                         {
                             $project: {
                                 _id: 0,
@@ -2354,16 +2346,7 @@ exports.listteamjobcomponent = async (req, res) => {
                     from: 'workfromhomes',
                     let: { employeeId: '$members.employee' },
                     pipeline: [
-                        {
-                            $match: { 
-                                $expr: { 
-                                    $and: [
-                                        { $eq: ['$owner', '$$employeeId'] },
-                                        { $eq: ['$status', 'Approved'] }
-                                    ]
-                                } 
-                            }    
-                        },
+                        { $match: { $expr: { $eq: ['$owner', '$$employeeId'] } } },
                         {
                             $project: {
                                 _id: 0,
@@ -2451,42 +2434,6 @@ exports.listteamjobcomponent = async (req, res) => {
                     }
                 }
             },
-            // {
-            //     $addFields: {
-            //         allDates: {
-            //             $let: {
-            //                 vars: {
-            //                     startDate: "$projectDetails.startdate",
-            //                     endDate: "$projectDetails.deadlinedate"
-            //                 },
-            //                 in: {
-            //                     $map: {
-            //                         input: {
-            //                             $range: [
-            //                                 0, // start from day 0
-            //                                 { 
-            //                                     $add: [
-            //                                         { $divide: [{ $subtract: ["$$endDate", "$$startDate"] }, 86400000] },
-            //                                         1
-            //                                     ]
-            //                                 } // end at the total number of days + 1 for inclusive range
-            //                             ]
-            //                         },
-            //                         as: "daysFromStart",
-            //                         in: {
-            //                             $dateAdd: {
-            //                                 startDate: "$$startDate",
-            //                                 unit: "day",
-            //                                 amount: "$$daysFromStart"
-            //                             }
-            //                         }
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //     }
-            // },
-
             {
                 "$addFields": {
                     "allDates": {
@@ -2542,19 +2489,6 @@ exports.listteamjobcomponent = async (req, res) => {
               {
                 $addFields: {
                     members: {
-                        vars: {
-                            sortedRole: {
-                                $switch: {
-                                    branches: [
-                                        { case: { $eq: ["$members.role", "Engr."] }, then: 1 },
-                                        { case: { $eq: ["$members.role", "Engr. Revr."] }, then: 2 },
-                                        { case: { $eq: ["$members.role", "Drft."] }, then: 3 },
-                                        { case: { $eq: ["$members.role", "Drft. Revr"] }, then: 4 }
-                                    ],
-                                    default: 5
-                                }
-                            }
-                        },                        
                         employee: {
                             $cond: {
                                 if: { $gt: [{ $size: "$employeeDetails" }, 0] },
@@ -2578,8 +2512,7 @@ exports.listteamjobcomponent = async (req, res) => {
                                 as: "leave",
                                 cond: {
                                     $and: [
-                                        { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] },
-                                        { $eq: ["$$leave.status", "Approved"] }
+                                        { $lte: ["$$leave.leavestart", "$projectDetails.deadlinedate"] }
                                     ]
                                 }
                             }
@@ -2590,8 +2523,7 @@ exports.listteamjobcomponent = async (req, res) => {
                                 as: "wellness",
                                 cond: {
                                     $and: [
-                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] },
-                                        { $eq: ["$$wellness.status", "Approved"] }
+                                        { $lte: ["$$wellness", "$projectDetails.deadlinedate"] }
                                     ]
                                 }
                             }
@@ -2603,8 +2535,7 @@ exports.listteamjobcomponent = async (req, res) => {
                                 as: "wfh",
                                 cond: {
                                     $and: [
-                                        { $lte: ["$$wfh", "$projectDetails.deadlinedate"] },
-                                        { $eq: ["$$wfh.status", "Approved"] }
+                                        { $lte: ["$$wfh", "$projectDetails.deadlinedate"] }
                                     ]
                                 }
                             }
@@ -2685,11 +2616,7 @@ exports.listteamjobcomponent = async (req, res) => {
                     }
                 }
             },
-            {
-                $sort: {
-                    'members.sortedRole': 1,
-                }
-            },
+            
             {
                 $group: {
                     _id: '$_id',
@@ -2737,8 +2664,8 @@ exports.listteamjobcomponent = async (req, res) => {
         console.error(err);
         return res.status(500).json({ message: "Error processing request", error: err.message });
     }
-}
 
+}
 exports.viewduedatesgraph = async (req, res) => {
     const { id, email } = req.user;
     const { teamid } = req.query;
@@ -3061,7 +2988,7 @@ exports.yourworkload = async (req, res) => {
         }));
 
         const wellnessDates = (
-            await Wellnessday.find({ owner: id, status: "Approved" }).select("requestdate -_id").lean()
+            await Wellnessday.find({ owner: id }).select("requestdate -_id").lean()
         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
 
    // Build alldates (weekdays only)
@@ -3212,7 +3139,7 @@ exports.yourworkload = async (req, res) => {
         }));
 
         const wellnessDates = (
-            await Wellnessday.find({ owner: id, status: "Approved" }).select("requestdate -_id").lean()
+            await Wellnessday.find({ owner: id}).select("requestdate -_id").lean()
         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
 
         // For events, get all events for all teams user is in, only dates
@@ -4487,57 +4414,24 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             {
                 $lookup: {
                     from: 'leaves',
-                    let: { employeeId: '$memberDetails.owner' },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: {
-                                    $and: [
-                                        { $eq: ['$owner', '$$employeeId'] },
-                                        { $eq: ['$status', 'Approved'] }
-                                    ]
-                                }
-                            }
-                        }
-                    ],
+                    localField: 'memberDetails.owner',
+                    foreignField: 'owner',
                     as: 'leaveData'
                 }
             },
             {
-            $lookup: {
-                from: 'workfromhomes',
-                let: { employeeId: '$memberDetails.owner' },
-                pipeline: [
-                {
-                    $match: {
-                    $expr: {
-                        $and: [
-                        { $eq: ['$owner', '$$employeeId'] },
-                        { $eq: ['$status', 'Approved'] }
-                        ]
-                    }
-                    }
+                $lookup: {
+                    from: 'workfromhomes',
+                    localField: 'memberDetails.owner',
+                    foreignField: 'owner',
+                    as: 'wfhData'
                 }
-                ],
-                as: 'wfhData'
-            }
             },
             {
                 $lookup: {
                     from: 'wellnessdays',
-                    let: { employeeId: '$memberDetails.owner' },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: {
-                                    $and: [
-                                        { $eq: ['$owner', '$$employeeId'] },
-                                        { $eq: ['$status', 'Approved'] }
-                                    ]
-                                }
-                            }
-                        }
-                    ],
+                    localField: 'memberDetails.owner',
+                    foreignField: 'owner',
                     as: 'wellnessData'
                 }
             },
@@ -4611,8 +4505,8 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             name: `${member.firstname} ${member.lastname}`,
             initial: member.initial,
             resource: member.resource,
-            leave: teamData.leaveData.filter(l => l.owner.toString() === member.owner.toString()) || [],
-            wfh: teamData.wfhData.filter(w => w.owner.toString() === member.owner.toString()) || [],
+            leave: teamData.leaveData.filter(l => l.owner.toString() === member.owner.toString() && l.status === "Approved") || [],
+            wfh: teamData.wfhData.filter(w => w.owner.toString() === member.owner.toString() && w.status === "Approved") || [], 
             wellness: teamData.wellnessData.filter(wd => wd.owner.toString() === member.owner.toString()) || [],
             event: teamData.eventData || [],
             dates: []
@@ -4628,7 +4522,6 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             if (Array.isArray(employeeData.leave)) {
             employeeData.leave.forEach(leave => {
                 // Only process approved leaves
-
 
                 if (leave.status === "Approved") {
                 const leaveStart = moment(leave.leavestart);
@@ -4668,6 +4561,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             });
             }
 
+            console.log("Employee Data:", employeeData);
             // Add job component data (if exists)
             teamData.jobComponentsData.forEach(job => {
             if (job.members) {
@@ -5044,7 +4938,7 @@ exports.individualworkload = async (req, res) => {
         }));
 
         const wellnessDates = (
-            await Wellnessday.find({ owner: employeeid, status: "Approved" }).select("requestdate -_id").lean()
+            await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
 
             // Build alldates (weekdays only)
@@ -5200,7 +5094,7 @@ exports.individualworkload = async (req, res) => {
         }));
 
         const wellnessDates = (
-            await Wellnessday.find({ owner: employeeid, status: "Approved" }).select("requestdate -_id").lean()
+            await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
 
         // For events, get all events for all teams user is in, only dates
