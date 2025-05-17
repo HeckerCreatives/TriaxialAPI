@@ -5344,6 +5344,8 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                 }
                 teamData.members.push(employeeData);
             }
+
+            teamData.members.sort((a, b) => a.name[0].localeCompare(b.name[0]));
         });
 
         return res.json({ message: 'success', data });
