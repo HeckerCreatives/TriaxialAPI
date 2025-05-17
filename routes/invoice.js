@@ -14,7 +14,7 @@ router
     //  #region EMPLOYEE
 
     .get("/getinvoicedataemployee", protectemployee, getinvoicedata)
-    .post("/createinvoicemployee", protectemployee, createinvoice)
+    .post("/createinvoicemployee", protectalluser, createinvoice)
 
     //  #endregion
 

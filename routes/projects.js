@@ -6,7 +6,7 @@ router
 
     //  #region USERS
 
-    .get("/listallprojects", protectusers, listallprojects)
+    .get("/listallprojects",protectalluser, listallprojects)
     .get("/listprojects", protectusers, listprojects)
 
     //  #endregion

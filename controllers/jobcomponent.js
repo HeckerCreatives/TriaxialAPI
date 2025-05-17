@@ -2800,7 +2800,9 @@ exports.listteamjobcomponent = async (req, res) => {
                                 _id: 0,
                                 leavedates: {
                                     leavestart: "$leavestart",
-                                    leaveend: "$leaveend"
+                                    leaveend: "$leaveend",
+                                    wellnessdaycycle: "$wellnessdaycycle",
+                                    workinghoursduringleave: "$workinghoursduringleave"
                                 }
                             }
                         }
@@ -3119,7 +3121,12 @@ exports.listteamjobcomponent = async (req, res) => {
                                                                                                         $cond: {
                                                                                                             if: { $gte: ["$$workingHoursDuringLeave", "$$standardHours"] },
                                                                                                             then: 0,
-                                                                                                            else: { $subtract: ["$$standardHours", "$$workingHoursDuringLeave"] }
+                                                                                                            else: { 
+                                                                                                                $round: [
+                                                                                                                    { $subtract: ["$$standardHours", "$$workingHoursDuringLeave"] },
+                                                                                                                    1
+                                                                                                                ]
+                                                                                                            }                                                                                                      
                                                                                                         }
                                                                                                     },
                                                                                                     else: "$$standardHours"
@@ -3128,6 +3135,15 @@ exports.listteamjobcomponent = async (req, res) => {
                                                                                             else: "$$standardHours"
                                                                                         }
                                                                                     },
+                                                                                    leavewellnessday: { $eq: ["$$wellnessDayCycle", true] },
+                                                                                    workinghoursduringleave: {
+                                                                                        $cond: {
+                                                                                            if: "$$isFirstDay",
+                                                                                            then: "$$workingHoursDuringLeave",
+                                                                                            else: 0
+                                                                                        }
+                                                                                    },
+                                                                                    isLeave: true,
                                                                                     status: ["Leave"]
                                                                                 }
                                                                             }
@@ -3476,462 +3492,912 @@ exports.viewduedatesgraph = async (req, res) => {
 }
 
 
+// exports.yourworkload = async (req, res) => {
+//     const { id } = req.user;
+//     const { filterDate } = req.query;
+//     try {
+//         // Use filterDate if provided; otherwise, default to today
+//         const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
+//         const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+//         const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
+
+//         // Find all teams the user is a member of
+//         const teams = await Teams.find({ members: new mongoose.Types.ObjectId(id) }).lean();
+//         const userDetails = await Userdetails.findOne({ owner: id }).lean();
+
+//         // Build alldates (weekdays only)
+//         const dateList = [];
+//         let currentDate = new Date(startOfWeek);
+//         while (currentDate <= endOfRange) {
+//             const dayOfWeek = currentDate.getDay();
+//             if (dayOfWeek !== 6 && dayOfWeek !== 0) {
+//                 dateList.push(new Date(currentDate).toISOString().split('T')[0]);
+//             }
+//             currentDate.setDate(currentDate.getDate() + 1);
+//         }
+
+//         // If no teams, return empty structure
+//         if (!teams.length) {
+//             // Try to get userdetails anyway
+//         const leaveDates = (
+//             await Leave.find({ owner: id, status: "Approved" }).lean()
+//         ).map(leave => ({
+//             ...leave,
+//             leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
+//             leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
+//         }));
+
+//         const wfhDates = (
+//             await Workfromhome.find({ owner: id, status: "Approved" }).select("requestdate requestend -_id").lean()
+//         ).map(wfh => ({
+//             requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
+//             requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
+//         }));
+
+//         const wellnessDates = (
+//             await Wellnessday.find({ owner: id }).select("requestdate -_id").lean()
+//         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
+
+//    // Build alldates (weekdays only)
+//             const dateList = [];
+//             let currentDate = new Date(startOfWeek);
+//             while (currentDate <= endOfRange) {
+//             const dayOfWeek = currentDate.getDay();
+//             if (dayOfWeek !== 6 && dayOfWeek !== 0) {
+//                 dateList.push(new Date(currentDate).toISOString().split('T')[0]);
+//             }
+//             currentDate.setDate(currentDate.getDate() + 1);
+//             }
+
+//             let membersArr = [];
+//             if (userDetails) {
+//             // Build leave overlay dates
+//             let userDates = [];
+//             if (Array.isArray(leaveDates)) {
+//                 leaveDates.forEach(leave => {
+//                 if (leave.status === "Approved") {
+//                     const startDate = moment(leave.leavestart);
+//                     const endDate = moment(leave.leaveend);
+//                     let remainingWorkHours = leave.workinghoursduringleave || 0;
+//                     for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+//                     if (date.day() !== 0 && date.day() !== 6) {
+//                         let standardHours = 7.6;
+//                         if (leave.wellnessdaycycle === true) {
+//                         standardHours = 8.44;
+//                         }
+//                         let hoursForThisDay = standardHours;
+//                         if (remainingWorkHours > 0) {
+//                         if (remainingWorkHours >= standardHours) {
+//                             hoursForThisDay = 0;
+//                             remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+//                         } else {
+//                             hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+//                             remainingWorkHours = 0;
+//                         }
+//                         }
+//                         userDates.push({
+//                         date: date.format('YYYY-MM-DD'),
+//                         hours: Number(hoursForThisDay.toFixed(2)),
+//                         status: ['Leave']
+//                         });
+//                     }
+//                     }
+//                 }
+//                 });
+//             }
+//             // Fill userDates with 0-hour entries for all dates in dateList if not present
+//             const dateSet = new Set(userDates.map(d => d.date));
+//             dateList.forEach(dateStr => {
+//                 if (!dateSet.has(dateStr)) {
+//                 userDates.push({
+//                     date: dateStr,
+//                     hours: 0,
+//                     status: []
+//                 });
+//                 }
+//             });
+//             userDates.sort((a, b) => (a.date > b.date ? 1 : -1));
+//             membersArr.push({
+//                 employee: {
+//                 employeeid: [userDetails.owner?.toString()],
+//                 fullname: `${userDetails.firstname} ${userDetails.lastname}`,
+//                 initials: userDetails.initial
+//                 },
+//                 role: userDetails.role || "",
+//                 leaveDates,
+//                 wellnessDates,
+//                 wfhDates,
+//                 dates: userDates
+//             });
+//             }
+
+//             return res.json({
+//             message: 'success',
+//             data: {
+//                 alldates: dateList,
+//                 yourworkload: [],
+//                 members: membersArr
+//             }
+//             });
+//         }
+
+//         // Prepare all team IDs
+//         const teamIds = teams.map(team => team._id);
+
+//         // Find all projects for these teams within the date range
+//         const projects = await Projects.find({
+//             team: { $in: teamIds },
+//             $or: [
+//                 { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } },
+//                 { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } }
+//             ]
+//         }).lean();
+
+//         // Find all job components for these projects where the user is a member
+//         const projectIds = projects.map(p => p._id);
+//         const jobComponents = await Jobcomponents.find({
+//             project: { $in: projectIds },
+//             members: { $elemMatch: { employee: new mongoose.Types.ObjectId(id) } },
+//             status: { $in: ["completed", "", null, "On-going"] }
+//         })
+//         .populate([
+//             { path: 'project', model: 'Projects' },
+//             { path: 'jobmanager', model: 'Users' }
+//         ])
+//         .lean();
+
+//         // Get all needed details for job managers, clients, teams, etc.
+//         const jobManagerIds = jobComponents.map(jc => jc.jobmanager?._id || jc.jobmanager).filter(Boolean);
+//         const clientIds = projects.map(p => p.client).filter(Boolean);
+//         const teamDetailsMap = {};
+//         teams.forEach(team => { teamDetailsMap[team._id.toString()] = team; });
+
+//         // Get userdetails for job managers
+//         const jobManagerDetails = await Userdetails.find({ owner: { $in: jobManagerIds } }).lean();
+//         const jobManagerDetailsMap = {};
+//         jobManagerDetails.forEach(jm => { jobManagerDetailsMap[jm.owner.toString()] = jm; });
+
+//         // Get client details
+//         const clientDetails = await Clients.find({ _id: { $in: clientIds } }).lean();
+//         const clientDetailsMap = {};
+//         clientDetails.forEach(c => { clientDetailsMap[c._id.toString()] = c; });
+
+//         // Get team member details for initials
+//         const allTeamMemberIds = [].concat(...teams.map(t => t.members));
+//         const allTeamMemberDetails = await Userdetails.find({ owner: { $in: allTeamMemberIds } }).lean();
+//         const allTeamMemberDetailsMap = {};
+//         allTeamMemberDetails.forEach(m => { allTeamMemberDetailsMap[m.owner.toString()] = m; });
+
+//         // Get leave, wfh, wellness, event data for the user
+//         // Only get the date fields and format them (except for leave, which is used for calculations)
+//         const leaveDates = (
+//             await Leave.find({ owner: id, status: "Approved" }).lean()
+//         ).map(leave => ({
+//             ...leave,
+//             leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
+//             leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
+//         }));
+
+//         const wfhDates = (
+//             await Workfromhome.find({ owner: id, status: "Approved" }).select("requestdate requestend -_id").lean()
+//         ).map(wfh => ({
+//             requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
+//             requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
+//         }));
+
+//         const wellnessDates = (
+//             await Wellnessday.find({ owner: id}).select("requestdate -_id").lean()
+//         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
+
+//         // For events, get all events for all teams user is in, only dates
+//         const eventDates = (
+//             await Events.find({ teams: { $in: teamIds } }).select("startdate enddate -_id").lean()
+//         ).map(ev => ({
+//             startdate: ev.startdate ? moment(ev.startdate).format('YYYY-MM-DD') : null,
+//             enddate: ev.enddate ? moment(ev.enddate).format('YYYY-MM-DD') : null
+//         }));
+
+//         // Build yourworkload array
+//         const yourworkload = jobComponents.map(jc => {
+//             const project = jc.project || {};
+//             const team = teamDetailsMap[project.team?.toString()] || {};
+//             const jobmanager = jc.jobmanager;
+//             const jobmanagerDeets = jobManagerDetailsMap[jobmanager?._id?.toString() || jobmanager?.toString()] || {};
+//             const client = clientDetailsMap[project.client?.toString()] || {};
+
+//             // Team members initials
+//             const teammembers = (team.members || []).map(mid => {
+//                 const m = allTeamMemberDetailsMap[mid.toString()];
+//                 return m ? (m.initial || '') : '';
+//             });
+
+//             // Only include the current user's member entry
+//             const members = jc.members
+//                 .filter(m => m.employee?.toString() === id)
+//                 .map(member => {
+//                     // Dates: process leave overlays
+//                     let mappedMember = {
+//                         employee: member.employee,
+//                         role: member.role,
+//                         notes: member.notes,
+//                         dates: (member.dates ? member.dates.map(d => ({
+//                             ...d,
+//                             date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
+//                         })) : []),
+//                         leaveDates,
+//                         wellnessDates,
+//                         eventDates,
+//                         wfhDates: wfhDates
+//                             ? wfhDates.map(wfh => ({
+//                                 ...wfh,
+//                                 requestdate: wfh.requestdate
+//                                     ? moment(wfh.requestdate).format('YYYY-MM-DD')
+//                                     : wfh.requestdate,
+//                                 requestend: wfh.requestend
+//                                     ? moment(wfh.requestend).format('YYYY-MM-DD')
+//                                     : wfh.requestend
+//                             }))
+//                             : []
+//                     };
+
+//                     // Overlay leave on dates
+//                     if (Array.isArray(leaveDates)) {
+//                         leaveDates.forEach(leave => {
+//                             if (leave.status === "Approved") {
+//                                 const startDate = moment(leave.leavestart);
+//                                 const endDate = moment(leave.leaveend);
+//                                 let remainingWorkHours = leave.workinghoursduringleave || 0;
+//                                 for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+//                                     if (date.day() !== 0 && date.day() !== 6) {
+//                                         const dateStr = date.format('YYYY-MM-DD');
+//                                         const existingDateIndex = mappedMember.dates.findIndex(d =>
+//                                             moment(d.date).format('YYYY-MM-DD') === dateStr
+//                                         );
+//                                        let standardHours = 7.6;
+
+//                                         if(leave.wellnessdaycycle === true) {
+//                                             standardHours = 8.44
+//                                         }                                          
+//                                         let hoursForThisDay = standardHours;
+//                                         if (remainingWorkHours > 0) {
+//                                             if (remainingWorkHours >= standardHours) {
+//                                                 hoursForThisDay = 0;
+//                                                 remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+//                                             } else {
+//                                                 hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+//                                                 remainingWorkHours = 0;
+//                                             }
+//                                         }
+//                                         if (existingDateIndex >= 0) {
+//                                             mappedMember.dates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
+//                                         } else {
+//                                             mappedMember.dates.push({
+//                                                 date: date.toDate(),
+//                                                 hours: Number(hoursForThisDay.toFixed(2)),
+//                                                 status: ['Leave']
+//                                             });
+//                                         }
+//                                     }
+//                                 }
+//                             }
+//                         });
+//                     }
+//                     return mappedMember;
+//                 });
+
+//             return {
+//                 _id: jc._id,
+//                 jobmanager: {
+//                     employeeid: jobmanager?._id || jobmanager,
+//                     fullname: jobmanagerDeets.firstname && jobmanagerDeets.lastname
+//                         ? `${jobmanagerDeets.firstname} ${jobmanagerDeets.lastname}`
+//                         : '',
+//                     initials: jobmanagerDeets.initial || ''
+//                 },
+//                 componentid: jc._id,
+//                 clientid: client._id,
+//                 clientname: client.clientname,
+//                 clientpriority: client.priority,
+//                 teamid: team._id,
+//                 teamname: team.teamname,
+//                 teammembers,
+//                 projectname: project.projectname,
+//                 jobno: project.jobno,
+//                 jobcomponent: jc.jobcomponent,
+//                 members
+//             };
+//         });
+
+//         // Only return data for the logged-in user
+//         let membersArr = [];
+//         if (userDetails) {
+
+//             let userDates = [];
+//             jobComponents.forEach(jc => {
+//             jc.members
+//                 .filter(m => m.employee?.toString() === id)
+//                 .forEach(member => {
+//                 if (Array.isArray(member.dates)) {
+//                     userDates = userDates.concat(
+//                     member.dates.map(d => ({
+//                         ...d,
+//                         date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
+//                     }))
+//                     );
+//                 }
+//                 });
+//             });
+
+//             // If userDates is empty but leaveDates exist, generate leave entries
+//             if (userDates.length === 0 && Array.isArray(leaveDates)) {
+//             leaveDates.forEach(leave => {
+//                 if (leave.status === "Approved") {
+//                 const startDate = moment(leave.leavestart);
+//                 const endDate = moment(leave.leaveend);
+//                 let remainingWorkHours = leave.workinghoursduringleave || 0;
+//                 for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+//                     if (date.day() !== 0 && date.day() !== 6) {
+//                     let standardHours = 7.6;
+//                     if (leave.wellnessdaycycle === true) {
+//                         standardHours = 8.44;
+//                     }
+//                     let hoursForThisDay = standardHours;
+//                     if (remainingWorkHours > 0) {
+//                         if (remainingWorkHours >= standardHours) {
+//                         hoursForThisDay = 0;
+//                         remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+//                         } else {
+//                         hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+//                         remainingWorkHours = 0;
+//                         }
+//                     }
+//                     userDates.push({
+//                         date: date.format('YYYY-MM-DD'),
+//                         hours: Number(hoursForThisDay.toFixed(2)),
+//                         status: ['Leave']
+//                     });
+//                     }
+//                 }
+//                 }
+//             });
+//             } else {
+//             // Overlay leave on userDates
+//             if (Array.isArray(leaveDates)) {
+//                 leaveDates.forEach(leave => {
+//                 if (leave.status === "Approved") {
+//                     const startDate = moment(leave.leavestart);
+//                     const endDate = moment(leave.leaveend);
+//                     let remainingWorkHours = leave.workinghoursduringleave || 0;
+//                     for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+//                     if (date.day() !== 0 && date.day() !== 6) {
+//                         const dateStr = date.format('YYYY-MM-DD');
+//                         const existingDateIndex = userDates.findIndex(d =>
+//                         moment(d.date).format('YYYY-MM-DD') === dateStr
+//                         );
+//                         let standardHours = 7.6;
+//                         if (leave.wellnessdaycycle === true) {
+//                         standardHours = 8.44;
+//                         }
+//                         let hoursForThisDay = standardHours;
+//                         if (remainingWorkHours > 0) {
+//                         if (remainingWorkHours >= standardHours) {
+//                             hoursForThisDay = 0;
+//                             remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+//                         } else {
+//                             hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+//                             remainingWorkHours = 0;
+//                         }
+//                         }
+//                         if (existingDateIndex >= 0) {
+//                         userDates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
+//                         } else {
+//                         userDates.push({
+//                             date: date.format('YYYY-MM-DD'),
+//                             hours: Number(hoursForThisDay.toFixed(2)),
+//                             status: ['Leave']
+//                         });
+//                         }
+//                     }
+//                     }
+//                 }
+//                 });
+//             }
+//             }
+
+//             // Fill userDates with 0-hour entries for all dates in dateList if not present
+//             const dateSet = new Set(userDates.map(d => d.date));
+//             dateList.forEach(dateStr => {
+//             if (!dateSet.has(dateStr)) {
+//                 userDates.push({
+//                 date: dateStr,
+//                 hours: 0,
+//                 status: []
+//                 });
+//             }
+//             });
+
+//             userDates.sort((a, b) => (a.date > b.date ? 1 : -1));
+
+//             membersArr.push({
+//             employee: {
+//                 employeeid: [userDetails.owner?.toString()],
+//                 fullname: `${userDetails.firstname} ${userDetails.lastname}`,
+//                 initials: userDetails.initial
+//             },
+//             role: userDetails.role || "",
+//             leaveDates,
+//             wellnessDates,
+//             eventDates,
+//             wfhDates,
+//             dates: userDates
+//             });
+//         }
+
+//         // Only return yourworkload and members for the logged-in user
+//         return res.json({
+//             message: 'success',
+//             data: {
+//             alldates: dateList,
+//             yourworkload: yourworkload.filter(yw => yw.members.some(m => m.employee?.toString() === id)),
+//             members: membersArr
+//             }
+//         });
+//     } catch (err) {
+//         console.error(err);
+//         return res.status(500).json({ message: 'Error processing request', error: err.message });
+//     }
+// };
+
+
 exports.yourworkload = async (req, res) => {
-    const { id } = req.user;
-    const { filterDate } = req.query;
-    try {
-        // Use filterDate if provided; otherwise, default to today
-        const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
-        const startOfWeek = referenceDate.startOf("isoWeek").toDate();
-        const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
+  const { id } = req.user;
+  const { filterDate } = req.query;
+  try {
+    // Use filterDate if provided; otherwise, default to today
+    const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
+    const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+    const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
 
-        // Find all teams the user is a member of
-        const teams = await Teams.find({ members: new mongoose.Types.ObjectId(id) }).lean();
-        const userDetails = await Userdetails.findOne({ owner: id }).lean();
+    // Find all teams the user is a member of
+    let teams;
+    if (!id) {
+      teams = await Teams.find({
+        $or: [
+          { members: { $exists: true, $not: { $size: 0 } } },
+          { manager: { $exists: true, $ne: null } },
+          { directorpartner: { $exists: true, $ne: null } },
+          { associate: { $exists: true, $ne: null } },
+          { teamleader: { $exists: true, $ne: null } }
+        ]
+      }).lean();
+    } else {
+      teams = await Teams.find({
+        $or: [
+          { members: new mongoose.Types.ObjectId(id) },
+          { manager: new mongoose.Types.ObjectId(id) },
+          { directorpartner: new mongoose.Types.ObjectId(id) },
+          { associate: new mongoose.Types.ObjectId(id) },
+          { teamleader: new mongoose.Types.ObjectId(id) }
+        ]
+      }).lean();
+    }
+    const userDetails = await Userdetails.findOne({ owner: id }).lean();
 
-        // Build alldates (weekdays only)
-        const dateList = [];
-        let currentDate = new Date(startOfWeek);
-        while (currentDate <= endOfRange) {
-            const dayOfWeek = currentDate.getDay();
-            if (dayOfWeek !== 6 && dayOfWeek !== 0) {
-                dateList.push(new Date(currentDate).toISOString().split('T')[0]);
-            }
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
+    // Build alldates (weekdays only)
+    const dateList = [];
+    let currentDate = new Date(startOfWeek);
+    while (currentDate <= endOfRange) {
+      const dayOfWeek = currentDate.getDay();
+      if (dayOfWeek !== 6 && dayOfWeek !== 0) {
+        dateList.push(new Date(currentDate).toISOString().split('T')[0]);
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
 
-        // If no teams, return empty structure
-        if (!teams.length) {
-            // Try to get userdetails anyway
-        const leaveDates = (
-            await Leave.find({ owner: id, status: "Approved" }).lean()
-        ).map(leave => ({
-            ...leave,
-            leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
-            leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
-        }));
+    if (!teams.length) {
+      // Try to get userdetails anyway
+      const leaveDates = (
+        await Leave.find({ owner: id, status: "Approved" }).lean()
+      ).map(leave => ({
+        ...leave,
+        leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
+        leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
+      }));
 
-        const wfhDates = (
-            await Workfromhome.find({ owner: id, status: "Approved" }).select("requestdate requestend -_id").lean()
-        ).map(wfh => ({
-            requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
-            requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
-        }));
+      const wfhDates = (
+        await Workfromhome.find({ owner: id, status: "Approved" }).select("requestdate requestend -_id").lean()
+      ).map(wfh => ({
+        requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
+        requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
+      }));
 
-        const wellnessDates = (
-            await Wellnessday.find({ owner: id }).select("requestdate -_id").lean()
-        ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
+      const wellnessDates = (
+        await Wellnessday.find({ owner: id }).select("requestdate -_id").lean()
+      ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
 
-   // Build alldates (weekdays only)
-            const dateList = [];
-            let currentDate = new Date(startOfWeek);
-            while (currentDate <= endOfRange) {
-            const dayOfWeek = currentDate.getDay();
-            if (dayOfWeek !== 6 && dayOfWeek !== 0) {
-                dateList.push(new Date(currentDate).toISOString().split('T')[0]);
-            }
-            currentDate.setDate(currentDate.getDate() + 1);
-            }
-
-            let membersArr = [];
-            if (userDetails) {
-            // Build leave overlay dates
-            let userDates = [];
-            if (Array.isArray(leaveDates)) {
-                leaveDates.forEach(leave => {
-                if (leave.status === "Approved") {
-                    const startDate = moment(leave.leavestart);
-                    const endDate = moment(leave.leaveend);
-                    let remainingWorkHours = leave.workinghoursduringleave || 0;
-                    for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
-                    if (date.day() !== 0 && date.day() !== 6) {
-                        let standardHours = 7.6;
-                        if (leave.wellnessdaycycle === true) {
-                        standardHours = 8.44;
-                        }
-                        let hoursForThisDay = standardHours;
-                        if (remainingWorkHours > 0) {
-                        if (remainingWorkHours >= standardHours) {
-                            hoursForThisDay = 0;
-                            remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                        } else {
-                            hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                            remainingWorkHours = 0;
-                        }
-                        }
-                        userDates.push({
-                        date: date.format('YYYY-MM-DD'),
-                        hours: Number(hoursForThisDay.toFixed(2)),
-                        status: ['Leave']
-                        });
+      let membersArr = [];
+      if (userDetails) {
+        // Build leave overlay dates
+        let userDates = [];
+        if (Array.isArray(leaveDates)) {
+          leaveDates.forEach(leave => {
+            if (leave.status === "Approved") {
+              const startDate = moment(leave.leavestart);
+              const endDate = moment(leave.leaveend);
+              let remainingWorkHours = leave.workinghoursduringleave || 0;
+              for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+                if (date.day() !== 0 && date.day() !== 6) {
+                  let standardHours = 7.6;
+                  if (leave.wellnessdaycycle === true) {
+                    standardHours = 8.44;
+                  }
+                  let hoursForThisDay = standardHours;
+                  if (remainingWorkHours > 0) {
+                    if (remainingWorkHours >= standardHours) {
+                      hoursForThisDay = 0;
+                      remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+                    } else {
+                      hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+                      remainingWorkHours = 0;
                     }
-                    }
+                  }
+                  userDates.push({
+                    date: date.format('YYYY-MM-DD'),
+                    hours: Number(hoursForThisDay.toFixed(2)),
+                    status: ['Leave']
+                  });
                 }
-                });
+              }
             }
-            // Fill userDates with 0-hour entries for all dates in dateList if not present
-            const dateSet = new Set(userDates.map(d => d.date));
-            dateList.forEach(dateStr => {
-                if (!dateSet.has(dateStr)) {
-                userDates.push({
-                    date: dateStr,
-                    hours: 0,
-                    status: []
-                });
-                }
-            });
-            userDates.sort((a, b) => (a.date > b.date ? 1 : -1));
-            membersArr.push({
-                employee: {
-                employeeid: [userDetails.owner?.toString()],
-                fullname: `${userDetails.firstname} ${userDetails.lastname}`,
-                initials: userDetails.initial
-                },
-                role: userDetails.role || "",
-                leaveDates,
-                wellnessDates,
-                wfhDates,
-                dates: userDates
-            });
-            }
-
-            return res.json({
-            message: 'success',
-            data: {
-                alldates: dateList,
-                yourworkload: [],
-                members: membersArr
-            }
-            });
+          });
         }
-
-        // Prepare all team IDs
-        const teamIds = teams.map(team => team._id);
-
-        // Find all projects for these teams within the date range
-        const projects = await Projects.find({
-            team: { $in: teamIds },
-            $or: [
-                { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } },
-                { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } }
-            ]
-        }).lean();
-
-        // Find all job components for these projects where the user is a member
-        const projectIds = projects.map(p => p._id);
-        const jobComponents = await Jobcomponents.find({
-            project: { $in: projectIds },
-            members: { $elemMatch: { employee: new mongoose.Types.ObjectId(id) } },
-            status: { $in: ["completed", "", null, "On-going"] }
-        })
-        .populate([
-            { path: 'project', model: 'Projects' },
-            { path: 'jobmanager', model: 'Users' }
-        ])
-        .lean();
-
-        // Get all needed details for job managers, clients, teams, etc.
-        const jobManagerIds = jobComponents.map(jc => jc.jobmanager?._id || jc.jobmanager).filter(Boolean);
-        const clientIds = projects.map(p => p.client).filter(Boolean);
-        const teamDetailsMap = {};
-        teams.forEach(team => { teamDetailsMap[team._id.toString()] = team; });
-
-        // Get userdetails for job managers
-        const jobManagerDetails = await Userdetails.find({ owner: { $in: jobManagerIds } }).lean();
-        const jobManagerDetailsMap = {};
-        jobManagerDetails.forEach(jm => { jobManagerDetailsMap[jm.owner.toString()] = jm; });
-
-        // Get client details
-        const clientDetails = await Clients.find({ _id: { $in: clientIds } }).lean();
-        const clientDetailsMap = {};
-        clientDetails.forEach(c => { clientDetailsMap[c._id.toString()] = c; });
-
-        // Get team member details for initials
-        const allTeamMemberIds = [].concat(...teams.map(t => t.members));
-        const allTeamMemberDetails = await Userdetails.find({ owner: { $in: allTeamMemberIds } }).lean();
-        const allTeamMemberDetailsMap = {};
-        allTeamMemberDetails.forEach(m => { allTeamMemberDetailsMap[m.owner.toString()] = m; });
-
-        // Get leave, wfh, wellness, event data for the user
-        // Only get the date fields and format them (except for leave, which is used for calculations)
-        const leaveDates = (
-            await Leave.find({ owner: id, status: "Approved" }).lean()
-        ).map(leave => ({
-            ...leave,
-            leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
-            leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
-        }));
-
-        const wfhDates = (
-            await Workfromhome.find({ owner: id, status: "Approved" }).select("requestdate requestend -_id").lean()
-        ).map(wfh => ({
-            requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
-            requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
-        }));
-
-        const wellnessDates = (
-            await Wellnessday.find({ owner: id}).select("requestdate -_id").lean()
-        ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
-
-        // For events, get all events for all teams user is in, only dates
-        const eventDates = (
-            await Events.find({ teams: { $in: teamIds } }).select("startdate enddate -_id").lean()
-        ).map(ev => ({
-            startdate: ev.startdate ? moment(ev.startdate).format('YYYY-MM-DD') : null,
-            enddate: ev.enddate ? moment(ev.enddate).format('YYYY-MM-DD') : null
-        }));
-
-        // Build yourworkload array
-        const yourworkload = jobComponents.map(jc => {
-            const project = jc.project || {};
-            const team = teamDetailsMap[project.team?.toString()] || {};
-            const jobmanager = jc.jobmanager;
-            const jobmanagerDeets = jobManagerDetailsMap[jobmanager?._id?.toString() || jobmanager?.toString()] || {};
-            const client = clientDetailsMap[project.client?.toString()] || {};
-
-            // Team members initials
-            const teammembers = (team.members || []).map(mid => {
-                const m = allTeamMemberDetailsMap[mid.toString()];
-                return m ? (m.initial || '') : '';
+        // Fill userDates with 0-hour entries for all dates in dateList if not present
+        const dateSet = new Set(userDates.map(d => d.date));
+        dateList.forEach(dateStr => {
+          if (!dateSet.has(dateStr)) {
+            userDates.push({
+              date: dateStr,
+              hours: 0,
+              status: []
             });
-
-            // Only include the current user's member entry
-            const members = jc.members
-                .filter(m => m.employee?.toString() === id)
-                .map(member => {
-                    // Dates: process leave overlays
-                    let mappedMember = {
-                        employee: member.employee,
-                        role: member.role,
-                        notes: member.notes,
-                        dates: (member.dates ? member.dates.map(d => ({
-                            ...d,
-                            date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
-                        })) : []),
-                        leaveDates,
-                        wellnessDates,
-                        eventDates,
-                        wfhDates: wfhDates
-                            ? wfhDates.map(wfh => ({
-                                ...wfh,
-                                requestdate: wfh.requestdate
-                                    ? moment(wfh.requestdate).format('YYYY-MM-DD')
-                                    : wfh.requestdate,
-                                requestend: wfh.requestend
-                                    ? moment(wfh.requestend).format('YYYY-MM-DD')
-                                    : wfh.requestend
-                            }))
-                            : []
-                    };
-
-                    // Overlay leave on dates
-                    if (Array.isArray(leaveDates)) {
-                        leaveDates.forEach(leave => {
-                            if (leave.status === "Approved") {
-                                const startDate = moment(leave.leavestart);
-                                const endDate = moment(leave.leaveend);
-                                let remainingWorkHours = leave.workinghoursduringleave || 0;
-                                for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
-                                    if (date.day() !== 0 && date.day() !== 6) {
-                                        const dateStr = date.format('YYYY-MM-DD');
-                                        const existingDateIndex = mappedMember.dates.findIndex(d =>
-                                            moment(d.date).format('YYYY-MM-DD') === dateStr
-                                        );
-                                       let standardHours = 7.6;
-
-                                        if(leave.wellnessdaycycle === true) {
-                                            standardHours = 8.44
-                                        }                                          
-                                        let hoursForThisDay = standardHours;
-                                        if (remainingWorkHours > 0) {
-                                            if (remainingWorkHours >= standardHours) {
-                                                hoursForThisDay = 0;
-                                                remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                                            } else {
-                                                hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                                                remainingWorkHours = 0;
-                                            }
-                                        }
-                                        if (existingDateIndex >= 0) {
-                                            mappedMember.dates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
-                                        } else {
-                                            mappedMember.dates.push({
-                                                date: date.toDate(),
-                                                hours: Number(hoursForThisDay.toFixed(2)),
-                                                status: ['Leave']
-                                            });
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
-                    return mappedMember;
-                });
-
-            return {
-                _id: jc._id,
-                jobmanager: {
-                    employeeid: jobmanager?._id || jobmanager,
-                    fullname: jobmanagerDeets.firstname && jobmanagerDeets.lastname
-                        ? `${jobmanagerDeets.firstname} ${jobmanagerDeets.lastname}`
-                        : '',
-                    initials: jobmanagerDeets.initial || ''
-                },
-                componentid: jc._id,
-                clientid: client._id,
-                clientname: client.clientname,
-                clientpriority: client.priority,
-                teamid: team._id,
-                teamname: team.teamname,
-                teammembers,
-                projectname: project.projectname,
-                jobno: project.jobno,
-                jobcomponent: jc.jobcomponent,
-                members
-            };
+          }
         });
+        userDates.sort((a, b) => (a.date > b.date ? 1 : -1));
+        membersArr.push({
+          employee: {
+            employeeid: [userDetails.owner?.toString()],
+            fullname: `${userDetails.firstname} ${userDetails.lastname}`,
+            initials: userDetails.initial
+          },
+          role: userDetails.role || "",
+          leaveDates,
+          wellnessDates,
+          wfhDates,
+          dates: userDates
+        });
+      }
 
-        // Only return data for the logged-in user
-        let membersArr = [];
-        if (userDetails) {
+      return res.json({
+        message: 'success',
+        data: {
+          alldates: dateList,
+          yourworkload: [],
+          members: membersArr
+        }
+      });
+    }
 
-            let userDates = [];
-            jobComponents.forEach(jc => {
-            jc.members
-                .filter(m => m.employee?.toString() === id)
-                .forEach(member => {
-                if (Array.isArray(member.dates)) {
-                    userDates = userDates.concat(
-                    member.dates.map(d => ({
-                        ...d,
-                        date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
-                    }))
-                    );
-                }
-                });
-            });
+    // Prepare all team IDs
+    const teamIds = teams.map(team => team._id);
 
-            // If userDates is empty but leaveDates exist, generate leave entries
-            if (userDates.length === 0 && Array.isArray(leaveDates)) {
-            leaveDates.forEach(leave => {
-                if (leave.status === "Approved") {
-                const startDate = moment(leave.leavestart);
-                const endDate = moment(leave.leaveend);
-                let remainingWorkHours = leave.workinghoursduringleave || 0;
-                for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
-                    if (date.day() !== 0 && date.day() !== 6) {
-                    let standardHours = 7.6;
-                    if (leave.wellnessdaycycle === true) {
-                        standardHours = 8.44;
-                    }
-                    let hoursForThisDay = standardHours;
-                    if (remainingWorkHours > 0) {
-                        if (remainingWorkHours >= standardHours) {
-                        hoursForThisDay = 0;
-                        remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                        } else {
-                        hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                        remainingWorkHours = 0;
-                        }
-                    }
-                    userDates.push({
-                        date: date.format('YYYY-MM-DD'),
-                        hours: Number(hoursForThisDay.toFixed(2)),
-                        status: ['Leave']
-                    });
-                    }
-                }
-                }
-            });
-            } else {
-            // Overlay leave on userDates
-            if (Array.isArray(leaveDates)) {
-                leaveDates.forEach(leave => {
-                if (leave.status === "Approved") {
-                    const startDate = moment(leave.leavestart);
-                    const endDate = moment(leave.leaveend);
-                    let remainingWorkHours = leave.workinghoursduringleave || 0;
-                    for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
-                    if (date.day() !== 0 && date.day() !== 6) {
-                        const dateStr = date.format('YYYY-MM-DD');
-                        const existingDateIndex = userDates.findIndex(d =>
-                        moment(d.date).format('YYYY-MM-DD') === dateStr
-                        );
-                        let standardHours = 7.6;
-                        if (leave.wellnessdaycycle === true) {
-                        standardHours = 8.44;
-                        }
-                        let hoursForThisDay = standardHours;
-                        if (remainingWorkHours > 0) {
-                        if (remainingWorkHours >= standardHours) {
-                            hoursForThisDay = 0;
-                            remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                        } else {
-                            hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                            remainingWorkHours = 0;
-                        }
-                        }
-                        if (existingDateIndex >= 0) {
-                        userDates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
-                        } else {
-                        userDates.push({
-                            date: date.format('YYYY-MM-DD'),
-                            hours: Number(hoursForThisDay.toFixed(2)),
-                            status: ['Leave']
-                        });
-                        }
-                    }
-                    }
-                }
-                });
+    // Find all projects for these teams within the date range
+    const projects = await Projects.find({
+      team: { $in: teamIds },
+      $or: [
+        { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } },
+        { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } }
+      ]
+    }).lean();
+
+    // Find all job components for these projects where the user is a member
+    const projectIds = projects.map(p => p._id);
+    // --- FIX: Only filter by id from req.user, not a separate query param ---
+    let jobComponentQuery = {
+      project: { $in: projectIds },
+      status: { $in: ["completed", "", null, "On-going"] }
+    };
+    if (id) {
+      jobComponentQuery.members = { $elemMatch: { employee: new mongoose.Types.ObjectId(id) } };
+    }
+    const jobComponents = await Jobcomponents.find(jobComponentQuery)
+      .populate([
+        { path: 'project', model: 'Projects' },
+        { path: 'jobmanager', model: 'Users' }
+      ])
+      .lean();
+
+    // Get all needed details for job managers, clients, teams, etc.
+    const jobManagerIds = jobComponents.map(jc => jc.jobmanager?._id || jc.jobmanager).filter(Boolean);
+    const clientIds = projects.map(p => p.client).filter(Boolean);
+    const teamDetailsMap = {};
+    teams.forEach(team => { teamDetailsMap[team._id.toString()] = team; });
+
+    // Get userdetails for job managers
+    const jobManagerDetails = await Userdetails.find({ owner: { $in: jobManagerIds } }).lean();
+    const jobManagerDetailsMap = {};
+    jobManagerDetails.forEach(jm => { jobManagerDetailsMap[jm.owner.toString()] = jm; });
+
+    // Get client details
+    const clientDetails = await Clients.find({ _id: { $in: clientIds } }).lean();
+    const clientDetailsMap = {};
+    clientDetails.forEach(c => { clientDetailsMap[c._id.toString()] = c; });
+
+    // Get team member details for initials
+    const allTeamMemberIds = [].concat(...teams.map(t => t.members));
+    const allTeamMemberDetails = await Userdetails.find({ owner: { $in: allTeamMemberIds } }).lean();
+    const allTeamMemberDetailsMap = {};
+    allTeamMemberDetails.forEach(m => { allTeamMemberDetailsMap[m.owner.toString()] = m; });
+
+    // Get leave, wfh, wellness, event data for the user
+    // Only get the date fields and format them (except for leave, which is used for calculations)
+    const leaveDates = (
+      await Leave.find({ owner: id, status: "Approved" }).lean()
+    ).map(leave => ({
+      ...leave,
+      leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
+      leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
+    }));
+
+    const wfhDates = (
+      await Workfromhome.find({ owner: id, status: "Approved" }).select("requestdate requestend -_id").lean()
+    ).map(wfh => ({
+      requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
+      requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
+    }));
+
+    const wellnessDates = (
+      await Wellnessday.find({ owner: id }).select("requestdate -_id").lean()
+    ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
+
+    // For events, get all events for all teams user is in, only dates
+    const eventDates = (
+      await Events.find({ teams: { $in: teamIds } }).select("startdate enddate -_id").lean()
+    ).map(ev => ({
+      startdate: ev.startdate ? moment(ev.startdate).format('YYYY-MM-DD') : null,
+      enddate: ev.enddate ? moment(ev.enddate).format('YYYY-MM-DD') : null
+    }));
+
+    // Create a map of leave hours by date for later use in calculations
+    const leaveHoursMap = new Map();
+    leaveDates.forEach(leave => {
+      if (leave.status === "Approved") {
+        const startDate = moment(leave.leavestart);
+        const endDate = moment(leave.leaveend);
+        let remainingWorkHours = leave.workinghoursduringleave || 0;
+        
+        for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+          if (date.day() !== 0 && date.day() !== 6) {  // Skip weekends
+            const dateStr = date.format('YYYY-MM-DD');
+            let standardHours = leave.wellnessdaycycle === true ? 8.44 : 7.6;
+            let hoursForThisDay = standardHours;
+            
+            if (remainingWorkHours > 0) {
+              if (remainingWorkHours >= standardHours) {
+                hoursForThisDay = 0;
+                remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+              } else {
+                hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+                remainingWorkHours = 0;
+              }
             }
-            }
+            
+            leaveHoursMap.set(dateStr, {
+              hours: hoursForThisDay,
+              standardHours: standardHours
+            });
+          }
+        }
+      }
+    });
 
-            // Fill userDates with 0-hour entries for all dates in dateList if not present
-            const dateSet = new Set(userDates.map(d => d.date));
-            dateList.forEach(dateStr => {
-            if (!dateSet.has(dateStr)) {
-                userDates.push({
+    // Build yourworkload array
+    const yourworkload = jobComponents.map(jc => {
+      const project = jc.project || {};
+      const team = teamDetailsMap[project.team?.toString()] || {};
+      const jobmanager = jc.jobmanager;
+      const jobmanagerDeets = jobManagerDetailsMap[jobmanager?._id?.toString() || jobmanager?.toString()] || {};
+      const client = clientDetailsMap[project.client?.toString()] || {};
+
+      // Team members initials
+      const teammembers = (team.members || []).map(mid => {
+        const m = allTeamMemberDetailsMap[mid.toString()];
+        return m ? (m.initial || '') : '';
+      });
+
+      // Only include the current user's member entry
+      const members = jc.members
+        .filter(m => m.employee?.toString() === id)
+        .map(member => {
+          // Preserve the original dates array as is (these are the actual job component dates)
+          const originalDates = Array.isArray(member.dates) ? member.dates : [];
+          
+          // Create a map of dates to make lookups faster
+          const dateMap = new Map();
+          originalDates.forEach(d => {
+            if (d.date) {
+              const dateStr = moment(d.date).format('YYYY-MM-DD');
+              dateMap.set(dateStr, {
+                ...d,
                 date: dateStr,
-                hours: 0,
-                status: []
-                });
+                _id: d._id
+              });
             }
-            });
-
-            userDates.sort((a, b) => (a.date > b.date ? 1 : -1));
-
-            membersArr.push({
-            employee: {
-                employeeid: [userDetails.owner?.toString()],
-                fullname: `${userDetails.firstname} ${userDetails.lastname}`,
-                initials: userDetails.initial
-            },
-            role: userDetails.role || "",
+          });
+          
+          // Map dates to their formatted version while preserving all original data
+          let mappedMember = {
+            employee: member.employee,
+            role: member.role,
+            notes: member.notes,
+            // Only include the exact dates present in the job component - no filling with extras
+            dates: originalDates.map(d => ({
+              ...d,
+              date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
+            })),
             leaveDates,
             wellnessDates,
             eventDates,
-            wfhDates,
-            dates: userDates
-            });
-        }
-
-        // Only return yourworkload and members for the logged-in user
-        return res.json({
-            message: 'success',
-            data: {
-            alldates: dateList,
-            yourworkload: yourworkload.filter(yw => yw.members.some(m => m.employee?.toString() === id)),
-            members: membersArr
-            }
+            wfhDates: wfhDates
+              ? wfhDates.map(wfh => ({
+                ...wfh,
+                requestdate: wfh.requestdate
+                  ? moment(wfh.requestdate).format('YYYY-MM-DD')
+                  : wfh.requestdate,
+                requestend: wfh.requestend
+                  ? moment(wfh.requestend).format('YYYY-MM-DD')
+                  : wfh.requestend
+              }))
+              : []
+          };
+          return mappedMember;
         });
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ message: 'Error processing request', error: err.message });
-    }
-};
 
+      return {
+        _id: jc._id,
+        jobmanager: {
+          employeeid: jobmanager?._id || jobmanager,
+          fullname: jobmanagerDeets.firstname && jobmanagerDeets.lastname
+            ? `${jobmanagerDeets.firstname} ${jobmanagerDeets.lastname}`
+            : '',
+          initials: jobmanagerDeets.initial || ''
+        },
+        componentid: jc._id,
+        clientid: client._id,
+        clientname: client.clientname,
+        clientpriority: client.priority,
+        teamid: team._id,
+        teamname: team.teamname,
+        teammembers,
+        projectname: project.projectname,
+        jobno: project.jobno,
+        jobcomponent: jc.jobcomponent,
+        members
+      };
+    });
+
+    // Get all job component dates for the user
+    const allJobComponentDates = new Map();
+    
+    jobComponents.forEach(jc => {
+      jc.members
+        .filter(m => m.employee?.toString() === id)
+        .forEach(member => {
+          if (Array.isArray(member.dates)) {
+            member.dates.forEach(d => {
+              if (d.date) {
+                const dateStr = moment(d.date).format('YYYY-MM-DD');
+                // If we already have this date, add the hours
+                if (allJobComponentDates.has(dateStr)) {
+                  const existing = allJobComponentDates.get(dateStr);
+                  existing.hours += Number(d.hours || 0);
+                  existing.status = [...new Set([...existing.status, ...(d.status || [])])];
+                  allJobComponentDates.set(dateStr, existing);
+                } else {
+                  // Otherwise create a new entry
+                  allJobComponentDates.set(dateStr, {
+                    date: dateStr,
+                    hours: Number(d.hours || 0),
+                    status: d.status || []
+                  });
+                }
+              }
+            });
+          }
+        });
+    });
+
+    // Now process the members array, considering leave hours and job component hours
+    let membersArr = [];
+    if (userDetails) {
+      // Create a comprehensive list of all dates for this user
+      let userDates = [];
+      
+      // First, add all dates from dateList with 0 hours
+      dateList.forEach(dateStr => {
+        userDates.push({
+          date: dateStr,
+          hours: 0,
+          status: []
+        });
+      });
+      
+      // Now process each date, adding leave hours and adjusting for job component hours
+      userDates = userDates.map(dateEntry => {
+        const dateStr = dateEntry.date;
+        const jobComponentHours = allJobComponentDates.has(dateStr) 
+          ? allJobComponentDates.get(dateStr).hours 
+          : 0;
+        
+        // Check if this date has leave hours
+        if (leaveHoursMap.has(dateStr)) {
+          const leaveInfo = leaveHoursMap.get(dateStr);
+          const standardHours = leaveInfo.standardHours;
+          const leaveHours = leaveInfo.hours;
+          
+          // Calculate the adjusted hours
+          // If job hours > 0, we need to adjust leave hours accordingly
+          let finalHours;
+          
+          if (jobComponentHours > 0) {
+            // The formula: leave hours - job hours
+            // If result is negative, it means job hours exceed leave hours allocation
+            finalHours = Number((leaveHours - jobComponentHours).toFixed(2));
+          } else {
+            finalHours = leaveHours;
+          }
+          
+          return {
+            date: dateStr,
+            hours: finalHours,
+            status: ['Leave']
+          };
+        } else {
+          // No leave for this date, return 0 hours
+          return dateEntry;
+        }
+      });
+      
+      // Sort the dates
+      userDates.sort((a, b) => (a.date > b.date ? 1 : -1));
+      
+      membersArr.push({
+        employee: {
+          employeeid: [userDetails.owner?.toString()],
+          fullname: `${userDetails.firstname} ${userDetails.lastname}`,
+          initials: userDetails.initial
+        },
+        role: userDetails.role || "",
+        leaveDates,
+        wellnessDates,
+        eventDates,
+        wfhDates,
+        dates: userDates
+      });
+    }
+
+    return res.json({
+      message: 'success',
+      data: {
+        alldates: dateList,
+        yourworkload,
+        members: membersArr
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error processing request', error: err.message });
+  }
+};
 
 exports.editjobmanagercomponents = async (req, res) => {
     const { id, email } = req.user;
@@ -4890,6 +5356,258 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
     }
 };
 
+// exports.getjobcomponentindividualrequest = async (req, res) => {
+//     const { id, email } = req.user;
+//     const { filterDate, teamid } = req.query;
+
+//     try {
+//         if (!teamid || !mongoose.Types.ObjectId.isValid(teamid)) {
+//             return res.status(400).json({ message: 'failed', data: 'Valid Team ID is required.' });
+//         }
+
+//         const referenceDate = filterDate 
+//             ? moment.tz(new Date(filterDate), "Australia/Sydney") 
+//             : moment.tz("Australia/Sydney");
+
+//         const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+//         const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
+
+//         const result = await Teams.aggregate([
+//             { 
+//                 $match: { _id: new mongoose.Types.ObjectId(teamid) } 
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'userdetails', // Get all team members
+//                     localField: 'members',
+//                     foreignField: 'owner',
+//                     as: 'memberDetails'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'projects', // Get projects for this team
+//                     let: { teamId: '$_id' },
+//                     pipeline: [
+//                         {
+//                             $match: { 
+//                                 $expr: { 
+//                                     $eq: ['$team', '$$teamId'] 
+//                                 }
+//                             }
+//                         },
+//                         {
+//                             $lookup: {
+//                                 from: 'jobcomponents', 
+//                                 localField: '_id', 
+//                                 foreignField: 'project', 
+//                                 as: 'jobComponents'
+//                             }
+//                         }
+//                     ],
+//                     as: 'activeProjects'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'leaves',
+//                     localField: 'memberDetails.owner',
+//                     foreignField: 'owner',
+//                     as: 'leaveData'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'workfromhomes',
+//                     localField: 'memberDetails.owner',
+//                     foreignField: 'owner',
+//                     as: 'wfhData'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'wellnessdays',
+//                     localField: 'memberDetails.owner',
+//                     foreignField: 'owner',
+//                     as: 'wellnessData'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'events',
+//                     let: { teamId: '$_id' },
+//                     pipeline: [
+//                         { 
+//                             $match: { 
+//                                 $expr: { 
+//                                     $in: ['$$teamId', '$teams'] 
+//                                 }
+//                             }
+//                         }
+//                     ],
+//                     as: 'eventData'
+//                 }
+//             },
+//             {
+//                 $project: {
+//                     _id: 1,
+//                     teamname: 1,
+//                     memberDetails: 1,
+//                     leaveData: 1,
+//                     wfhData: 1,
+//                     wellnessData: 1,
+//                     eventData: 1,
+//                     jobComponentsData: {
+//                         $reduce: {
+//                             input: "$activeProjects",
+//                             initialValue: [],
+//                             in: { $concatArrays: ["$$value", "$$this.jobComponents"] }
+//                         }
+//                     }
+//                 }
+//             }
+//         ]);
+
+//         if (!result || result.length === 0) {
+//             return res.json({ message: 'success', data: { alldates: [], teams: [] } });
+//         }
+
+//         const teamData = result[0]; // Since we query for one team, take the first result.
+
+//         const data = {
+//             alldates: [],
+//             teams: []
+//         };
+
+//         // Generate date range (weekdays only)
+//         let currentDate = moment.utc(startOfWeek);
+//         while (currentDate.isSameOrBefore(endOfRange, "day")) {
+//             if (currentDate.day() !== 6 && currentDate.day() !== 0) { // Exclude weekends
+//             data.alldates.push(currentDate.format("YYYY-MM-DD"));
+//             }
+//             currentDate.add(1, "day");
+//         }
+
+//         // Prepare the team structure
+//         let formattedTeam = {
+//             teamid: teamData._id,
+//             name: teamData.teamname,
+//             members: []
+//         };
+
+//         // Process each member
+//         teamData.memberDetails.forEach(member => {
+//             let employeeData = {
+//             id: member.owner,
+//             name: `${member.firstname} ${member.lastname}`,
+//             initial: member.initial,
+//             resource: member.resource,
+//             leave: teamData.leaveData.filter(l => l.owner.toString() === member.owner.toString() && l.status === "Approved") || [],
+//             wfh: teamData.wfhData.filter(w => w.owner.toString() === member.owner.toString() && w.status === "Approved") || [], 
+//             wellness: teamData.wellnessData.filter(wd => wd.owner.toString() === member.owner.toString()) || [],
+//             event: teamData.eventData || [],
+//             dates: []
+//             };
+
+//             // Initialize date structure
+//             const dates = data.alldates.map(date => ({
+//             date,
+//             totalhoursofjobcomponents: 0
+//             }));
+
+//             // Process leave data
+//           if (Array.isArray(employeeData.leave)) {
+//                 employeeData.leave.forEach(leave => {
+//                     // Only process approved leaves
+//                     if (leave.status === "Approved") {
+//                         const leaveStart = moment(leave.leavestart);
+//                         const leaveEnd = moment(leave.leaveend);
+                        
+//                         // Store the original working hours during leave value
+//                         let remainingWorkHours = leave.workinghoursduringleave || 0;
+//                         let isFirstDay = true; // Flag to track first day of leave period
+
+//                         for (let day = moment(leaveStart); day <= moment(leaveEnd); day.add(1, 'days')) {
+//                             if (day.day() !== 0 && day.day() !== 6) { // Skip weekends
+//                                 const formattedDate = day.format('YYYY-MM-DD');
+//                                 let dateEntry = dates.find(d => d.date === formattedDate);
+
+//                                 let standardHours = 7.6;
+//                                 if (leave.wellnessdaycycle === true) {
+//                                     standardHours = 8.44;
+//                                 }
+                                
+//                                 let hoursForThisDay = standardHours;
+
+//                                 // If there are remaining work hours, allocate them to this day
+//                                 if (remainingWorkHours > 0) {
+//                                     if (remainingWorkHours >= standardHours) {
+//                                         hoursForThisDay = 0; // Full day's hours are work hours
+//                                         remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+//                                     } else {
+//                                         hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+//                                         remainingWorkHours = 0;
+//                                     }
+//                                 }
+
+//                                 if (dateEntry) {
+//                                     dateEntry.totalhoursofjobcomponents = Number(hoursForThisDay.toFixed(2));
+                                    
+//                                     // Add working hours during leave information to the first day
+//                                     if (isFirstDay && leave.workinghoursduringleave > 0) {
+//                                         dateEntry.workinghoursduringleave = Number(leave.workinghoursduringleave);
+                                        
+//                                         // Optionally, you can also include a status to indicate this
+//                                         if (!dateEntry.status) dateEntry.status = [];
+//                                         if (dateEntry.status.indexOf('PartialWork') === -1 && leave.workinghoursduringleave > 0) {
+//                                             dateEntry.status.push('PartialWork');
+//                                         }
+//                                     }
+//                                 }
+                                
+//                                 // After processing first weekday, set flag to false
+//                                 isFirstDay = false;
+//                             }
+//                         }
+//                     }
+//                 });
+//             }
+
+//             // Add job component data (if exists)
+//             teamData.jobComponentsData.forEach(job => {
+//             if (job.members) {
+//                 const memberData = job.members.find(m => m.employee && m.employee.toString() === member.owner.toString());
+//                 if (memberData && memberData.dates) {
+//                 memberData.dates.forEach(dateEntry => {
+//                     const existingDate = dates.find(d => moment(d.date).isSame(dateEntry.date, 'day'));
+//                     if (existingDate) {
+//                     existingDate.totalhoursofjobcomponents += dateEntry.hours || 0;
+//                     }
+//                 });
+//                 }
+//             }
+//             });
+
+//             employeeData.dates = dates;
+//             formattedTeam.members.push(employeeData);
+//         });
+
+//         // Sort members alphabetically
+//         formattedTeam.members.sort((a, b) => a.name.localeCompare(b.name));
+
+//         data.teams.push(formattedTeam);
+
+//         return res.json({ message: 'success', data });
+//     } catch (err) {
+//         console.error(err);
+//         return res.status(500).json({
+//             message: 'Error processing request',
+//             error: err.message
+//         });
+//     }
+// };
+
+
 exports.getjobcomponentindividualrequest = async (req, res) => {
     const { id, email } = req.user;
     const { filterDate, teamid } = req.query;
@@ -4899,20 +5617,20 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             return res.status(400).json({ message: 'failed', data: 'Valid Team ID is required.' });
         }
 
-        const referenceDate = filterDate 
-            ? moment.tz(new Date(filterDate), "Australia/Sydney") 
+        const referenceDate = filterDate
+            ? moment.tz(new Date(filterDate), "Australia/Sydney")
             : moment.tz("Australia/Sydney");
 
         const startOfWeek = referenceDate.startOf("isoWeek").toDate();
         const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
 
         const result = await Teams.aggregate([
-            { 
-                $match: { _id: new mongoose.Types.ObjectId(teamid) } 
+            {
+                $match: { _id: new mongoose.Types.ObjectId(teamid) }
             },
             {
                 $lookup: {
-                    from: 'userdetails', // Get all team members
+                    from: 'userdetails',
                     localField: 'members',
                     foreignField: 'owner',
                     as: 'memberDetails'
@@ -4920,21 +5638,21 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             },
             {
                 $lookup: {
-                    from: 'projects', // Get projects for this team
+                    from: 'projects',
                     let: { teamId: '$_id' },
                     pipeline: [
                         {
-                            $match: { 
-                                $expr: { 
-                                    $eq: ['$team', '$$teamId'] 
+                            $match: {
+                                $expr: {
+                                    $eq: ['$team', '$$teamId']
                                 }
                             }
                         },
                         {
                             $lookup: {
-                                from: 'jobcomponents', 
-                                localField: '_id', 
-                                foreignField: 'project', 
+                                from: 'jobcomponents',
+                                localField: '_id',
+                                foreignField: 'project',
                                 as: 'jobComponents'
                             }
                         }
@@ -4971,10 +5689,10 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
                     from: 'events',
                     let: { teamId: '$_id' },
                     pipeline: [
-                        { 
-                            $match: { 
-                                $expr: { 
-                                    $in: ['$$teamId', '$teams'] 
+                        {
+                            $match: {
+                                $expr: {
+                                    $in: ['$$teamId', '$teams']
                                 }
                             }
                         }
@@ -5006,7 +5724,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             return res.json({ message: 'success', data: { alldates: [], teams: [] } });
         }
 
-        const teamData = result[0]; // Since we query for one team, take the first result.
+        const teamData = result[0];
 
         const data = {
             alldates: [],
@@ -5016,119 +5734,102 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
         // Generate date range (weekdays only)
         let currentDate = moment.utc(startOfWeek);
         while (currentDate.isSameOrBefore(endOfRange, "day")) {
-            if (currentDate.day() !== 6 && currentDate.day() !== 0) { // Exclude weekends
-            data.alldates.push(currentDate.format("YYYY-MM-DD"));
+            if (currentDate.day() !== 6 && currentDate.day() !== 0) {
+                data.alldates.push(currentDate.format("YYYY-MM-DD"));
             }
             currentDate.add(1, "day");
         }
 
-        // Prepare the team structure
         let formattedTeam = {
             teamid: teamData._id,
             name: teamData.teamname,
             members: []
         };
 
-        // Process each member
         teamData.memberDetails.forEach(member => {
             let employeeData = {
-            id: member.owner,
-            name: `${member.firstname} ${member.lastname}`,
-            initial: member.initial,
-            resource: member.resource,
-            leave: teamData.leaveData.filter(l => l.owner.toString() === member.owner.toString() && l.status === "Approved") || [],
-            wfh: teamData.wfhData.filter(w => w.owner.toString() === member.owner.toString() && w.status === "Approved") || [], 
-            wellness: teamData.wellnessData.filter(wd => wd.owner.toString() === member.owner.toString()) || [],
-            event: teamData.eventData || [],
-            dates: []
+                id: member.owner,
+                name: `${member.firstname} ${member.lastname}`,
+                initial: member.initial,
+                resource: member.resource,
+                leave: teamData.leaveData.filter(l => l.owner.toString() === member.owner.toString() && l.status === "Approved") || [],
+                wfh: teamData.wfhData.filter(w => w.owner.toString() === member.owner.toString() && w.status === "Approved") || [],
+                wellness: teamData.wellnessData.filter(wd => wd.owner.toString() === member.owner.toString()) || [],
+                event: teamData.eventData || [],
+                dates: []
             };
 
-            // Initialize date structure
             const dates = data.alldates.map(date => ({
-            date,
-            totalhoursofjobcomponents: 0
+                date,
+                totalhoursofjobcomponents: 0
             }));
 
-            // Process leave data
-          if (Array.isArray(employeeData.leave)) {
-                employeeData.leave.forEach(leave => {
-                    // Only process approved leaves
-                    if (leave.status === "Approved") {
-                        const leaveStart = moment(leave.leavestart);
-                        const leaveEnd = moment(leave.leaveend);
-                        
-                        // Store the original working hours during leave value
-                        let remainingWorkHours = leave.workinghoursduringleave || 0;
-                        let isFirstDay = true; // Flag to track first day of leave period
+            const jobHoursByDate = {};
 
-                        for (let day = moment(leaveStart); day <= moment(leaveEnd); day.add(1, 'days')) {
-                            if (day.day() !== 0 && day.day() !== 6) { // Skip weekends
-                                const formattedDate = day.format('YYYY-MM-DD');
-                                let dateEntry = dates.find(d => d.date === formattedDate);
+            teamData.jobComponentsData.forEach(job => {
+                if (job.members) {
+                    // 🔧 FIX: Get all roles (not just the first one)
+                    const memberRoles = job.members.filter(m => m.employee && m.employee.toString() === member.owner.toString());
+                    memberRoles.forEach(role => {
+                        if (role.dates && Array.isArray(role.dates)) {
+                            role.dates.forEach(dateEntry => {
+                                const dateStr = moment(dateEntry.date).format('YYYY-MM-DD');
+                                jobHoursByDate[dateStr] = (jobHoursByDate[dateStr] || 0) + (dateEntry.hours || 0);
+                            });
+                        }
+                    });
+                }
+            });
 
-                                let standardHours = 7.6;
-                                if (leave.wellnessdaycycle === true) {
-                                    standardHours = 8.44;
+            // Process leave days and subtract job hours from standard leave hours
+           if (Array.isArray(employeeData.leave)) {
+            employeeData.leave.forEach(leave => {
+                if (leave.status === "Approved") {
+                    const leaveStart = moment(leave.leavestart);
+                    const leaveEnd = moment(leave.leaveend);
+
+                    for (let day = moment(leaveStart); day <= moment(leaveEnd); day.add(1, 'days')) {
+                        if (day.day() !== 0 && day.day() !== 6) {
+                            const formattedDate = day.format('YYYY-MM-DD');
+                            const dateEntry = dates.find(d => d.date === formattedDate);
+                            if (!dateEntry) continue;
+
+                            const standardHours = leave.wellnessdaycycle ? 8.44 : 7.6;
+                            const workedHours = jobHoursByDate[formattedDate] || 0;
+
+                            // 💥 Allow negative hours if worked exceeds standard
+                            const leaveHoursForDay = standardHours - workedHours;
+                            dateEntry.totalhoursofjobcomponents = leaveHoursForDay;
+
+                            if (day.isSame(leaveStart, 'day') && leave.workinghoursduringleave > 0) {
+                                dateEntry.workinghoursduringleave = Number(leave.workinghoursduringleave);
+                                if (!dateEntry.status) dateEntry.status = [];
+                                if (!dateEntry.status.includes('PartialWork')) {
+                                    dateEntry.status.push('PartialWork');
                                 }
-                                
-                                let hoursForThisDay = standardHours;
-
-                                // If there are remaining work hours, allocate them to this day
-                                if (remainingWorkHours > 0) {
-                                    if (remainingWorkHours >= standardHours) {
-                                        hoursForThisDay = 0; // Full day's hours are work hours
-                                        remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                                    } else {
-                                        hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                                        remainingWorkHours = 0;
-                                    }
-                                }
-
-                                if (dateEntry) {
-                                    dateEntry.totalhoursofjobcomponents = Number(hoursForThisDay.toFixed(2));
-                                    
-                                    // Add working hours during leave information to the first day
-                                    if (isFirstDay && leave.workinghoursduringleave > 0) {
-                                        dateEntry.workinghoursduringleave = Number(leave.workinghoursduringleave);
-                                        
-                                        // Optionally, you can also include a status to indicate this
-                                        if (!dateEntry.status) dateEntry.status = [];
-                                        if (dateEntry.status.indexOf('PartialWork') === -1 && leave.workinghoursduringleave > 0) {
-                                            dateEntry.status.push('PartialWork');
-                                        }
-                                    }
-                                }
-                                
-                                // After processing first weekday, set flag to false
-                                isFirstDay = false;
                             }
                         }
                     }
-                });
-            }
-
-            // Add job component data (if exists)
-            teamData.jobComponentsData.forEach(job => {
-            if (job.members) {
-                const memberData = job.members.find(m => m.employee && m.employee.toString() === member.owner.toString());
-                if (memberData && memberData.dates) {
-                memberData.dates.forEach(dateEntry => {
-                    const existingDate = dates.find(d => moment(d.date).isSame(dateEntry.date, 'day'));
-                    if (existingDate) {
-                    existingDate.totalhoursofjobcomponents += dateEntry.hours || 0;
-                    }
-                });
                 }
-            }
+            });
+        }
+
+
+            // Fill in job hours for non-leave days
+            dates.forEach(dateEntry => {
+                if (dateEntry.totalhoursofjobcomponents === 0) {
+                    const jobHours = jobHoursByDate[dateEntry.date] || 0;
+                    if (jobHours > 0) {
+                        dateEntry.totalhoursofjobcomponents = jobHours;
+                    }
+                }
             });
 
             employeeData.dates = dates;
             formattedTeam.members.push(employeeData);
         });
 
-        // Sort members alphabetically
         formattedTeam.members.sort((a, b) => a.name.localeCompare(b.name));
-
         data.teams.push(formattedTeam);
 
         return res.json({ message: 'success', data });
@@ -5140,6 +5841,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
         });
     }
 };
+
 
 exports.getmanagerjobcomponentdashboard = async (req, res) => {
     const { id, email } = req.user;
@@ -5419,438 +6121,889 @@ exports.getmanagerjobcomponentdashboard = async (req, res) => {
 
 //  #region MANAGER & EMPLOYEE
 
+// exports.individualworkload = async (req, res) => {
+//     const { id } = req.user;
+//     const { employeeid, filterDate } = req.query;
+//     try {
+//         // Use filterDate if provided; otherwise, default to today
+//         const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
+//         const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+//         const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
+
+//         // Find all teams the user is a member of
+//         let teams;
+//         if (!employeeid) {
+//             teams = await Teams.find({
+//                 $or: [
+//                     { members: { $exists: true, $not: { $size: 0 } } },
+//                     { manager: { $exists: true, $ne: null } },
+//                     { directorpartner: { $exists: true, $ne: null } },
+//                     { associate: { $exists: true, $ne: null } },
+//                     { teamleader: { $exists: true, $ne: null } }
+//                 ]
+//             }).lean();
+//         } else {
+//             teams = await Teams.find({
+//                 $or: [
+//                     { members: new mongoose.Types.ObjectId(employeeid) },
+//                     { manager: new mongoose.Types.ObjectId(employeeid) },
+//                     { directorpartner: new mongoose.Types.ObjectId(employeeid) },
+//                     { associate: new mongoose.Types.ObjectId(employeeid) },
+//                     { teamleader: new mongoose.Types.ObjectId(employeeid) }
+//                 ]
+//             }).lean();
+//         }
+//         const userDetails = await Userdetails.findOne({ owner: employeeid }).lean();
+
+//         // Build alldates (weekdays only)
+//         const dateList = [];
+//         let currentDate = new Date(startOfWeek);
+//         while (currentDate <= endOfRange) {
+//             const dayOfWeek = currentDate.getDay();
+//             if (dayOfWeek !== 6 && dayOfWeek !== 0) {
+//                 dateList.push(new Date(currentDate).toISOString().split('T')[0]);
+//             }
+//             currentDate.setDate(currentDate.getDate() + 1);
+//         }
+
+//      if (!teams.length) {
+//             // Try to get userdetails anyway
+
+//         const leaveDates = (
+//             await Leave.find({ owner: employeeid, status: "Approved" }).lean()
+//         ).map(leave => ({
+//             ...leave,
+//             leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
+//             leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
+//         }));
+
+//         const wfhDates = (
+//             await Workfromhome.find({ owner: employeeid, status: "Approved" }).select("requestdate requestend -_id").lean()
+//         ).map(wfh => ({
+//             requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
+//             requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
+//         }));
+
+//         const wellnessDates = (
+//             await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
+//         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
+
+//             // Build alldates (weekdays only)
+//             const dateList = [];
+//             let currentDate = new Date(startOfWeek);
+//             while (currentDate <= endOfRange) {
+//             const dayOfWeek = currentDate.getDay();
+//             if (dayOfWeek !== 6 && dayOfWeek !== 0) {
+//                 dateList.push(new Date(currentDate).toISOString().split('T')[0]);
+//             }
+//             currentDate.setDate(currentDate.getDate() + 1);
+//             }
+
+//             let membersArr = [];
+//             if (userDetails) {
+//             // Build leave overlay dates
+//             let userDates = [];
+//             if (Array.isArray(leaveDates)) {
+//                 leaveDates.forEach(leave => {
+//                 if (leave.status === "Approved") {
+//                     const startDate = moment(leave.leavestart);
+//                     const endDate = moment(leave.leaveend);
+//                     let remainingWorkHours = leave.workinghoursduringleave || 0;
+//                     for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+//                     if (date.day() !== 0 && date.day() !== 6) {
+//                         let standardHours = 7.6;
+//                         if (leave.wellnessdaycycle === true) {
+//                         standardHours = 8.44;
+//                         }
+//                         let hoursForThisDay = standardHours;
+//                         if (remainingWorkHours > 0) {
+//                         if (remainingWorkHours >= standardHours) {
+//                             hoursForThisDay = 0;
+//                             remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+//                         } else {
+//                             hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+//                             remainingWorkHours = 0;
+//                         }
+//                         }
+//                         userDates.push({
+//                         date: date.format('YYYY-MM-DD'),
+//                         hours: Number(hoursForThisDay.toFixed(2)),
+//                         status: ['Leave']
+//                         });
+//                     }
+//                     }
+//                 }
+//                 });
+//             }
+//             // Fill userDates with 0-hour entries for all dates in dateList if not present
+//             const dateSet = new Set(userDates.map(d => d.date));
+//             dateList.forEach(dateStr => {
+//                 if (!dateSet.has(dateStr)) {
+//                 userDates.push({
+//                     date: dateStr,
+//                     hours: 0,
+//                     status: []
+//                 });
+//                 }
+//             });
+//             userDates.sort((a, b) => (a.date > b.date ? 1 : -1));
+//             membersArr.push({
+//                 employee: {
+//                 employeeid: [userDetails.owner?.toString()],
+//                 fullname: `${userDetails.firstname} ${userDetails.lastname}`,
+//                 initials: userDetails.initial
+//                 },
+//                 role: userDetails.role || "",
+//                 leaveDates,
+//                 wellnessDates,               
+//                 wfhDates,
+//                 dates: userDates
+//             });
+//             }
+
+//             return res.json({
+//             message: 'success',
+//             data: {
+//                 alldates: dateList,
+//                 yourworkload: [],
+//                 members: membersArr
+//             }
+//             });
+//         }
+
+
+//         // Prepare all team IDs
+//         const teamIds = teams.map(team => team._id);
+
+//         // Find all projects for these teams within the date range
+//         const projects = await Projects.find({
+//             team: { $in: teamIds },
+//             $or: [
+//                 { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } },
+//                 { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } }
+//             ]
+//         }).lean();
+
+//         // Find all job components for these projects where the user is a member
+//         const projectIds = projects.map(p => p._id);
+//         // --- FIX: Only filter by employeeid if provided, else skip filter (for "all" mode) ---
+//         let jobComponentQuery = {
+//             project: { $in: projectIds },
+//             status: { $in: ["completed", "", null, "On-going"] }
+//         };
+//         if (employeeid) {
+//             jobComponentQuery.members = { $elemMatch: { employee: new mongoose.Types.ObjectId(employeeid) } };
+//         }
+//         const jobComponents = await Jobcomponents.find(jobComponentQuery)
+//             .populate([
+//                 { path: 'project', model: 'Projects' },
+//                 { path: 'jobmanager', model: 'Users' }
+//             ])
+//             .lean();
+
+//         // Get all needed details for job managers, clients, teams, etc.
+//         const jobManagerIds = jobComponents.map(jc => jc.jobmanager?._id || jc.jobmanager).filter(Boolean);
+//         const clientIds = projects.map(p => p.client).filter(Boolean);
+//         const teamDetailsMap = {};
+//         teams.forEach(team => { teamDetailsMap[team._id.toString()] = team; });
+
+//         // Get userdetails for job managers
+//         const jobManagerDetails = await Userdetails.find({ owner: { $in: jobManagerIds } }).lean();
+//         const jobManagerDetailsMap = {};
+//         jobManagerDetails.forEach(jm => { jobManagerDetailsMap[jm.owner.toString()] = jm; });
+
+//         // Get client details
+//         const clientDetails = await Clients.find({ _id: { $in: clientIds } }).lean();
+//         const clientDetailsMap = {};
+//         clientDetails.forEach(c => { clientDetailsMap[c._id.toString()] = c; });
+
+//         // Get team member details for initials
+//         const allTeamMemberIds = [].concat(...teams.map(t => t.members));
+//         const allTeamMemberDetails = await Userdetails.find({ owner: { $in: allTeamMemberIds } }).lean();
+//         const allTeamMemberDetailsMap = {};
+//         allTeamMemberDetails.forEach(m => { allTeamMemberDetailsMap[m.owner.toString()] = m; });
+
+//         // Get leave, wfh, wellness, event data for the user
+//         // Only get the date fields and format them (except for leave, which is used for calculations)
+//         const leaveDates = (
+//             await Leave.find({ owner: employeeid, status: "Approved" }).lean()
+//         ).map(leave => ({
+//             ...leave,
+//             leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
+//             leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
+//         }));
+
+//         const wfhDates = (
+//             await Workfromhome.find({ owner: employeeid, status: "Approved" }).select("requestdate requestend -_id").lean()
+//         ).map(wfh => ({
+//             requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
+//             requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
+//         }));
+
+//         const wellnessDates = (
+//             await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
+//         ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
+
+//         // For events, get all events for all teams user is in, only dates
+//         const eventDates = (
+//             await Events.find({ teams: { $in: teamIds } }).select("startdate enddate -_id").lean()
+//         ).map(ev => ({
+//             startdate: ev.startdate ? moment(ev.startdate).format('YYYY-MM-DD') : null,
+//             enddate: ev.enddate ? moment(ev.enddate).format('YYYY-MM-DD') : null
+//         }));
+
+//         // Build yourworkload array
+//         const yourworkload = jobComponents.map(jc => {
+//             const project = jc.project || {};
+//             const team = teamDetailsMap[project.team?.toString()] || {};
+//             const jobmanager = jc.jobmanager;
+//             const jobmanagerDeets = jobManagerDetailsMap[jobmanager?._id?.toString() || jobmanager?.toString()] || {};
+//             const client = clientDetailsMap[project.client?.toString()] || {};
+
+//             // Team members initials
+//             const teammembers = (team.members || []).map(mid => {
+//                 const m = allTeamMemberDetailsMap[mid.toString()];
+//                 return m ? (m.initial || '') : '';
+//             });
+
+//             // Only include the current user's member entry
+//             const members = jc.members
+//                 .filter(m => m.employee?.toString() === (employeeid || id))
+//                 .map(member => {
+//                     // Dates: process leave overlays
+//                     let mappedMember = {
+//                         employee: member.employee,
+//                         role: member.role,
+//                         notes: member.notes,
+//                         dates: (member.dates ? member.dates.map(d => ({
+//                             ...d,
+//                             date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
+//                         })) : []),
+//                         leaveDates,
+//                         wellnessDates,
+//                         eventDates,
+//                         wfhDates: wfhDates
+//                             ? wfhDates.map(wfh => ({
+//                                 ...wfh,
+//                                 requestdate: wfh.requestdate
+//                                     ? moment(wfh.requestdate).format('YYYY-MM-DD')
+//                                     : wfh.requestdate,
+//                                 requestend: wfh.requestend
+//                                     ? moment(wfh.requestend).format('YYYY-MM-DD')
+//                                     : wfh.requestend
+//                             }))
+//                             : []
+//                     };
+
+//                     // Overlay leave on dates
+//                     if (Array.isArray(leaveDates)) {
+//                         leaveDates.forEach(leave => {
+//                             if (leave.status === "Approved") {
+//                                 const startDate = moment(leave.leavestart);
+//                                 const endDate = moment(leave.leaveend);
+//                                 let remainingWorkHours = leave.workinghoursduringleave || 0;
+//                                 for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+//                                     if (date.day() !== 0 && date.day() !== 6) {
+//                                         const dateStr = date.format('YYYY-MM-DD');
+//                                         const existingDateIndex = mappedMember.dates.findIndex(d =>
+//                                             moment(d.date).format('YYYY-MM-DD') === dateStr
+//                                         );
+//                                         let standardHours = 7.6;
+
+//                                         if(leave.wellnessdaycycle === true) {
+//                                             standardHours = 8.44
+//                                         }
+//                                         let hoursForThisDay = standardHours;
+//                                         if (remainingWorkHours > 0) {
+//                                             if (remainingWorkHours >= standardHours) {
+//                                                 hoursForThisDay = 0;
+//                                                 remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+//                                             } else {
+//                                                 hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+//                                                 remainingWorkHours = 0;
+//                                             }
+//                                         }
+//                                         if (existingDateIndex >= 0) {
+//                                             mappedMember.dates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
+//                                         } else {
+//                                             mappedMember.dates.push({
+//                                                 date: date.toDate(),
+//                                                 hours: Number(hoursForThisDay.toFixed(2)),
+//                                                 status: ['Leave']
+//                                             });
+//                                         }
+//                                     }
+//                                 }
+//                             }
+//                         });
+//                     }
+//                     return mappedMember;
+//                 });
+
+//             return {
+//                 _id: jc._id,
+//                 jobmanager: {
+//                     employeeid: jobmanager?._id || jobmanager,
+//                     fullname: jobmanagerDeets.firstname && jobmanagerDeets.lastname
+//                         ? `${jobmanagerDeets.firstname} ${jobmanagerDeets.lastname}`
+//                         : '',
+//                     initials: jobmanagerDeets.initial || ''
+//                 },
+//                 componentid: jc._id,
+//                 clientid: client._id,
+//                 clientname: client.clientname,
+//                 clientpriority: client.priority,
+//                 teamid: team._id,
+//                 teamname: team.teamname,
+//                 teammembers,
+//                 projectname: project.projectname,
+//                 jobno: project.jobno,
+//                 jobcomponent: jc.jobcomponent,
+//                 members
+//             };
+//         });
+
+//         // If no job components, still return members info for the user
+//         let membersArr = [];
+//         if (userDetails) {
+//             // Find all jobComponents for this user (if any)
+//             let userDates = [];
+//             jobComponents.forEach(jc => {
+//             jc.members
+//                 .filter(m => m.employee?.toString() === (employeeid || id))
+//                 .forEach(member => {
+//                 if (Array.isArray(member.dates)) {
+//                     userDates = userDates.concat(
+//                     member.dates.map(d => ({
+//                         ...d,
+//                         date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
+//                     }))
+//                     );
+//                 }
+//                 });
+//             });
+
+//             // Overlay leave on userDates
+//             if (Array.isArray(leaveDates)) {
+//             leaveDates.forEach(leave => {
+//                 if (leave.status === "Approved") {
+//                 const startDate = moment(leave.leavestart);
+//                 const endDate = moment(leave.leaveend);
+//                 let remainingWorkHours = leave.workinghoursduringleave || 0;
+//                 for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+//                     if (date.day() !== 0 && date.day() !== 6) {
+//                     const dateStr = date.format('YYYY-MM-DD');
+//                     const existingDateIndex = userDates.findIndex(d =>
+//                         moment(d.date).format('YYYY-MM-DD') === dateStr
+//                     );
+//                     let standardHours = 7.6;
+
+//                     if (leave.wellnessdaycycle === true) {
+//                         standardHours = 8.44;
+//                     }
+//                     let hoursForThisDay = standardHours;
+//                     if (remainingWorkHours > 0) {
+//                         if (remainingWorkHours >= standardHours) {
+//                         hoursForThisDay = 0;
+//                         remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+//                         } else {
+//                         hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+//                         remainingWorkHours = 0;
+//                         }
+//                     }
+//                     if (existingDateIndex >= 0) {
+//                         userDates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
+//                     } else {
+//                         userDates.push({
+//                         date: date.toDate(),
+//                         hours: Number(hoursForThisDay.toFixed(2)),
+//                         status: ['Leave']
+//                         });
+//                     }
+//                     }
+//                 }
+//                 }
+//             });
+//             }
+
+//             membersArr.push({
+//             employee: {
+//                 employeeid: [userDetails.owner?.toString()],
+//                 fullname: `${userDetails.firstname} ${userDetails.lastname}`,
+//                 initials: userDetails.initial
+//             },
+//             role: userDetails.role || "",
+//             leaveDates,
+//             wellnessDates,
+//             eventDates,
+//             wfhDates,
+//             dates: userDates
+//             });
+//         }
+
+//         return res.json({
+//             message: 'success',
+//             data: {
+//                 alldates: dateList,
+//                 yourworkload,
+//                 members: membersArr
+//             }
+//         });
+//     } catch (err) {
+//         console.error(err);
+//         return res.status(500).json({ message: 'Error processing request', error: err.message });
+//     }
+// };
+
+//  #endergion
+
+
 exports.individualworkload = async (req, res) => {
-    const { id } = req.user;
-    const { employeeid, filterDate } = req.query;
-    try {
-        // Use filterDate if provided; otherwise, default to today
-        const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
-        const startOfWeek = referenceDate.startOf("isoWeek").toDate();
-        const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
+  const { id } = req.user;
+  const { employeeid, filterDate } = req.query;
+  try {
+    // Use filterDate if provided; otherwise, default to today
+    const referenceDate = filterDate ? moment.tz(new Date(filterDate), "Australia/Sydney") : moment.tz("Australia/Sydney");
+    const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+    const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
 
-        // Find all teams the user is a member of
-        let teams;
-        if (!employeeid) {
-            teams = await Teams.find({
-                $or: [
-                    { members: { $exists: true, $not: { $size: 0 } } },
-                    { manager: { $exists: true, $ne: null } },
-                    { directorpartner: { $exists: true, $ne: null } },
-                    { associate: { $exists: true, $ne: null } },
-                    { teamleader: { $exists: true, $ne: null } }
-                ]
-            }).lean();
-        } else {
-            teams = await Teams.find({
-                $or: [
-                    { members: new mongoose.Types.ObjectId(employeeid) },
-                    { manager: new mongoose.Types.ObjectId(employeeid) },
-                    { directorpartner: new mongoose.Types.ObjectId(employeeid) },
-                    { associate: new mongoose.Types.ObjectId(employeeid) },
-                    { teamleader: new mongoose.Types.ObjectId(employeeid) }
-                ]
-            }).lean();
-        }
-        const userDetails = await Userdetails.findOne({ owner: employeeid }).lean();
+    // Find all teams the user is a member of
+    let teams;
+    if (!employeeid) {
+      teams = await Teams.find({
+        $or: [
+          { members: { $exists: true, $not: { $size: 0 } } },
+          { manager: { $exists: true, $ne: null } },
+          { directorpartner: { $exists: true, $ne: null } },
+          { associate: { $exists: true, $ne: null } },
+          { teamleader: { $exists: true, $ne: null } }
+        ]
+      }).lean();
+    } else {
+      teams = await Teams.find({
+        $or: [
+          { members: new mongoose.Types.ObjectId(employeeid) },
+          { manager: new mongoose.Types.ObjectId(employeeid) },
+          { directorpartner: new mongoose.Types.ObjectId(employeeid) },
+          { associate: new mongoose.Types.ObjectId(employeeid) },
+          { teamleader: new mongoose.Types.ObjectId(employeeid) }
+        ]
+      }).lean();
+    }
+    const userDetails = await Userdetails.findOne({ owner: employeeid }).lean();
 
-        // Build alldates (weekdays only)
-        const dateList = [];
-        let currentDate = new Date(startOfWeek);
-        while (currentDate <= endOfRange) {
-            const dayOfWeek = currentDate.getDay();
-            if (dayOfWeek !== 6 && dayOfWeek !== 0) {
-                dateList.push(new Date(currentDate).toISOString().split('T')[0]);
-            }
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
+    // Build alldates (weekdays only)
+    const dateList = [];
+    let currentDate = new Date(startOfWeek);
+    while (currentDate <= endOfRange) {
+      const dayOfWeek = currentDate.getDay();
+      if (dayOfWeek !== 6 && dayOfWeek !== 0) {
+        dateList.push(new Date(currentDate).toISOString().split('T')[0]);
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
 
-     if (!teams.length) {
-            // Try to get userdetails anyway
+    if (!teams.length) {
+      // Try to get userdetails anyway
+      const leaveDates = (
+        await Leave.find({ owner: employeeid, status: "Approved" }).lean()
+      ).map(leave => ({
+        ...leave,
+        leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
+        leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
+      }));
 
-        const leaveDates = (
-            await Leave.find({ owner: employeeid, status: "Approved" }).lean()
-        ).map(leave => ({
-            ...leave,
-            leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
-            leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
-        }));
+      const wfhDates = (
+        await Workfromhome.find({ owner: employeeid, status: "Approved" }).select("requestdate requestend -_id").lean()
+      ).map(wfh => ({
+        requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
+        requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
+      }));
 
-        const wfhDates = (
-            await Workfromhome.find({ owner: employeeid, status: "Approved" }).select("requestdate requestend -_id").lean()
-        ).map(wfh => ({
-            requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
-            requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
-        }));
+      const wellnessDates = (
+        await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
+      ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
 
-        const wellnessDates = (
-            await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
-        ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
-
-            // Build alldates (weekdays only)
-            const dateList = [];
-            let currentDate = new Date(startOfWeek);
-            while (currentDate <= endOfRange) {
-            const dayOfWeek = currentDate.getDay();
-            if (dayOfWeek !== 6 && dayOfWeek !== 0) {
-                dateList.push(new Date(currentDate).toISOString().split('T')[0]);
-            }
-            currentDate.setDate(currentDate.getDate() + 1);
-            }
-
-            let membersArr = [];
-            if (userDetails) {
-            // Build leave overlay dates
-            let userDates = [];
-            if (Array.isArray(leaveDates)) {
-                leaveDates.forEach(leave => {
-                if (leave.status === "Approved") {
-                    const startDate = moment(leave.leavestart);
-                    const endDate = moment(leave.leaveend);
-                    let remainingWorkHours = leave.workinghoursduringleave || 0;
-                    for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
-                    if (date.day() !== 0 && date.day() !== 6) {
-                        let standardHours = 7.6;
-                        if (leave.wellnessdaycycle === true) {
-                        standardHours = 8.44;
-                        }
-                        let hoursForThisDay = standardHours;
-                        if (remainingWorkHours > 0) {
-                        if (remainingWorkHours >= standardHours) {
-                            hoursForThisDay = 0;
-                            remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                        } else {
-                            hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                            remainingWorkHours = 0;
-                        }
-                        }
-                        userDates.push({
-                        date: date.format('YYYY-MM-DD'),
-                        hours: Number(hoursForThisDay.toFixed(2)),
-                        status: ['Leave']
-                        });
-                    }
-                    }
-                }
-                });
-            }
-            // Fill userDates with 0-hour entries for all dates in dateList if not present
-            const dateSet = new Set(userDates.map(d => d.date));
-            dateList.forEach(dateStr => {
-                if (!dateSet.has(dateStr)) {
-                userDates.push({
-                    date: dateStr,
-                    hours: 0,
-                    status: []
-                });
-                }
-            });
-            userDates.sort((a, b) => (a.date > b.date ? 1 : -1));
-            membersArr.push({
-                employee: {
-                employeeid: [userDetails.owner?.toString()],
-                fullname: `${userDetails.firstname} ${userDetails.lastname}`,
-                initials: userDetails.initial
-                },
-                role: userDetails.role || "",
-                leaveDates,
-                wellnessDates,               
-                wfhDates,
-                dates: userDates
-            });
-            }
-
-            return res.json({
-            message: 'success',
-            data: {
-                alldates: dateList,
-                yourworkload: [],
-                members: membersArr
-            }
-            });
-        }
-
-
-        // Prepare all team IDs
-        const teamIds = teams.map(team => team._id);
-
-        // Find all projects for these teams within the date range
-        const projects = await Projects.find({
-            team: { $in: teamIds },
-            $or: [
-                { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } },
-                { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } }
-            ]
-        }).lean();
-
-        // Find all job components for these projects where the user is a member
-        const projectIds = projects.map(p => p._id);
-        // --- FIX: Only filter by employeeid if provided, else skip filter (for "all" mode) ---
-        let jobComponentQuery = {
-            project: { $in: projectIds },
-            status: { $in: ["completed", "", null, "On-going"] }
-        };
-        if (employeeid) {
-            jobComponentQuery.members = { $elemMatch: { employee: new mongoose.Types.ObjectId(employeeid) } };
-        }
-        const jobComponents = await Jobcomponents.find(jobComponentQuery)
-            .populate([
-                { path: 'project', model: 'Projects' },
-                { path: 'jobmanager', model: 'Users' }
-            ])
-            .lean();
-
-        // Get all needed details for job managers, clients, teams, etc.
-        const jobManagerIds = jobComponents.map(jc => jc.jobmanager?._id || jc.jobmanager).filter(Boolean);
-        const clientIds = projects.map(p => p.client).filter(Boolean);
-        const teamDetailsMap = {};
-        teams.forEach(team => { teamDetailsMap[team._id.toString()] = team; });
-
-        // Get userdetails for job managers
-        const jobManagerDetails = await Userdetails.find({ owner: { $in: jobManagerIds } }).lean();
-        const jobManagerDetailsMap = {};
-        jobManagerDetails.forEach(jm => { jobManagerDetailsMap[jm.owner.toString()] = jm; });
-
-        // Get client details
-        const clientDetails = await Clients.find({ _id: { $in: clientIds } }).lean();
-        const clientDetailsMap = {};
-        clientDetails.forEach(c => { clientDetailsMap[c._id.toString()] = c; });
-
-        // Get team member details for initials
-        const allTeamMemberIds = [].concat(...teams.map(t => t.members));
-        const allTeamMemberDetails = await Userdetails.find({ owner: { $in: allTeamMemberIds } }).lean();
-        const allTeamMemberDetailsMap = {};
-        allTeamMemberDetails.forEach(m => { allTeamMemberDetailsMap[m.owner.toString()] = m; });
-
-        // Get leave, wfh, wellness, event data for the user
-        // Only get the date fields and format them (except for leave, which is used for calculations)
-        const leaveDates = (
-            await Leave.find({ owner: employeeid, status: "Approved" }).lean()
-        ).map(leave => ({
-            ...leave,
-            leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
-            leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
-        }));
-
-        const wfhDates = (
-            await Workfromhome.find({ owner: employeeid, status: "Approved" }).select("requestdate requestend -_id").lean()
-        ).map(wfh => ({
-            requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
-            requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
-        }));
-
-        const wellnessDates = (
-            await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
-        ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
-
-        // For events, get all events for all teams user is in, only dates
-        const eventDates = (
-            await Events.find({ teams: { $in: teamIds } }).select("startdate enddate -_id").lean()
-        ).map(ev => ({
-            startdate: ev.startdate ? moment(ev.startdate).format('YYYY-MM-DD') : null,
-            enddate: ev.enddate ? moment(ev.enddate).format('YYYY-MM-DD') : null
-        }));
-
-        // Build yourworkload array
-        const yourworkload = jobComponents.map(jc => {
-            const project = jc.project || {};
-            const team = teamDetailsMap[project.team?.toString()] || {};
-            const jobmanager = jc.jobmanager;
-            const jobmanagerDeets = jobManagerDetailsMap[jobmanager?._id?.toString() || jobmanager?.toString()] || {};
-            const client = clientDetailsMap[project.client?.toString()] || {};
-
-            // Team members initials
-            const teammembers = (team.members || []).map(mid => {
-                const m = allTeamMemberDetailsMap[mid.toString()];
-                return m ? (m.initial || '') : '';
-            });
-
-            // Only include the current user's member entry
-            const members = jc.members
-                .filter(m => m.employee?.toString() === (employeeid || id))
-                .map(member => {
-                    // Dates: process leave overlays
-                    let mappedMember = {
-                        employee: member.employee,
-                        role: member.role,
-                        notes: member.notes,
-                        dates: (member.dates ? member.dates.map(d => ({
-                            ...d,
-                            date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
-                        })) : []),
-                        leaveDates,
-                        wellnessDates,
-                        eventDates,
-                        wfhDates: wfhDates
-                            ? wfhDates.map(wfh => ({
-                                ...wfh,
-                                requestdate: wfh.requestdate
-                                    ? moment(wfh.requestdate).format('YYYY-MM-DD')
-                                    : wfh.requestdate,
-                                requestend: wfh.requestend
-                                    ? moment(wfh.requestend).format('YYYY-MM-DD')
-                                    : wfh.requestend
-                            }))
-                            : []
-                    };
-
-                    // Overlay leave on dates
-                    if (Array.isArray(leaveDates)) {
-                        leaveDates.forEach(leave => {
-                            if (leave.status === "Approved") {
-                                const startDate = moment(leave.leavestart);
-                                const endDate = moment(leave.leaveend);
-                                let remainingWorkHours = leave.workinghoursduringleave || 0;
-                                for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
-                                    if (date.day() !== 0 && date.day() !== 6) {
-                                        const dateStr = date.format('YYYY-MM-DD');
-                                        const existingDateIndex = mappedMember.dates.findIndex(d =>
-                                            moment(d.date).format('YYYY-MM-DD') === dateStr
-                                        );
-                                        let standardHours = 7.6;
-
-                                        if(leave.wellnessdaycycle === true) {
-                                            standardHours = 8.44
-                                        }
-                                        let hoursForThisDay = standardHours;
-                                        if (remainingWorkHours > 0) {
-                                            if (remainingWorkHours >= standardHours) {
-                                                hoursForThisDay = 0;
-                                                remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                                            } else {
-                                                hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                                                remainingWorkHours = 0;
-                                            }
-                                        }
-                                        if (existingDateIndex >= 0) {
-                                            mappedMember.dates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
-                                        } else {
-                                            mappedMember.dates.push({
-                                                date: date.toDate(),
-                                                hours: Number(hoursForThisDay.toFixed(2)),
-                                                status: ['Leave']
-                                            });
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
-                    return mappedMember;
-                });
-
-            return {
-                _id: jc._id,
-                jobmanager: {
-                    employeeid: jobmanager?._id || jobmanager,
-                    fullname: jobmanagerDeets.firstname && jobmanagerDeets.lastname
-                        ? `${jobmanagerDeets.firstname} ${jobmanagerDeets.lastname}`
-                        : '',
-                    initials: jobmanagerDeets.initial || ''
-                },
-                componentid: jc._id,
-                clientid: client._id,
-                clientname: client.clientname,
-                clientpriority: client.priority,
-                teamid: team._id,
-                teamname: team.teamname,
-                teammembers,
-                projectname: project.projectname,
-                jobno: project.jobno,
-                jobcomponent: jc.jobcomponent,
-                members
-            };
-        });
-
-        // If no job components, still return members info for the user
-        let membersArr = [];
-        if (userDetails) {
-            // Find all jobComponents for this user (if any)
-            let userDates = [];
-            jobComponents.forEach(jc => {
-            jc.members
-                .filter(m => m.employee?.toString() === (employeeid || id))
-                .forEach(member => {
-                if (Array.isArray(member.dates)) {
-                    userDates = userDates.concat(
-                    member.dates.map(d => ({
-                        ...d,
-                        date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
-                    }))
-                    );
-                }
-                });
-            });
-
-            // Overlay leave on userDates
-            if (Array.isArray(leaveDates)) {
-            leaveDates.forEach(leave => {
-                if (leave.status === "Approved") {
-                const startDate = moment(leave.leavestart);
-                const endDate = moment(leave.leaveend);
-                let remainingWorkHours = leave.workinghoursduringleave || 0;
-                for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
-                    if (date.day() !== 0 && date.day() !== 6) {
-                    const dateStr = date.format('YYYY-MM-DD');
-                    const existingDateIndex = userDates.findIndex(d =>
-                        moment(d.date).format('YYYY-MM-DD') === dateStr
-                    );
-                    let standardHours = 7.6;
-
-                    if (leave.wellnessdaycycle === true) {
-                        standardHours = 8.44;
-                    }
-                    let hoursForThisDay = standardHours;
-                    if (remainingWorkHours > 0) {
-                        if (remainingWorkHours >= standardHours) {
-                        hoursForThisDay = 0;
-                        remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
-                        } else {
-                        hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
-                        remainingWorkHours = 0;
-                        }
-                    }
-                    if (existingDateIndex >= 0) {
-                        userDates[existingDateIndex].hours = Number(hoursForThisDay.toFixed(2));
+      let membersArr = [];
+      if (userDetails) {
+        // Build leave overlay dates
+        let userDates = [];
+        if (Array.isArray(leaveDates)) {
+          leaveDates.forEach(leave => {
+            if (leave.status === "Approved") {
+              const startDate = moment(leave.leavestart);
+              const endDate = moment(leave.leaveend);
+              let remainingWorkHours = leave.workinghoursduringleave || 0;
+              for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+                if (date.day() !== 0 && date.day() !== 6) {
+                  let standardHours = 7.6;
+                  if (leave.wellnessdaycycle === true) {
+                    standardHours = 8.44;
+                  }
+                  let hoursForThisDay = standardHours;
+                  if (remainingWorkHours > 0) {
+                    if (remainingWorkHours >= standardHours) {
+                      hoursForThisDay = 0;
+                      remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
                     } else {
-                        userDates.push({
-                        date: date.toDate(),
-                        hours: Number(hoursForThisDay.toFixed(2)),
-                        status: ['Leave']
-                        });
+                      hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+                      remainingWorkHours = 0;
                     }
-                    }
+                  }
+                  userDates.push({
+                    date: date.format('YYYY-MM-DD'),
+                    hours: Number(hoursForThisDay.toFixed(2)),
+                    status: ['Leave']
+                  });
                 }
-                }
-            });
+              }
             }
+          });
+        }
+        // Fill userDates with 0-hour entries for all dates in dateList if not present
+        const dateSet = new Set(userDates.map(d => d.date));
+        dateList.forEach(dateStr => {
+          if (!dateSet.has(dateStr)) {
+            userDates.push({
+              date: dateStr,
+              hours: 0,
+              status: []
+            });
+          }
+        });
+        userDates.sort((a, b) => (a.date > b.date ? 1 : -1));
+        membersArr.push({
+          employee: {
+            employeeid: [userDetails.owner?.toString()],
+            fullname: `${userDetails.firstname} ${userDetails.lastname}`,
+            initials: userDetails.initial
+          },
+          role: userDetails.role || "",
+          leaveDates,
+          wellnessDates,
+          wfhDates,
+          dates: userDates
+        });
+      }
 
-            membersArr.push({
-            employee: {
-                employeeid: [userDetails.owner?.toString()],
-                fullname: `${userDetails.firstname} ${userDetails.lastname}`,
-                initials: userDetails.initial
-            },
-            role: userDetails.role || "",
+      return res.json({
+        message: 'success',
+        data: {
+          alldates: dateList,
+          yourworkload: [],
+          members: membersArr
+        }
+      });
+    }
+
+    // Prepare all team IDs
+    const teamIds = teams.map(team => team._id);
+
+    // Find all projects for these teams within the date range
+    const projects = await Projects.find({
+      team: { $in: teamIds },
+      $or: [
+        { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } },
+        { startdate: { $lte: endOfRange }, deadlinedate: { $gte: startOfWeek } }
+      ]
+    }).lean();
+
+    // Find all job components for these projects where the user is a member
+    const projectIds = projects.map(p => p._id);
+    // --- FIX: Only filter by employeeid if provided, else skip filter (for "all" mode) ---
+    let jobComponentQuery = {
+      project: { $in: projectIds },
+      status: { $in: ["completed", "", null, "On-going"] }
+    };
+    if (employeeid) {
+      jobComponentQuery.members = { $elemMatch: { employee: new mongoose.Types.ObjectId(employeeid) } };
+    }
+    const jobComponents = await Jobcomponents.find(jobComponentQuery)
+      .populate([
+        { path: 'project', model: 'Projects' },
+        { path: 'jobmanager', model: 'Users' }
+      ])
+      .lean();
+
+    // Get all needed details for job managers, clients, teams, etc.
+    const jobManagerIds = jobComponents.map(jc => jc.jobmanager?._id || jc.jobmanager).filter(Boolean);
+    const clientIds = projects.map(p => p.client).filter(Boolean);
+    const teamDetailsMap = {};
+    teams.forEach(team => { teamDetailsMap[team._id.toString()] = team; });
+
+    // Get userdetails for job managers
+    const jobManagerDetails = await Userdetails.find({ owner: { $in: jobManagerIds } }).lean();
+    const jobManagerDetailsMap = {};
+    jobManagerDetails.forEach(jm => { jobManagerDetailsMap[jm.owner.toString()] = jm; });
+
+    // Get client details
+    const clientDetails = await Clients.find({ _id: { $in: clientIds } }).lean();
+    const clientDetailsMap = {};
+    clientDetails.forEach(c => { clientDetailsMap[c._id.toString()] = c; });
+
+    // Get team member details for initials
+    const allTeamMemberIds = [].concat(...teams.map(t => t.members));
+    const allTeamMemberDetails = await Userdetails.find({ owner: { $in: allTeamMemberIds } }).lean();
+    const allTeamMemberDetailsMap = {};
+    allTeamMemberDetails.forEach(m => { allTeamMemberDetailsMap[m.owner.toString()] = m; });
+
+    // Get leave, wfh, wellness, event data for the user
+    // Only get the date fields and format them (except for leave, which is used for calculations)
+    const leaveDates = (
+      await Leave.find({ owner: employeeid, status: "Approved" }).lean()
+    ).map(leave => ({
+      ...leave,
+      leavestart: leave.leavestart ? moment(leave.leavestart).format('YYYY-MM-DD') : null,
+      leaveend: leave.leaveend ? moment(leave.leaveend).format('YYYY-MM-DD') : null
+    }));
+
+    const wfhDates = (
+      await Workfromhome.find({ owner: employeeid, status: "Approved" }).select("requestdate requestend -_id").lean()
+    ).map(wfh => ({
+      requestdate: wfh.requestdate ? moment(wfh.requestdate).format('YYYY-MM-DD') : null,
+      requestend: wfh.requestend ? moment(wfh.requestend).format('YYYY-MM-DD') : null
+    }));
+
+    const wellnessDates = (
+      await Wellnessday.find({ owner: employeeid }).select("requestdate -_id").lean()
+    ).map(wd => wd.requestdate ? moment(wd.requestdate).format('YYYY-MM-DD') : null);
+
+    // For events, get all events for all teams user is in, only dates
+    const eventDates = (
+      await Events.find({ teams: { $in: teamIds } }).select("startdate enddate -_id").lean()
+    ).map(ev => ({
+      startdate: ev.startdate ? moment(ev.startdate).format('YYYY-MM-DD') : null,
+      enddate: ev.enddate ? moment(ev.enddate).format('YYYY-MM-DD') : null
+    }));
+
+    // Create a map of leave hours by date for later use in calculations
+    const leaveHoursMap = new Map();
+    leaveDates.forEach(leave => {
+      if (leave.status === "Approved") {
+        const startDate = moment(leave.leavestart);
+        const endDate = moment(leave.leaveend);
+        let remainingWorkHours = leave.workinghoursduringleave || 0;
+        
+        for (let date = moment(startDate); date <= moment(endDate); date.add(1, 'days')) {
+          if (date.day() !== 0 && date.day() !== 6) {  // Skip weekends
+            const dateStr = date.format('YYYY-MM-DD');
+            let standardHours = leave.wellnessdaycycle === true ? 8.44 : 7.6;
+            let hoursForThisDay = standardHours;
+            
+            if (remainingWorkHours > 0) {
+              if (remainingWorkHours >= standardHours) {
+                hoursForThisDay = 0;
+                remainingWorkHours = Number((remainingWorkHours - standardHours).toFixed(2));
+              } else {
+                hoursForThisDay = Number((standardHours - remainingWorkHours).toFixed(2));
+                remainingWorkHours = 0;
+              }
+            }
+            
+            leaveHoursMap.set(dateStr, {
+              hours: hoursForThisDay,
+              standardHours: standardHours
+            });
+          }
+        }
+      }
+    });
+
+    // Build yourworkload array
+    const yourworkload = jobComponents.map(jc => {
+      const project = jc.project || {};
+      const team = teamDetailsMap[project.team?.toString()] || {};
+      const jobmanager = jc.jobmanager;
+      const jobmanagerDeets = jobManagerDetailsMap[jobmanager?._id?.toString() || jobmanager?.toString()] || {};
+      const client = clientDetailsMap[project.client?.toString()] || {};
+
+      // Team members initials
+      const teammembers = (team.members || []).map(mid => {
+        const m = allTeamMemberDetailsMap[mid.toString()];
+        return m ? (m.initial || '') : '';
+      });
+
+      // Only include the current user's member entry
+      const members = jc.members
+        .filter(m => m.employee?.toString() === (employeeid || id))
+        .map(member => {
+          // Preserve the original dates array as is (these are the actual job component dates)
+          const originalDates = Array.isArray(member.dates) ? member.dates : [];
+          
+          // Create a map of dates to make lookups faster
+          const dateMap = new Map();
+          originalDates.forEach(d => {
+            if (d.date) {
+              const dateStr = moment(d.date).format('YYYY-MM-DD');
+              dateMap.set(dateStr, {
+                ...d,
+                date: dateStr,
+                _id: d._id
+              });
+            }
+          });
+          
+          // Map dates to their formatted version while preserving all original data
+          let mappedMember = {
+            employee: member.employee,
+            role: member.role,
+            notes: member.notes,
+            // Only include the exact dates present in the job component - no filling with extras
+            dates: originalDates.map(d => ({
+              ...d,
+              date: d.date ? moment(d.date).format('YYYY-MM-DD') : d.date
+            })),
             leaveDates,
             wellnessDates,
             eventDates,
-            wfhDates,
-            dates: userDates
-            });
-        }
-
-        return res.json({
-            message: 'success',
-            data: {
-                alldates: dateList,
-                yourworkload,
-                members: membersArr
-            }
+            wfhDates: wfhDates
+              ? wfhDates.map(wfh => ({
+                ...wfh,
+                requestdate: wfh.requestdate
+                  ? moment(wfh.requestdate).format('YYYY-MM-DD')
+                  : wfh.requestdate,
+                requestend: wfh.requestend
+                  ? moment(wfh.requestend).format('YYYY-MM-DD')
+                  : wfh.requestend
+              }))
+              : []
+          };
+          return mappedMember;
         });
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ message: 'Error processing request', error: err.message });
-    }
-};
 
-//  #endergion
+      return {
+        _id: jc._id,
+        jobmanager: {
+          employeeid: jobmanager?._id || jobmanager,
+          fullname: jobmanagerDeets.firstname && jobmanagerDeets.lastname
+            ? `${jobmanagerDeets.firstname} ${jobmanagerDeets.lastname}`
+            : '',
+          initials: jobmanagerDeets.initial || ''
+        },
+        componentid: jc._id,
+        clientid: client._id,
+        clientname: client.clientname,
+        clientpriority: client.priority,
+        teamid: team._id,
+        teamname: team.teamname,
+        teammembers,
+        projectname: project.projectname,
+        jobno: project.jobno,
+        jobcomponent: jc.jobcomponent,
+        members
+      };
+    });
+
+    // Get all job component dates for the user
+    const allJobComponentDates = new Map();
+    
+    jobComponents.forEach(jc => {
+      jc.members
+        .filter(m => m.employee?.toString() === (employeeid || id))
+        .forEach(member => {
+          if (Array.isArray(member.dates)) {
+            member.dates.forEach(d => {
+              if (d.date) {
+                const dateStr = moment(d.date).format('YYYY-MM-DD');
+                // If we already have this date, add the hours
+                if (allJobComponentDates.has(dateStr)) {
+                  const existing = allJobComponentDates.get(dateStr);
+                  existing.hours += Number(d.hours || 0);
+                  existing.status = [...new Set([...existing.status, ...(d.status || [])])];
+                  allJobComponentDates.set(dateStr, existing);
+                } else {
+                  // Otherwise create a new entry
+                  allJobComponentDates.set(dateStr, {
+                    date: dateStr,
+                    hours: Number(d.hours || 0),
+                    status: d.status || []
+                  });
+                }
+              }
+            });
+          }
+        });
+    });
+
+    // Now process the members array, considering leave hours and job component hours
+    let membersArr = [];
+    if (userDetails) {
+      // Create a comprehensive list of all dates for this user
+      let userDates = [];
+      
+      // First, add all dates from dateList with 0 hours
+      dateList.forEach(dateStr => {
+        userDates.push({
+          date: dateStr,
+          hours: 0,
+          status: []
+        });
+      });
+      
+      // Now process each date, adding leave hours and adjusting for job component hours
+      userDates = userDates.map(dateEntry => {
+        const dateStr = dateEntry.date;
+        const jobComponentHours = allJobComponentDates.has(dateStr) 
+          ? allJobComponentDates.get(dateStr).hours 
+          : 0;
+        
+        // Check if this date has leave hours
+        if (leaveHoursMap.has(dateStr)) {
+          const leaveInfo = leaveHoursMap.get(dateStr);
+          const standardHours = leaveInfo.standardHours;
+          const leaveHours = leaveInfo.hours;
+          
+          // Calculate the adjusted hours
+          // If job hours > 0, we need to adjust leave hours accordingly
+          let finalHours;
+          
+          if (jobComponentHours > 0) {
+            // The formula: leave hours - job hours
+            // If result is negative, it means job hours exceed leave hours allocation
+            finalHours = Number((leaveHours - jobComponentHours).toFixed(2));
+          } else {
+            finalHours = leaveHours;
+          }
+          
+          return {
+            date: dateStr,
+            hours: finalHours,
+            status: ['Leave']
+          };
+        } else {
+          // No leave for this date, return 0 hours
+          return dateEntry;
+        }
+      });
+      
+      // Sort the dates
+      userDates.sort((a, b) => (a.date > b.date ? 1 : -1));
+      
+      membersArr.push({
+        employee: {
+          employeeid: [userDetails.owner?.toString()],
+          fullname: `${userDetails.firstname} ${userDetails.lastname}`,
+          initials: userDetails.initial
+        },
+        role: userDetails.role || "",
+        leaveDates,
+        wellnessDates,
+        eventDates,
+        wfhDates,
+        dates: userDates
+      });
+    }
+
+    return res.json({
+      message: 'success',
+      data: {
+        alldates: dateList,
+        yourworkload,
+        members: membersArr
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error processing request', error: err.message });
+  }
+};
