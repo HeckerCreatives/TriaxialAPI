@@ -118,7 +118,7 @@ exports.createjobcomponent = async (req, res) => {
                 project: new mongoose.Types.ObjectId(projectdata._id),
                 jobmanager: new mongoose.Types.ObjectId(jobmanager),
                 budgettype,
-                isVariation: isvariation,
+                isVariation: isvariation || false,
                 adminnotes: adminnotes,
                 comments: description,
                 estimatedbudget,
