@@ -390,7 +390,8 @@ exports.listprojectsuperadmin = async (req, res) => {
             }
         },
         { $skip: pageOptions.page * pageOptions.limit },
-        { $limit: pageOptions.limit }
+        { $limit: pageOptions.limit },
+        { $sort: { "teamid": -1 } }
     ]);
     
 
