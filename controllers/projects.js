@@ -220,7 +220,7 @@ exports.listprojects = async (req, res) => {
                     $push: {
                         name: '$jobComponentData.jobcomponent',
                         id: '$jobComponentData._id',
-                        isVariation: '$jobComponentData.isVariation',
+                        isVariation: '$jobComponentData.isVariation' || false,
                         estimatedBudget: '$jobComponentData.estimatedbudget',
                         members: '$jobComponentData.memberInitials'
                     }
@@ -383,7 +383,7 @@ exports.listprojectsuperadmin = async (req, res) => {
                     $push: {
                         name: '$jobComponentData.jobcomponent',
                         id: '$jobComponentData._id',
-                        isVariation: '$jobComponentData.isVariation',
+                        isVariation: '$jobComponentData.isVariation' || false,
                         estimatedBudget: '$jobComponentData.estimatedbudget',
                         members: '$jobComponentData.memberDetails'
                     }
