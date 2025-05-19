@@ -3988,7 +3988,7 @@ exports.yourworkload = async (req, res) => {
     let currentDate = new Date(startOfWeek);
     while (currentDate <= endOfRange) {
       const dayOfWeek = currentDate.getDay();
-      if (dayOfWeek !== 6 && dayOfWeek !== 0) {
+      if (dayOfWeek > 1 && dayOfWeek < 7) {
         dateList.push(new Date(currentDate).toISOString().split('T')[0]);
       }
       currentDate.setDate(currentDate.getDate() + 1);
@@ -4710,7 +4710,7 @@ exports.getjobcomponentdashboard = async (req, res) => {
 
         let currentDate = new Date(startOfWeek);
         while (currentDate <= endOfRange) {
-            if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+            if (currentDate.getDay() > 1 && currentDate.getDay() < 7) {
                 data.alldates.push(currentDate.toISOString().split('T')[0]);
             }
             currentDate.setDate(currentDate.getDate() + 1);
@@ -6599,7 +6599,7 @@ exports.individualworkload = async (req, res) => {
     let currentDate = new Date(startOfWeek);
     while (currentDate <= endOfRange) {
       const dayOfWeek = currentDate.getDay();
-      if (dayOfWeek !== 6 && dayOfWeek !== 0) {
+      if (dayOfWeek > 1 && dayOfWeek < 7) {
         dateList.push(new Date(currentDate).toISOString().split('T')[0]);
       }
       currentDate.setDate(currentDate.getDate() + 1);
