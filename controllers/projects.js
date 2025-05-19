@@ -342,11 +342,14 @@ exports.listprojectsuperadmin = async (req, res) => {
         },
         {
             $addFields: {
-                'jobComponentData.memberInitials': {
+                'jobComponentData.memberDetails': {
                     $map: {
                         input: '$jobComponentMemberDetails',
                         as: 'member',
-                        in: '$$member.initial'
+                        in: {
+                            initial: '$$member.initial',
+                            id: '$$member.owner'
+                        }
                     }
                 }
             }
@@ -381,7 +384,7 @@ exports.listprojectsuperadmin = async (req, res) => {
                         name: '$jobComponentData.jobcomponent',
                         id: '$jobComponentData._id',
                         estimatedBudget: '$jobComponentData.estimatedbudget',
-                        members: '$jobComponentData.memberInitials'
+                        members: '$jobComponentData.memberDetails'
                     }
                 }
             }
