@@ -22,6 +22,9 @@ const ProjectSchema = new mongoose.Schema(
         invoiced: {
             type: Number
         },
+        wip: {
+            type: Number
+        },
         status: {
             type: String,
             index: true

@@ -233,6 +233,28 @@ exports.listteam = async (req, res) => {
                 },
             },
             {
+                $addFields: {
+                    wip: {
+                        $sum: {
+                            $map: {
+                                input: '$jobComponents',
+                                as: 'jc',
+                                in: '$$jc.wip',
+                            },
+                        },
+                    },
+                    projectWipSum: {
+                        $sum: {
+                            $map: {
+                                input: '$projects',
+                                as: 'project',
+                                in: { $ifNull: ['$$project.wip', 0] }
+                            }
+                        }
+                    }
+                }
+            },
+            {
                 $project: {
                     _id: 1,
                     teamname: 1,
@@ -260,7 +282,7 @@ exports.listteam = async (req, res) => {
                     jobComponentCount: { $size: '$jobComponents' }, // Include job component count
                     projectIds: '$projects._id', // Include project IDs
                     jobComponentIds: '$jobComponents._id', // Include job component IDs
-                    wip: 1,
+                    wip: '$projectWipSum' || wip,
                     totalProjected: {
                         $sum: {
                             $map: {

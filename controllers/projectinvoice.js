@@ -4,6 +4,7 @@ const Projectedinvoice = require("../models/projectinvoice");
 const Subconts = require("../models/Subconts");
 const { sendmail } = require("../utils/email");
 const { getAllUserIdsExceptSender } = require("../utils/user");
+const Projects = require("../models/Projects");
 
 //  #region MANAGER & EMPLOYEE
 
@@ -217,6 +218,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                         percentage: { $ifNull: ["$latestInvoice.newinvoice", 0] },
                         amount:  { $ifNull: ['$latestInvoice.invoiceamount', 0] }
                     },
+                    projectid: '$projectDetails._id',
                 }
             },
             { $sort: { 
@@ -234,7 +236,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                 message: "success",
                 data: {
                     allDates: allDates,
-                    list: result.map(item => {
+                    list: result.map( item => {
                         // Calculate totals for the first 3 and first 12 objects in projectedValues
                         const totalFirstThree = item.projectedValues
                             .slice(0, 2) // Take the first 3 objects
@@ -273,6 +275,54 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     })
                 }
             };
+
+
+            result.forEach(async (item) => {
+                const totalFirstThree = item.projectedValues
+                            .slice(0, 2) // Take the first 3 objects
+                            .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
+
+                        const totalvalue = item.projectedValues
+                            .slice(0, 12) // Take the first 12 objects
+                            .reduce((acc, obj) => acc + (obj.amount || 0), 0); // Sum their values
+
+                        // Calculate WIP based on budget type
+                        let wip = 0;
+                        if (item.budgettype === 'lumpsum') {
+                            wip = Math.max(((item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalvalue) + totalFirstThree), 0);
+                        } else if (item.budgettype === 'rates') {
+                            wip = totalFirstThree;
+                        }
+
+
+                        // Update project WIP and invoice values
+                        try {
+                            const project = await Projects.findOne({ _id: item.projectid })
+                            if (!project) {
+                                console.log(`Project not found for ID: ${item.projectid}`);
+                            }
+                            
+                            const updateData = {
+                                invoiced: item.invoice.percentage,
+                                wip: wip
+                            };
+
+                            // Only update if values are different
+                            if (!project || project.wip !== wip || project.invoiced !== item.invoice.percentage) {
+                                await Projects.findOneAndUpdate(
+                                    { _id: item.projectid },
+                                    { $set: updateData },
+                                    { new: true }
+                                );
+                            }
+                        } catch (err) {
+                            console.log(`Error updating project WIP: ${err}`);
+                            return res.status(400).json({ 
+                                message: "bad-request", 
+                                data: "There's a problem encountered with the server! Please contact customer support for more details."
+                            });
+                        }
+            });
             
 
             return res.json(responseData);

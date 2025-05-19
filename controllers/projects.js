@@ -383,6 +383,7 @@ exports.listprojectsuperadmin = async (req, res) => {
                     $push: {
                         name: '$jobComponentData.jobcomponent',
                         id: '$jobComponentData._id',
+                        isVariation: '$jobComponentData.isVariation',
                         estimatedBudget: '$jobComponentData.estimatedbudget',
                         members: '$jobComponentData.memberDetails'
                     }
