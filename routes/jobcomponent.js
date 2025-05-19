@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { createjobcomponent, listjobcomponent, editstatushours, yourworkload, editjobcomponentdetails, editjobmanagercomponents, editalljobcomponentdetails, getjobcomponentdashboard, individualworkload, getmanagerjobcomponentdashboard, getsuperadminjobcomponentdashboard, completejobcomponent, viewduedatesgraph, getjobcomponentindividualrequest, listteamjobcomponent, listJobComponentNamesByTeam, archivejobcomponent, listarchivedteamjobcomponent, createvariationjobcomponent, editMultipleStatusHours, editMemberDetails, updateMember, updateMemberNotes } = require("../controllers/jobcomponent")
+const { createjobcomponent, listjobcomponent, editstatushours, yourworkload, editjobcomponentdetails, editjobmanagercomponents, editalljobcomponentdetails, getjobcomponentdashboard, individualworkload, getmanagerjobcomponentdashboard, getsuperadminjobcomponentdashboard, completejobcomponent, viewduedatesgraph, getjobcomponentindividualrequest, listteamjobcomponent, listJobComponentNamesByTeam, archivejobcomponent, listarchivedteamjobcomponent, createvariationjobcomponent, editMultipleStatusHours, editMemberDetails, updateMember, updateMemberNotes, getmasterleavelist } = require("../controllers/jobcomponent")
 const { protectsuperadmin, protectemployee, protectmanager, protectusers, protectalluser } = require("../middleware/middleware")
 
 router
@@ -45,6 +45,7 @@ router
     //  #region ALL USERS
     .post("/editmultiplestatushours", protectalluser, editMultipleStatusHours)
     .get("/getjobcomponentindividualrequest", protectalluser, getjobcomponentindividualrequest)
+    .get("/getmasterleavelist", protectalluser, getmasterleavelist)
     .get("/listarchivedteamjobcomponent", protectalluser, listarchivedteamjobcomponent)
     .get("/listteamjobcomponent", protectalluser, listteamjobcomponent)
     .get("/listjobcomponent", protectalluser, listjobcomponent)

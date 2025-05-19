@@ -5615,6 +5615,242 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
     const { filterDate, teamid } = req.query;
 
     try {
+        if (!teamid || !mongoose.Types.ObjectId.isValid(teamid)) {
+            return res.status(400).json({ message: 'failed', data: 'Valid Team ID is required.' });
+        }
+
+        const referenceDate = filterDate
+            ? moment.tz(new Date(filterDate), "Australia/Sydney")
+            : moment.tz("Australia/Sydney");
+
+        const startOfWeek = referenceDate.startOf("isoWeek").toDate();
+        const endOfRange = moment(startOfWeek).add(8, "weeks").subtract(1, "days").toDate();
+
+        const result = await Teams.aggregate([
+            {
+                $match: { _id: new mongoose.Types.ObjectId(teamid) }
+            },
+            {
+                $lookup: {
+                    from: 'userdetails',
+                    localField: 'members',
+                    foreignField: 'owner',
+                    as: 'memberDetails'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'projects',
+                    let: { teamId: '$_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $eq: ['$team', '$$teamId']
+                                }
+                            }
+                        },
+                        {
+                            $lookup: {
+                                from: 'jobcomponents',
+                                localField: '_id',
+                                foreignField: 'project',
+                                as: 'jobComponents'
+                            }
+                        }
+                    ],
+                    as: 'activeProjects'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'leaves',
+                    localField: 'memberDetails.owner',
+                    foreignField: 'owner',
+                    as: 'leaveData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'workfromhomes',
+                    localField: 'memberDetails.owner',
+                    foreignField: 'owner',
+                    as: 'wfhData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'wellnessdays',
+                    localField: 'memberDetails.owner',
+                    foreignField: 'owner',
+                    as: 'wellnessData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'events',
+                    let: { teamId: '$_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $in: ['$$teamId', '$teams']
+                                }
+                            }
+                        }
+                    ],
+                    as: 'eventData'
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    teamname: 1,
+                    memberDetails: 1,
+                    leaveData: 1,
+                    wfhData: 1,
+                    wellnessData: 1,
+                    eventData: 1,
+                    jobComponentsData: {
+                        $reduce: {
+                            input: "$activeProjects",
+                            initialValue: [],
+                            in: { $concatArrays: ["$$value", "$$this.jobComponents"] }
+                        }
+                    }
+                }
+            }
+        ]);
+
+        if (!result || result.length === 0) {
+            return res.json({ message: 'success', data: { alldates: [], teams: [] } });
+        }
+
+        const teamData = result[0];
+
+        const data = {
+            alldates: [],
+            teams: []
+        };
+
+        // Generate date range (weekdays only)
+        let currentDate = moment.utc(startOfWeek);
+        while (currentDate.isSameOrBefore(endOfRange, "day")) {
+            if (currentDate.day() !== 6 && currentDate.day() !== 0) {
+                data.alldates.push(currentDate.format("YYYY-MM-DD"));
+            }
+            currentDate.add(1, "day");
+        }
+
+        let formattedTeam = {
+            teamid: teamData._id,
+            name: teamData.teamname,
+            members: []
+        };
+
+        teamData.memberDetails.forEach(member => {
+            let employeeData = {
+                id: member.owner,
+                name: `${member.firstname} ${member.lastname}`,
+                initial: member.initial,
+                resource: member.resource,
+                leave: teamData.leaveData.filter(l => l.owner.toString() === member.owner.toString() && l.status === "Approved") || [],
+                wfh: teamData.wfhData.filter(w => w.owner.toString() === member.owner.toString() && w.status === "Approved") || [],
+                wellness: teamData.wellnessData.filter(wd => wd.owner.toString() === member.owner.toString()) || [],
+                event: teamData.eventData || [],
+                dates: []
+            };
+
+            const dates = data.alldates.map(date => ({
+                date,
+                totalhoursofjobcomponents: 0
+            }));
+
+            const jobHoursByDate = {};
+
+            teamData.jobComponentsData.forEach(job => {
+                if (job.members) {
+                    // 🔧 FIX: Get all roles (not just the first one)
+                    const memberRoles = job.members.filter(m => m.employee && m.employee.toString() === member.owner.toString());
+                    memberRoles.forEach(role => {
+                        if (role.dates && Array.isArray(role.dates)) {
+                            role.dates.forEach(dateEntry => {
+                                const dateStr = moment(dateEntry.date).format('YYYY-MM-DD');
+                                jobHoursByDate[dateStr] = (jobHoursByDate[dateStr] || 0) + (dateEntry.hours || 0);
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Process leave days and subtract job hours from standard leave hours
+           if (Array.isArray(employeeData.leave)) {
+            employeeData.leave.forEach(leave => {
+                if (leave.status === "Approved") {
+                    const leaveStart = moment(leave.leavestart);
+                    const leaveEnd = moment(leave.leaveend);
+
+                    for (let day = moment(leaveStart); day <= moment(leaveEnd); day.add(1, 'days')) {
+                        if (day.day() !== 0 && day.day() !== 6) {
+                            const formattedDate = day.format('YYYY-MM-DD');
+                            const dateEntry = dates.find(d => d.date === formattedDate);
+                            if (!dateEntry) continue;
+
+                            const standardHours = leave.wellnessdaycycle ? 8.44 : 7.6;
+                            const workedHours = jobHoursByDate[formattedDate] || 0;
+
+                            // 💥 Allow negative hours if worked exceeds standard
+                            const leaveHoursForDay = standardHours - workedHours;
+                            dateEntry.totalhoursofjobcomponents = leaveHoursForDay;
+
+                            if (day.isSame(leaveStart, 'day') && leave.workinghoursduringleave > 0) {
+                                dateEntry.workinghoursduringleave = Number(leave.workinghoursduringleave);
+                                if (!dateEntry.status) dateEntry.status = [];
+                                if (!dateEntry.status.includes('PartialWork')) {
+                                    dateEntry.status.push('PartialWork');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+
+            // Fill in job hours for non-leave days
+            dates.forEach(dateEntry => {
+                if (dateEntry.totalhoursofjobcomponents === 0) {
+                    const jobHours = jobHoursByDate[dateEntry.date] || 0;
+                    if (jobHours > 0) {
+                        dateEntry.totalhoursofjobcomponents = jobHours;
+                    }
+                }
+            });
+
+            employeeData.dates = dates;
+            formattedTeam.members.push(employeeData);
+        });
+
+        formattedTeam.members.sort((a, b) => a.name.localeCompare(b.name));
+        data.teams.push(formattedTeam);
+
+        return res.json({ message: 'success', data });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({
+            message: 'Error processing request',
+            error: err.message
+        });
+    }
+};
+
+
+
+exports.getmasterleavelist = async (req, res) => {
+    const { id, email } = req.user;
+    const { filterDate, teamid } = req.query;
+
+    try {
         if (teamid && !mongoose.Types.ObjectId.isValid(teamid)) {
             return res.status(400).json({ message: 'failed', data: 'Invalid Team ID format provided.' });
         }
@@ -5838,99 +6074,6 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
             }
             currentDate.add(1, "day");
         }
-
-        // let formattedTeam = {
-        //     teamid: teamData._id,
-        //     name: teamData.teamname,
-        //     members: []
-        // };
-
-        // teamData.memberDetails.forEach(member => {
-        //     let employeeData = {
-        //         id: member.owner,
-        //         name: `${member.firstname} ${member.lastname}`,
-        //         initial: member.initial,
-        //         resource: member.resource,
-        //         leave: teamData.leaveData.filter(l => l.owner.toString() === member.owner.toString() && l.status === "Approved") || [],
-        //         wfh: teamData.wfhData.filter(w => w.owner.toString() === member.owner.toString() && w.status === "Approved") || [],
-        //         wellness: teamData.wellnessData.filter(wd => wd.owner.toString() === member.owner.toString()) || [],
-        //         event: teamData.eventData || [],
-        //         dates: []
-        //     };
-
-        //     const dates = data.alldates.map(date => ({
-        //         date,
-        //         totalhoursofjobcomponents: 0
-        //     }));
-
-        //     const jobHoursByDate = {};
-
-        //     teamData.jobComponentsData.forEach(job => {
-        //         if (job.members) {
-        //             // 🔧 FIX: Get all roles (not just the first one)
-        //             const memberRoles = job.members.filter(m => m.employee && m.employee.toString() === member.owner.toString());
-        //             memberRoles.forEach(role => {
-        //                 if (role.dates && Array.isArray(role.dates)) {
-        //                     role.dates.forEach(dateEntry => {
-        //                         const dateStr = moment(dateEntry.date).format('YYYY-MM-DD');
-        //                         jobHoursByDate[dateStr] = (jobHoursByDate[dateStr] || 0) + (dateEntry.hours || 0);
-        //                     });
-        //                 }
-        //             });
-        //         }
-        //     });
-
-        //     // Process leave days and subtract job hours from standard leave hours
-        //    if (Array.isArray(employeeData.leave)) {
-        //     employeeData.leave.forEach(leave => {
-        //         if (leave.status === "Approved") {
-        //             const leaveStart = moment(leave.leavestart);
-        //             const leaveEnd = moment(leave.leaveend);
-
-        //             for (let day = moment(leaveStart); day <= moment(leaveEnd); day.add(1, 'days')) {
-        //                 if (day.day() !== 0 && day.day() !== 6) {
-        //                     const formattedDate = day.format('YYYY-MM-DD');
-        //                     const dateEntry = dates.find(d => d.date === formattedDate);
-        //                     if (!dateEntry) continue;
-
-        //                     const standardHours = leave.wellnessdaycycle ? 8.44 : 7.6;
-        //                     const workedHours = jobHoursByDate[formattedDate] || 0;
-
-        //                     // 💥 Allow negative hours if worked exceeds standard
-        //                     const leaveHoursForDay = standardHours - workedHours;
-        //                     dateEntry.totalhoursofjobcomponents = leaveHoursForDay;
-
-        //                     if (day.isSame(leaveStart, 'day') && leave.workinghoursduringleave > 0) {
-        //                         dateEntry.workinghoursduringleave = Number(leave.workinghoursduringleave);
-        //                         if (!dateEntry.status) dateEntry.status = [];
-        //                         if (!dateEntry.status.includes('PartialWork')) {
-        //                             dateEntry.status.push('PartialWork');
-        //                         }
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     });
-        // }
-
-
-        //     // Fill in job hours for non-leave days
-        //     dates.forEach(dateEntry => {
-        //         if (dateEntry.totalhoursofjobcomponents === 0) {
-        //             const jobHours = jobHoursByDate[dateEntry.date] || 0;
-        //             if (jobHours > 0) {
-        //                 dateEntry.totalhoursofjobcomponents = jobHours;
-        //             }
-        //         }
-        //     });
-
-        //     employeeData.dates = dates;
-        //     formattedTeam.members.push(employeeData);
-        // });
-
-        // formattedTeam.members.sort((a, b) => a.name.localeCompare(b.name));
-        // data.teams.push(formattedTeam);
-
         return res.json({ message: 'success', data });
     } catch (err) {
         console.error(err);
@@ -5940,6 +6083,7 @@ exports.getjobcomponentindividualrequest = async (req, res) => {
         });
     }
 };
+
 
 
 exports.getmanagerjobcomponentdashboard = async (req, res) => {
