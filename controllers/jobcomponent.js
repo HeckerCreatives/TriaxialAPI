@@ -5247,7 +5247,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
         // Generate dates array
         let currentDate = moment.utc(startOfWeek);
         while (currentDate.isSameOrBefore(endOfRange, "day")) {
-            if (currentDate.day() !== 6 && currentDate.day() !== 0) { // Exclude weekends
+            if (currentDate.day() > 1 && currentDate.day() < 7) { // Exclude weekends
                 data.alldates.push(currentDate.format("YYYY-MM-DD")); // Format correctly
             }
             currentDate.add(1, "day"); // Move to next day
