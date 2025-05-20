@@ -1240,6 +1240,8 @@ exports.editMultipleStatusHours = async (req, res) => {
 
             // Iterate over date range and update each date entry
             for (let date = new Date(startDateObj); date <= endDateObj; date.setDate(date.getDate() + 1)) {
+                // Skip weekends (0 = Sunday, 6 = Saturday)
+                if (date.getDay() === 0 || date.getDay() === 6) continue;
                 const formattedDate = new Date(date).toISOString().split("T")[0];
 
                 // Find if the date already exists in the member's dates array
@@ -3112,65 +3114,78 @@ exports.listteamjobcomponent = async (req, res) => {
                                                                     }
                                                                 },
                                                                 in: {
-                                                                    $map: {
-                                                                        input: "$$dateRange",
-                                                                        as: "dayOffset",
-                                                                        in: {
-                                                                            $let: {
-                                                                                vars: {
-                                                                                    isFirstDay: { $eq: ["$$dayOffset", 0] },
-                                                                                    remainingWorkHours: {
-                                                                                        $cond: {
-                                                                                            if: { $eq: ["$$dayOffset", 0] },
-                                                                                            then: "$$workingHoursDuringLeave",
-                                                                                            else: 0
-                                                                                        }
-                                                                                    }
-                                                                                },
+                                                                    $filter: {
+                                                                        input: {
+                                                                            $map: {
+                                                                                input: "$$dateRange",
+                                                                                as: "dayOffset",
                                                                                 in: {
-                                                                                    date: {
-                                                                                        $dateAdd: {
-                                                                                            startDate: { $toDate: "$$startDate" },
-                                                                                            unit: "day",
-                                                                                            amount: "$$dayOffset"
-                                                                                        }
-                                                                                    },
-                                                                                    hours: {
-                                                                                        $cond: {
-                                                                                            if: "$$isFirstDay",
-                                                                                            then: {
+                                                                                    $let: {
+                                                                                        vars: {
+                                                                                            currentDate: {
+                                                                                                $dateAdd: {
+                                                                                                    startDate: { $toDate: "$$startDate" },
+                                                                                                    unit: "day",
+                                                                                                    amount: "$$dayOffset"
+                                                                                                }
+                                                                                            },
+                                                                                            isFirstDay: { $eq: ["$$dayOffset", 0] },
+                                                                                            remainingWorkHours: {
                                                                                                 $cond: {
-                                                                                                    if: { $gt: ["$$workingHoursDuringLeave", 0] },
-                                                                                                    then: { 
+                                                                                                    if: { $eq: ["$$dayOffset", 0] },
+                                                                                                    then: "$$workingHoursDuringLeave",
+                                                                                                    else: 0
+                                                                                                }
+                                                                                            }
+                                                                                        },
+                                                                                        in: {
+                                                                                            date: "$$currentDate",
+                                                                                            dayOfWeek: { $dayOfWeek: "$$currentDate" },
+                                                                                            hours: {
+                                                                                                $cond: {
+                                                                                                    if: "$$isFirstDay",
+                                                                                                    then: {
                                                                                                         $cond: {
-                                                                                                            if: { $gte: ["$$workingHoursDuringLeave", "$$standardHours"] },
-                                                                                                            then: 0,
-                                                                                                            else: { 
-                                                                                                                $round: [
-                                                                                                                    { $subtract: ["$$standardHours", "$$workingHoursDuringLeave"] },
-                                                                                                                    1
-                                                                                                                ]
-                                                                                                            }                                                                                                      
+                                                                                                            if: { $gt: ["$$workingHoursDuringLeave", 0] },
+                                                                                                            then: { 
+                                                                                                                $cond: {
+                                                                                                                    if: { $gte: ["$$workingHoursDuringLeave", "$$standardHours"] },
+                                                                                                                    then: 0,
+                                                                                                                    else: { 
+                                                                                                                        $round: [
+                                                                                                                            { $subtract: ["$$standardHours", "$$workingHoursDuringLeave"] },
+                                                                                                                            1
+                                                                                                                        ]
+                                                                                                                    }                                                                                                      
+                                                                                                                }
+                                                                                                            },
+                                                                                                            else: "$$standardHours"
                                                                                                         }
                                                                                                     },
                                                                                                     else: "$$standardHours"
                                                                                                 }
                                                                                             },
-                                                                                            else: "$$standardHours"
+                                                                                            leavewellnessday: { $eq: ["$$wellnessDayCycle", true] },
+                                                                                            workinghoursduringleave: {
+                                                                                                $cond: {
+                                                                                                    if: "$$isFirstDay",
+                                                                                                    then: "$$workingHoursDuringLeave",
+                                                                                                    else: 0
+                                                                                                }
+                                                                                            },
+                                                                                            isLeave: true,
+                                                                                            status: ["Leave"]
                                                                                         }
-                                                                                    },
-                                                                                    leavewellnessday: { $eq: ["$$wellnessDayCycle", true] },
-                                                                                    workinghoursduringleave: {
-                                                                                        $cond: {
-                                                                                            if: "$$isFirstDay",
-                                                                                            then: "$$workingHoursDuringLeave",
-                                                                                            else: 0
-                                                                                        }
-                                                                                    },
-                                                                                    isLeave: true,
-                                                                                    status: ["Leave"]
+                                                                                    }
                                                                                 }
                                                                             }
+                                                                        },
+                                                                        as: "dateItem",
+                                                                        cond: { 
+                                                                            $and: [
+                                                                                { $ne: ["$$dateItem.dayOfWeek", 1] }, // Not Sunday (MongoDB uses 1-7 where 1=Sunday)
+                                                                                { $ne: ["$$dateItem.dayOfWeek", 7] }  // Not Saturday
+                                                                            ] 
                                                                         }
                                                                     }
                                                                 }

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const moment = require('moment');
 
 const JobcomponentSchema = new mongoose.Schema(
     {
@@ -73,5 +74,14 @@ const JobcomponentSchema = new mongoose.Schema(
     }
 )
 
+JobcomponentSchema.pre('save', function(next) {
+  this.members.forEach(member => {
+    member.dates = member.dates.filter(dateEntry => {
+      const day = moment(dateEntry.date).day();
+      return day !== 0 && day !== 6;
+    });
+  });
+  next();
+});
 const Jobcomponents = mongoose.model("Jobcomponents", JobcomponentSchema)
 module.exports = Jobcomponents
