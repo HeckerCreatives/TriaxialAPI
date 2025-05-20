@@ -21,7 +21,7 @@ router
     //  #region FINANCE
 
     .get("/getinvoicelist", protectalluser, getinvoicelist)
-    .post("/approvedenieinvoice", protectalluser, approvedenieinvoice)
+    .post("/approvedenieinvoice", protectusers, approvedenieinvoice)
     .post("/updateinvoice", protectfinance, updateinvoice)
     //  #endregion
 
