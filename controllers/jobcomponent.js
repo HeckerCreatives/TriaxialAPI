@@ -5283,20 +5283,18 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                 // Process job component dates
                 if (Array.isArray(jobComponentsData)) {
                     jobComponentsData.flat().forEach(job => {
-                        console.log('first iteration loop')
                         if (job && Array.isArray(job.members)) {
-                            console.log('second iteration loop')
                             job.members.forEach(member => {
-                                console.log('third iteration loop')
                                 if (member && member.employee && memberDetails && memberDetails.owner) {
                                     try {
-                                        console.log('passing if condition')
                                         const memberEmployeeId = member.employee.toString();
                                         const memberDetailsOwnerId = memberDetails.owner.toString();
-        
+                                        console.log('-------------------------------')
+                                        console.log('memberEmployeeId:', memberEmployeeId);
+                                        console.log('memberDetailsOwnerId:', memberDetailsOwnerId);
                                         if (memberEmployeeId === memberDetailsOwnerId) {
                                             const dates = Array.isArray(member.dates) ? member.dates : [];
-        
+                                            console.log('dates:', dates);
                                             dates.forEach(date => {
                                                 console.log('fourth iteration loop')
                                                 if (date && date.date) {
