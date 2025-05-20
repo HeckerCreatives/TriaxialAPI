@@ -132,6 +132,7 @@ exports.listprojects = async (req, res) => {
     }
 
     const projectlist = await Projects.aggregate([
+        { $match: { status: { $ne: 'archived' }}},
         {
             
             $lookup: {
@@ -159,6 +160,7 @@ exports.listprojects = async (req, res) => {
                 as: 'jobComponentData'
             }
         },
+        { $match: { "jobComponentData.0": { $exists: true } } },
         { $unwind: { path: '$jobComponentData', preserveNullAndEmptyArrays: true } },
         {
             $lookup: {
@@ -200,12 +202,27 @@ exports.listprojects = async (req, res) => {
             }
         },
         { $unwind: { path: '$managerDetails', preserveNullAndEmptyArrays: true } },
+                {
+            $lookup: {
+                from: 'invoices',
+                let: { jobComponentId: "$jobComponentData._id" }, 
+                    pipeline: [
+                        { $match: { $expr: { $eq: ["$jobcomponent", "$$jobComponentId"] } } },
+                        { $sort: { createdAt: -1 } },
+                        { $limit: 1 }
+                    ],
+                as: 'latestInvoice'
+            }
+        },
+        {
+            $unwind: { path: "$latestInvoice", preserveNullAndEmptyArrays: true }
+        },
         {
             $group: {
                 _id: '$_id',
                 projectname: { $first: '$projectname' },
                 jobno: { $first: '$jobno' },
-                invoiced: { $first: '$invoiced' },
+                invoiced: { $first: { $ifNull: ['$latestInvoice.newinvoice', 0] } },
                 status: { $first: '$status' },
                 startdate: { $first: '$startdate' },
                 deadlinedate: { $first: '$deadlinedate' },
@@ -303,6 +320,7 @@ exports.listprojectsuperadmin = async (req, res) => {
 
     const projectlist = await Projects.aggregate([
         { $match: matchStage },
+        { $match: { status: { $ne: 'archived' }}},
         {
 
             $lookup: {
@@ -331,6 +349,7 @@ exports.listprojectsuperadmin = async (req, res) => {
                 as: 'jobComponentData'
             }
         },
+        { $match: { "jobComponentData.0": { $exists: true } } },
         { $unwind: { path: '$jobComponentData', preserveNullAndEmptyArrays: true } },
         {
             $lookup: {
@@ -364,11 +383,26 @@ exports.listprojectsuperadmin = async (req, res) => {
         },
         { $unwind: { path: '$managerDetails', preserveNullAndEmptyArrays: true } },
         {
+            $lookup: {
+                from: 'invoices',
+                let: { jobComponentId: "$jobComponentData._id" }, 
+                    pipeline: [
+                        { $match: { $expr: { $eq: ["$jobcomponent", "$$jobComponentId"] } } },
+                        { $sort: { createdAt: -1 } },
+                        { $limit: 1 }
+                    ],
+                as: 'latestInvoice'
+            }
+        },
+        {
+            $unwind: { path: "$latestInvoice", preserveNullAndEmptyArrays: true }
+        },
+        {
             $group: {
                 _id: '$_id',
                 projectname: { $first: '$projectname' },
                 jobno: { $first: '$jobno' },
-                invoiced: { $first: '$invoiced' },
+                invoiced: { $first: { $ifNull: ['$latestInvoice.newinvoice', 0] } },
                 status: { $first: '$status' },
                 startdate: { $first: '$startdate' },
                 deadlinedate: { $first: '$deadlinedate' },
@@ -398,6 +432,7 @@ exports.listprojectsuperadmin = async (req, res) => {
 
     const total = await Projects.aggregate([
         { $match: matchStage },
+        { $match: { status: { $ne: 'archived' }}},
         {
             $lookup: {
                 from: 'teams',
@@ -415,6 +450,7 @@ exports.listprojectsuperadmin = async (req, res) => {
                 as: 'jobComponentData'
             }
         },
+        { $match: { "jobComponentData.0": { $exists: true } } },
         { $unwind: { path: '$jobComponentData', preserveNullAndEmptyArrays: true } },
         {
             $match: {
