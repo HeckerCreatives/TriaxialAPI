@@ -5279,6 +5279,43 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
                     event: eventData || [],
                     dates: []
                 };
+                const debug = {
+                    logJobData(jobComponentsData, memberDetails) {
+                        console.group('Job Component Debug Info');
+
+                        // Flatten the array and log all data
+                        const flattenedJobData = jobComponentsData.flat();
+                        
+                        console.log('All Flattened Job Data:');
+                        flattenedJobData.forEach((job, index) => {
+                            console.group(`Job ${index + 1}:`);
+                            console.log('Job ID:', job._id);
+                            console.log('Job Component:', job.jobcomponent);
+                            console.log('Members:', job.members);
+                            
+                            // Log detailed member information
+                            if (job.members && Array.isArray(job.members)) {
+                                job.members.forEach((member, mIndex) => {
+                                    console.group(`Member ${mIndex + 1}:`);
+                                    console.log('Employee ID:', member.employee);
+                                    console.log('Role:', member.role);
+                                    console.log('Dates:', member.dates);
+                                    console.groupEnd();
+                                });
+                            }
+                            console.groupEnd();
+                        });
+
+                        // Log summary statistics
+                        console.log('Total Jobs:', flattenedJobData.length);
+                        console.log('Total Members:', flattenedJobData.reduce((acc, job) => acc + (job.members?.length || 0), 0));
+
+                        console.groupEnd();
+                    }
+                };
+
+            // Use it in your code
+            debug.logJobData(jobComponentsData, memberDetails);
         
                 // Process job component dates
                 if (Array.isArray(jobComponentsData)) {
