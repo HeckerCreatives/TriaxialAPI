@@ -626,11 +626,13 @@ exports.editalljobcomponentdetails = async (req, res) => {
             adminnotes: adminnotes,
             jobcomponent: jobcomponentname,
             members: members.map(({ employee, role, notes }) => ({
-                employee,
-                role,
-                notes: notes || "",
-                dates: [],
-            })),
+                    employee: employee && mongoose.Types.ObjectId.isValid(employee)
+                        ? new mongoose.Types.ObjectId(employee)
+                        : null,
+                    role,
+                    notes: notes || "",
+                    dates: [],
+                })),
             },
             { new: true }
         );
