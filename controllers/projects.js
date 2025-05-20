@@ -129,6 +129,13 @@ exports.listprojects = async (req, res) => {
                 { 'clientData.clientname': { $regex: searchproject, $options: 'i' } },
                 { 'managerDetails.firstname': { $regex: searchproject, $options: 'i' } },
                 { 'managerDetails.lastname': { $regex: searchproject, $options: 'i' } },
+                { 'managerDetails.firstname': { $regex: searchproject, $options: 'i' } },
+                { $expr: { $regexMatch: { 
+                    input: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] },
+                    regex: searchproject,
+                    options: 'i'
+                }}},
+                { 'jobComponentData.jobcomponent': { $regex: searchproject, $options: 'i' } },
 
             ]
        }
@@ -310,17 +317,22 @@ exports.listprojectsuperadmin = async (req, res) => {
     let matchStage = {};
     let filterStage = {}
     if (searchproject) {
-       matchStage = {
-            $or: [
-                { projectname: { $regex: searchproject, $options: 'i' } },
-                { jobno: { $regex: searchproject, $options: 'i' } },
-                { 'teamData.teamname': { $regex: searchproject, $options: 'i' } },
-                { 'clientData.clientname': { $regex: searchproject, $options: 'i' } },
-                { 'managerDetails.firstname': { $regex: searchproject, $options: 'i' } },
-                { 'managerDetails.lastname': { $regex: searchproject, $options: 'i' } },
-
-            ]
-       }
+    matchStage = {
+         $or: [
+          { projectname: { $regex: searchproject, $options: 'i' } },
+          { jobno: { $regex: searchproject, $options: 'i' } },
+          { 'teamData.teamname': { $regex: searchproject, $options: 'i' } },
+          { 'clientData.clientname': { $regex: searchproject, $options: 'i' } },
+          { 'managerDetails.firstname': { $regex: searchproject, $options: 'i' } },
+          { 'managerDetails.lastname': { $regex: searchproject, $options: 'i' } },
+          { $expr: { $regexMatch: { 
+              input: { $concat: ['$managerDetails.firstname', ' ', '$managerDetails.lastname'] },
+              regex: searchproject,
+              options: 'i'
+          }}},
+          { 'jobComponentData.jobcomponent': { $regex: searchproject, $options: 'i' } },
+         ]
+    }
     }
 
     // filter is teamid
