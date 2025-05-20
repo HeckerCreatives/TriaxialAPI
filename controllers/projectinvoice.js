@@ -612,12 +612,14 @@ exports.saveprojectinvoicevalue = async (req, res) => {
         // Calculate total projected values
         const sumProjectedValues = projectedInvoice.values.reduce((acc, obj) => acc + (obj.amount || 0), 0);
         const totalProjectedValues = sumProjectedValues + amount;
-
-        if (totalProjectedValues > jobcomponent.estimatedbudget) {
-            return res.status(400).json({ 
-                message: "bad-request", 
-                data: "Projected invoice value exceeds the estimated budget!" 
-            });
+        
+        if (jobcomponent.budgettype === 'lumpsum') {
+            if (totalProjectedValues > jobcomponent.estimatedbudget) {
+                return res.status(400).json({ 
+                    message: "bad-request", 
+                    data: "Projected invoice value exceeds the estimated budget!" 
+                });
+            }
         }
 
         const result = projectedInvoice.values.find(
