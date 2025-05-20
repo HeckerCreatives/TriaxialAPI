@@ -39,7 +39,8 @@ const JobcomponentSchema = new mongoose.Schema(
             employee: {
                 type: mongoose.Schema.Types.ObjectId,
                 ref: 'Users',
-                index: true
+                index: true,
+                required: false
             },
             role: {
                 type: String
