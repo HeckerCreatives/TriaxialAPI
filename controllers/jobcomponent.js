@@ -614,25 +614,47 @@ exports.editalljobcomponentdetails = async (req, res) => {
 
         const jobName = jobcomponent.jobcomponent;
 
-        // Update job component details
+        // Update job component details with preserved dates for unchanged member-role combinations
+        const existingJobComponent = await Jobcomponents.findById(jobcomponentid);
+        if (!existingJobComponent) {
+            throw new Error('Job component not found');
+        }
+
+        // Create a map of existing member dates keyed by member+role
+        const existingMemberDates = {};
+        existingJobComponent.members.forEach(member => {
+            if (member.employee) {
+            const key = `${member.employee.toString()}-${member.role}`;
+            existingMemberDates[key] = member.dates || [];
+            }
+        });
+
+        // Process updated members array while preserving dates for unchanged combinations
+        const updatedMembers = members.map(({ employee, role, notes }) => {
+            const memberKey = `${employee}-${role}`;
+            return {
+                employee: employee && mongoose.Types.ObjectId.isValid(employee) 
+                    ? new mongoose.Types.ObjectId(employee) 
+                    : null,
+                role,
+                notes: notes || "",
+                // Preserve dates if member+role combination hasn't changed
+                dates: existingMemberDates[memberKey] || []
+            };
+        });
+
+        // Update job component with preserved member dates
         await Jobcomponents.findByIdAndUpdate(
             jobcomponentid,
             {
-            project: new mongoose.Types.ObjectId(project),
-            client: new mongoose.Types.ObjectId(client),
-            jobmanager: jobmanagerid,
-            budgettype: budgettype,
-            estimatedbudget: budget,
-            adminnotes: adminnotes,
-            jobcomponent: jobcomponentname,
-            members: members.map(({ employee, role, notes }) => ({
-                    employee: employee && mongoose.Types.ObjectId.isValid(employee)
-                        ? new mongoose.Types.ObjectId(employee)
-                        : null,
-                    role,
-                    notes: notes || "",
-                    dates: [],
-                })),
+                project: new mongoose.Types.ObjectId(project),
+                client: new mongoose.Types.ObjectId(client),
+                jobmanager: jobmanagerid,
+                budgettype: budgettype,
+                estimatedbudget: budget,
+                adminnotes: adminnotes,
+                jobcomponent: jobcomponentname,
+                members: updatedMembers
             },
             { new: true }
         );
