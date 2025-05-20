@@ -135,6 +135,7 @@ exports.listteam = async (req, res) => {
                     as: 'projects',
                 },
             },
+            // { $match: { 'projects.status': { $ne: 'archived'} } },
             {
                 $lookup: {
                     from: 'clients',
@@ -152,14 +153,14 @@ exports.listteam = async (req, res) => {
                             $match: {
                                 $and: [
                                     { $expr: { $in: ['$project', '$$projectIds'] } },
-                                    {
-                                        $or: [
-                                            { status: { $in: ['unarchived', 'On-going'] } },
-                                            { status: { $exists: false } },
-                                            { status: '' },
-                                            { status: null }
-                                        ]
-                                    }
+                                    // {
+                                    //     $or: [
+                                    //         { status: { $in: ['unarchived', 'On-going'] } },
+                                    //         { status: { $exists: false } },
+                                    //         { status: '' },
+                                    //         { status: null }
+                                    //     ]
+                                    // }
                                 ]
                             },
                         },

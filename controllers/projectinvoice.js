@@ -39,12 +39,12 @@ exports.listcomponentprojectinvoice = async (req, res) => {
             {
                 $match: {
                     'projectDetails.team': new mongoose.Types.ObjectId(teamid),
-                    $or: [
-                        { status: { $in: ['unarchived', 'On-going'] } },
-                        { status: { $exists: false } },
-                        { status: '' },
-                        { status: null }
-                    ]
+                    // $or: [
+                    //     { status: { $in: ['unarchived', 'On-going'] } },
+                    //     { status: { $exists: false } },
+                    //     { status: '' },
+                    //     { status: null }
+                    // ]
                 }
             },
             { $unwind: '$projectDetails' },
