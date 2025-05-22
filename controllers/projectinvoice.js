@@ -128,6 +128,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                     let: { jobComponentId: "$_id" },
                     pipeline: [
                         { $match: { $expr: { $eq: ["$jobcomponent", "$$jobComponentId"] } } },
+                        { $match: { status: { $in: ['Pending', 'Approved'] } } },
                         { $sort: { createdAt: -1 } },
                         { $limit: 1 }
                     ],
@@ -268,7 +269,7 @@ exports.listcomponentprojectinvoice = async (req, res) => {
                                 wip: Math.max(((item.subconts || 0) + ((item.estimatedbudget - ((item.invoice.percentage / 100) * item.estimatedbudget)) - totalvalue) + totalFirstThree), 0)
                             },
                             rates: {
-                                invoiced: item.estimatedbudget * totalvalue,
+                                invoiced: item.invoice.amount,
                                 wip: totalFirstThree,
                             }
                         };
