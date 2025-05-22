@@ -5307,12 +5307,7 @@ exports.getsuperadminjobcomponentdashboard = async (req, res) => {
 
                                         if (memberEmployeeId === memberDetailsOwnerId) {
                                             const dates = Array.isArray(member.dates) ? member.dates : [];
-                                            console.log('----------------------------------------')
-                                            console.log('job component name: ', job.jobcomponent);
-                                            console.log('member', member)
-                                            console.log('dates:', member.dates);
                                             dates.forEach(date => {
-                                                console.log('fourth iteration loop')
                                                 if (date && date.date) {
                                                     const formattedDate = moment(date.date).format('YYYY-MM-DD');
                                                     let dateEntry = employeeData.dates.find(d => d.date === formattedDate);
